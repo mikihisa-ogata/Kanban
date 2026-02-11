@@ -1,0 +1,10 @@
+ID,Title,Done,Deadline,Status
+1,Go言語を学習する,false,2026-03-31,Waiting
+3,ユニットテストを書く,false,2026-03-15,InProgress
+4,ドキュメントを作成する,false,2026-04-30,InProgress
+5,本番環境にデプロイする,false,2026-05-15,Open
+7,進行中のタスク,false,2026-06-15,Open
+8,銀行口座の開設,false,2026-06-15,Waiting
+9,部屋の掃除,false,2026-02-13,Open
+10,友達の誕生日プレゼントを購入,false,2026-12-11,Open
+11,夜ご飯を作る,false,2026-02-11,Closed
