@@ -1,5 +1,14 @@
 <template>
-  <div class="bg-white rounded-2xl p-8 shadow-lg mx-auto max-w-2xl">
+  <div class="bg-white rounded-2xl p-8 shadow-2xl mx-4 max-w-2xl w-full max-h-96 overflow-y-auto relative">
+    <!-- 閉じるボタン -->
+    <button 
+      @click="$emit('close')"
+      class="absolute top-4 right-4 bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 hover:text-gray-600 transition-all duration-200"
+      title="閉じる"
+    >
+      ×
+    </button>
+    
     <h3 class="m-0 mb-6 text-2xl font-bold text-gray-900">新しいタスクを作成</h3>
     <form @submit.prevent="handleSubmit">
       <div class="mb-6">
@@ -59,14 +68,26 @@
 </template>
 
 <script setup>
-import { ref, defineEmits } from 'vue';
+import { ref, defineEmits, defineProps, watch } from 'vue';
 
-const emit = defineEmits(['submit']);
+const props = defineProps({
+  initialStatus: {
+    type: String,
+    default: 'Open'
+  }
+});
+
+const emit = defineEmits(['submit', 'close']);
 
 const formData = ref({
   title: '',
   deadline: '',
-  status: 'Open'
+  status: props.initialStatus
+});
+
+// initialStatusが変更された時に formData.status を更新
+watch(() => props.initialStatus, (newStatus) => {
+  formData.value.status = newStatus;
 });
 
 const isSubmitting = ref(false);
@@ -81,7 +102,7 @@ const handleSubmit = async () => {
     formData.value = {
       title: '',
       deadline: '',
-      status: 'Open'
+      status: props.initialStatus
     };
   } finally {
     isSubmitting.value = false;

@@ -1,7 +1,5 @@
 <template>
   <div class="px-8 py-8 min-h-screen">
-    <TaskForm @submit="handleCreateTodo" />
-    
     <div class="flex gap-6 overflow-x-auto pb-6 mt-6">
       <KanbanColumn
         v-for="column in columns"
@@ -11,11 +9,25 @@
         :tasks="getTasksByStatus(column.status)"
         @drop="handleDrop"
         @delete-task="handleDeleteTodo"
+        @add-task="openModal"
       />
     </div>
     
     <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
       {{ error }}
+    </div>
+    
+    <!-- モーダル背景 -->
+    <div 
+      v-if="showModalForm"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeModal"
+    >
+      <TaskForm 
+        :initial-status="modalInitialStatus"
+        @submit="handleCreateTodoFromModal"
+        @close="closeModal"
+      />
     </div>
   </div>
 </template>
@@ -28,6 +40,8 @@ import { todosApi } from '../api/todos';
 
 const todos = ref([]);
 const error = ref('');
+const showModalForm = ref(false);
+const modalInitialStatus = ref('Open');
 
 const columns = [
   { status: 'Open', title: 'オープン' },
@@ -66,6 +80,24 @@ const handleCreateTodo = async (formData) => {
     error.value = 'タスクの作成に失敗しました: ' + err.message;
     console.error('Failed to create todo:', err);
   }
+};
+
+// モーダルからのタスク作成
+const handleCreateTodoFromModal = async (formData) => {
+  await handleCreateTodo(formData);
+  closeModal();
+};
+
+// モーダルを開く
+const openModal = (status) => {
+  modalInitialStatus.value = status;
+  showModalForm.value = true;
+};
+
+// モーダルを閉じる
+const closeModal = () => {
+  showModalForm.value = false;
+  modalInitialStatus.value = 'Open';
 };
 
 // ドラッグ&ドロップでステータスを更新

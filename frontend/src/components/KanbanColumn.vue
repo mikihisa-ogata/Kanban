@@ -27,6 +27,14 @@
       <div v-if="tasks.length === 0" class="text-center py-10 text-gray-400 text-sm italic">
         タスクがありません
       </div>
+      
+      <!-- +ボタン -->
+      <button
+        @click="$emit('add-task', status)"
+        class="w-full mt-4 py-3 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 border-2 border-dashed border-gray-400 rounded-lg text-base font-semibold cursor-pointer transition-all duration-200"
+      >
+        + タスクを追加
+      </button>
     </div>
   </div>
 </template>
@@ -50,7 +58,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['drop', 'delete-task']);
+const emit = defineEmits(['drop', 'delete-task', 'add-task']);
 
 const isDragOver = ref(false);
 
