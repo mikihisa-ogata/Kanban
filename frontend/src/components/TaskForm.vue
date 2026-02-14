@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-2xl p-8 shadow-2xl mx-4 max-w-2xl w-full max-h-96 overflow-y-auto relative">
+  <div class="bg-white rounded-2xl p-8 shadow-2xl mx-4 max-w-2xl w-full max-h-120 overflow-y-auto relative">
     <!-- 閉じるボタン -->
     <button 
       @click="$emit('close')"
