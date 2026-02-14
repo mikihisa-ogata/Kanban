@@ -1,8 +1,8 @@
 <template>
-  <div class="kanban-board">
+  <div class="px-8 py-8 min-h-screen">
     <TaskForm @submit="handleCreateTodo" />
     
-    <div class="board-columns">
+    <div class="flex gap-6 overflow-x-auto pb-6 mt-6">
       <KanbanColumn
         v-for="column in columns"
         :key="column.status"
@@ -14,7 +14,7 @@
       />
     </div>
     
-    <div v-if="error" class="error-message">
+    <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
       {{ error }}
     </div>
   </div>
@@ -118,55 +118,3 @@ onMounted(() => {
   fetchTodos();
 });
 </script>
-
-<style scoped>
-.kanban-board {
-  padding: 24px;
-  min-height: 100vh;
-}
-
-.board-columns {
-  display: flex;
-  gap: 20px;
-  overflow-x: auto;
-  padding-bottom: 20px;
-}
-
-.error-message {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 16px 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-width: 400px;
-  font-size: 14px;
-  font-weight: 600;
-  animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-  .kanban-board {
-    padding: 16px;
-  }
-  
-  .board-columns {
-    flex-direction: column;
-    gap: 16px;
-  }
-}
-</style>

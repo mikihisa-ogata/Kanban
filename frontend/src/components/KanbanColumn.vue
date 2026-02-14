@@ -1,23 +1,30 @@
 <template>
   <div 
-    class="kanban-column"
-    :class="{ 'drag-over': isDragOver }"
+    :class="[
+      'bg-gray-50 rounded-xl p-5 flex-1 min-w-64 max-w-sm flex flex-col min-h-96 transition-all duration-200 border-2 border-transparent shadow-md',
+      isDragOver ? 'bg-blue-50 border-blue-500 shadow-lg shadow-blue-300' : ''
+    ]"
     @dragover.prevent="handleDragOver"
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
-    <div class="column-header" :class="`header-${status.toLowerCase()}`">
-      <h2 class="column-title">{{ title }}</h2>
-      <span class="task-count">{{ tasks.length }}</span>
+    <div 
+      :class="[
+        'flex justify-between items-center px-5 py-4 rounded-lg mb-5 text-white shadow-md',
+        statusHeaderClass
+      ]"
+    >
+      <h2 class="m-0 text-xl font-bold tracking-wide">{{ title }}</h2>
+      <span class="bg-white bg-opacity-35 text-white px-3 py-1.5 rounded-full text-sm font-bold">{{ tasks.length }}</span>
     </div>
-    <div class="column-content">
+    <div class="flex-1 overflow-y-auto px-2">
       <TaskCard
         v-for="task in tasks"
         :key="task.ID"
         :task="task"
         @delete="$emit('delete-task', $event)"
       />
-      <div v-if="tasks.length === 0" class="empty-state">
+      <div v-if="tasks.length === 0" class="text-center py-10 text-gray-400 text-sm italic">
         タスクがありません
       </div>
     </div>
@@ -25,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue';
+import { ref, defineProps, defineEmits, computed } from 'vue';
 import TaskCard from './TaskCard.vue';
 
 const props = defineProps({
@@ -47,6 +54,16 @@ const emit = defineEmits(['drop', 'delete-task']);
 
 const isDragOver = ref(false);
 
+const statusHeaderClass = computed(() => {
+  const statusMap = {
+    'Open': 'bg-gradient-to-r from-gray-400 to-gray-600',
+    'InProgress': 'bg-gradient-to-r from-amber-400 to-amber-600',
+    'Waiting': 'bg-gradient-to-r from-purple-500 to-purple-700',
+    'Closed': 'bg-gradient-to-r from-emerald-500 to-emerald-700'
+  };
+  return statusMap[props.status] || '';
+});
+
 const handleDragOver = (event) => {
   event.preventDefault();
   event.dataTransfer.dropEffect = 'move';
@@ -64,100 +81,3 @@ const handleDrop = (event) => {
   emit('drop', { taskId, newStatus: props.status });
 };
 </script>
-
-<style scoped>
-.kanban-column {
-  background: #f9fafb;
-  border-radius: 12px;
-  padding: 16px;
-  flex: 1;
-  min-width: 220px;
-  max-width: 350px;
-  display: flex;
-  flex-direction: column;
-  height: fit-content;
-  min-height: 400px;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
-}
-
-.kanban-column.drag-over {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
-}
-
-.column-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-
-.header-open {
-  background: linear-gradient(135deg, #cbcbcb 0%, #a9a9a9 100%);
-}
-
-.header-inprogress {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.header-waiting {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-}
-
-.header-closed {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.column-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: white;
-  letter-spacing: 0.5px;
-}
-
-.task-count {
-  background: rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.column-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #9ca3af;
-  font-size: 14px;
-  font-style: italic;
-}
-
-/* スクロールバーのスタイリング */
-.column-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.column-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.column-content::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
-}
-
-.column-content::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-</style>
