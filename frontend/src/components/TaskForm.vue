@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-2xl p-8 shadow-lg mx-auto max-w-2xl border-t-4 border-blue-500">
+  <div class="bg-white rounded-2xl p-8 shadow-lg mx-auto max-w-2xl">
     <h3 class="m-0 mb-6 text-2xl font-bold text-gray-900">新しいタスクを作成</h3>
     <form @submit.prevent="handleSubmit">
       <div class="mb-6">

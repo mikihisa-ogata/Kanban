@@ -15,7 +15,7 @@
       ]"
     >
       <h2 class="m-0 text-xl font-bold tracking-wide">{{ title }}</h2>
-      <span class="bg-white bg-opacity-35 text-white px-3 py-1.5 rounded-full text-sm font-bold">{{ tasks.length }}</span>
+      <span class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ tasks.length }}</span>
     </div>
     <div class="flex-1 overflow-y-auto px-2">
       <TaskCard
