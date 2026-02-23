@@ -1,0 +1,8 @@
+services:
+  bff:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./todos.csv:/app/todos.csv
+    restart: always

@@ -24,21 +24,47 @@ bff/
 │       └── toodo.go         # ビジネスロジック
 ├── go.mod
 ├── todos.csv                # TODOデータ
+├── Dockerfile               # Dockerビルド設定
+├── docker-compose.yml       # Docker Compose設定
 └── README.md
 ```
 
 ## 起動方法
 
 ### 前提条件
-- Go 1.16 以上
+- [Docker](https://www.docker.com/)
+- [Docker Compose](https://docs.docker.com/compose/)
 
-### サーバーの起動
+### Dockerを使用した起動
+
+Dockerを使用することで、環境構築なしでサーバーを起動できます。データは `todos.csv` に永続化されます。
+
+```bash
+docker compose up -d
+```
+
+サーバーは `http://localhost:8080` で起動します。
+
+ログを確認する場合：
+```bash
+docker compose logs -f
+```
+
+停止する場合：
+```bash
+docker compose down
+```
+
+### ローカルでの起動（Dockerを使用しない場合）
+
+#### 前提条件
+- Go 1.23 以上
+
+#### サーバーの起動
 
 ```bash
 go run ./cmd/main.go
 ```
-
-サーバーは `http://localhost:8080` で起動します。
 
 ## API エンドポイント
 
@@ -52,11 +78,11 @@ GET /todos
 ```json
 [
   {
-    "id": "1",
-    "title": "タスク1",
-    "description": "説明",
-    "status": "todo",
-    "createdAt": "2026-02-11T00:00:00Z"
+    "ID": 1,
+    "Title": "タスク1",
+    "Done": false,
+    "Deadline": "2026-03-31",
+    "Status": "Waiting"
   }
 ]
 ```
@@ -70,9 +96,9 @@ POST /todos
 **リクエスト:**
 ```json
 {
-  "title": "新しいタスク",
-  "description": "タスクの説明",
-  "status": "todo"
+  "Title": "新しいタスク",
+  "Deadline": "2026-03-31",
+  "Status": "Open"
 }
 ```
 
@@ -85,9 +111,10 @@ PUT /todos/:id
 **リクエスト:**
 ```json
 {
-  "title": "更新されたタスク",
-  "description": "更新された説明",
-  "status": "in_progress"
+  "Title": "更新されたタスク",
+  "Done": true,
+  "Deadline": "2026-03-31",
+  "Status": "InProgress"
 }
 ```
 
@@ -108,21 +135,7 @@ DELETE /todos/:id
 
 ## データ永続化
 
-TODOデータはプロジェクトルート直下の `todos.csv` ファイルに保存されます。
-
-## 開発
-
-### 依存関係
-
-```bash
-go mod download
-```
-
-### テスト（実装予定）
-
-```bash
-go test ./...
-```
+TODOデータはプロジェクトルート直下の `todos.csv` ファイルに保存されます。Docker環境ではボリュームマウントされており、ホスト側のファイルを直接更新・参照可能です。
 
 ## ライセンス
 
