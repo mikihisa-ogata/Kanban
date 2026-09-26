@@ -33,10 +33,10 @@ argument-hint: <issue番号>
 次の中から、変更した側に当てはまるものをすべて実行し、すべて通るまで直す。
 
 - bff: `cd bff && go build ./... && go vet ./... && go test ./...`
-- frontend: `cd frontend && npm run build`
+- frontend: `cd frontend && npm run build:verify`（`npm run build` は起動中の dev サーバーを壊すので使わない）
 - 画面や API の挙動が変わる場合は、実際に動かして確認する。
   - API: スクラッチ用のディレクトリに `bff/*.example.csv` を `todos.csv` / `epics.csv` としてコピーし、`go build -o <scratch>/bff ./cmd` でビルドしたバイナリをそのディレクトリで起動して、`curl` で確認する。ポート 8080 が使用中なら、オーナーのプロセスは止めない。代わりに httptest のテストで確認する。
-  - 画面: claude-in-chrome スキルで http://localhost:3000 を開き、変更箇所を確認する。オーナーが起動中のサーバーでは表示確認のみ行い、データを変更する操作はしない。サーバーが起動していない場合は、上のスクラッチ用の bff と `npm run dev` を自分で起動して操作を確認し、終わったら自分で起動したプロセスを止める。
+  - 画面: claude-in-chrome スキルで http://localhost:5173 を開き、変更箇所を確認する。オーナーが起動中のサーバーでは表示確認のみ行い、データを変更する操作はしない。サーバーが起動していない場合は、上のスクラッチ用の bff と `npm run dev -- --port 5173` を自分で起動して操作を確認し、終わったら自分で起動したプロセスを止める。
   - Chrome 連携が使えないなど、確認できなかったことは報告に「未確認」として正直に書く。
 
 ## 5. セルフレビュー

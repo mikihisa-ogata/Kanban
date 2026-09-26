@@ -7,7 +7,8 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
-    "generate": "nuxt generate"
+    "generate": "nuxt generate",
+    "build:verify": "NUXT_BUILD_DIR=.nuxt-verify nuxt build"
   },
   "dependencies": {
     "nuxt": "^3.16.0",

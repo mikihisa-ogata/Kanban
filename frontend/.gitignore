@@ -16,3 +16,4 @@ dist-ssr
 .nuxt
 .output
 nuxt.d.ts
+.nuxt-verify

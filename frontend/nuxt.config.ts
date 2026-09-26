@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   srcDir: 'src',
 
+  // 起動中の nuxt dev と .nuxt を取り合わないよう、検証用ビルドは別ディレクトリに出力できるようにする
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
+
   devtools: { enabled: true },
 
   css: ['~/style.css'],
