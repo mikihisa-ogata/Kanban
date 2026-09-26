@@ -23,7 +23,8 @@ bff/
 │   └── service/
 │       └── toodo.go         # ビジネスロジック
 ├── go.mod
-├── todos.csv                # TODOデータ
+├── todos.example.csv        # TODOデータの雛形（todos.csv はgit管理外）
+├── epics.example.csv        # エピックデータの雛形（epics.csv はgit管理外）
 ├── Dockerfile               # Dockerビルド設定
 ├── docker-compose.yml       # Docker Compose設定
 └── README.md
@@ -37,9 +38,13 @@ bff/
 
 ### Dockerを使用した起動
 
-Dockerを使用することで、環境構築なしでサーバーを起動できます。データは `todos.csv` に永続化されます。
+Dockerを使用することで、環境構築なしでサーバーを起動できます。データは `todos.csv` と `epics.csv` に永続化されます。
+
+初回のみ、雛形からデータファイルを作成してください（ファイルがないとDockerがディレクトリを作成してしまうため）。
 
 ```bash
+cp -n todos.example.csv todos.csv
+cp -n epics.example.csv epics.csv
 docker compose up -d
 ```
 
@@ -135,7 +140,7 @@ DELETE /todos/:id
 
 ## データ永続化
 
-TODOデータはプロジェクトルート直下の `todos.csv` ファイルに保存されます。Docker環境ではボリュームマウントされており、ホスト側のファイルを直接更新・参照可能です。
+TODOデータは `bff/todos.csv`、エピックデータは `bff/epics.csv` に保存されます。どちらも個人のチケットデータのため git 管理外で、リポジトリには雛形の `*.example.csv` のみを置いています。`go run` で起動する場合はファイルがなくても自動で作成されます。Docker環境ではボリュームマウントされており、ホスト側のファイルを直接更新・参照可能です。
 
 ## ライセンス
 
