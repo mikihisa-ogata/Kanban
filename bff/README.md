@@ -4,33 +4,33 @@ Go言語で実装されたTodo APIのバックエンドです。
 
 ## 概要
 
-このバックエンドは、フロントエンドからのリクエストを処理し、TODOタスクの管理機能を提供します。CSVファイルを使用してデータを永続化します。
+このバックエンドは、フロントエンドからのリクエストを処理し、TODOタスクの管理機能を提供します。データは MySQL に保存します。
 
 ## プロジェクト構成
 
 ```
 bff/
 ├── cmd/
-│   └── main.go              # アプリケーション エントリーポイント
+│   ├── main.go              # アプリケーション エントリーポイント
+│   └── import-csv/          # CSV 保存時代のデータを MySQL に取り込むコマンド
 ├── internal/
 │   ├── database/
-│   │   └── database.go      # MySQL への接続とテーブル作成
+│   │   ├── database.go      # MySQL への接続とテーブル作成
+│   │   └── dbtest/          # MySQL を使うテストの準備
 │   ├── domain/
 │   │   └── todo.go          # TODOドメインモデル
 │   ├── handler/
 │   │   └── todo.go          # HTTPハンドラー
 │   ├── repository/
-│   │   ├── todo_repository.go       # リポジトリインターフェース
-│   │   └── todo_repository_impl.go  # リポジトリ実装
+│   │   ├── todo_repository.go        # リポジトリインターフェース
+│   │   ├── todo_repository_mysql.go  # リポジトリ実装（MySQL）
+│   │   └── csv_import.go             # CSV からの取り込み
 │   └── service/
 │       └── toodo.go         # ビジネスロジック
 ├── go.mod
-├── todos.example.csv        # TODOデータの雛形（todos.csv はgit管理外）
-├── epics.example.csv        # エピックデータの雛形（epics.csv はgit管理外）
-├── spaces.example.csv       # スペースデータの雛形（spaces.csv はgit管理外）
 ├── Dockerfile               # Dockerビルド設定
 ├── docker-compose.yml       # Docker Compose設定
-├── .dockerignore            # CSV をイメージに含めない設定
+├── .dockerignore            # CSV（旧データ）をイメージに含めない設定
 └── README.md
 ```
 
@@ -42,14 +42,9 @@ bff/
 
 ### Dockerを使用した起動
 
-Dockerを使用することで、環境構築なしでサーバーを起動できます。データは `todos.csv`・`epics.csv`・`spaces.csv` に永続化されます。
-
-初回のみ、雛形からデータファイルを作成してください（ファイルがないとDockerがディレクトリを作成してしまうため）。
+Dockerを使用することで、環境構築なしでサーバーを起動できます。`bff` と `mysql`（MySQL 8.4、ポート 3306）が起動し、データは名前付きボリューム `mysql-data` に保存されます。
 
 ```bash
-cp -n todos.example.csv todos.csv
-cp -n epics.example.csv epics.csv
-cp -n spaces.example.csv spaces.csv
 docker compose up -d
 ```
 
@@ -69,12 +64,15 @@ docker compose down
 
 #### 前提条件
 - Go 1.23 以上
+- MySQL（Docker で MySQL だけを起動する場合は `docker compose up -d mysql`）
 
 #### サーバーの起動
 
 ```bash
 go run ./cmd/main.go
 ```
+
+接続先は環境変数 `DB_DSN` で指定します（未設定の場合は `kanban:kanban@tcp(localhost:3306)/kanban`）。起動時にテーブルがなければ作成します。
 
 ## API エンドポイント
 
@@ -156,7 +154,7 @@ POST /todos/:id/move
 }
 ```
 
-タスクを `BeforeID` のタスクの直前へ移動します。`BeforeID` が 0 または省略の場合は末尾へ移動します。`GET /todos` はこの並び順（`todos.csv` の行の順番）で返します。
+タスクを `BeforeID` のタスクの直前へ移動します。`BeforeID` が 0 または省略の場合は末尾へ移動します。`GET /todos` はこの並び順（`todos.position`）で返します。
 
 `EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
 
@@ -194,26 +192,27 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-TODOデータは `bff/todos.csv`、エピックデータは `bff/epics.csv`、スペースデータは `bff/spaces.csv` に保存されます。いずれも個人のチケットデータのため git 管理外で、リポジトリには雛形の `*.example.csv` のみを置いています。`go run` で起動する場合はファイルがなくても自動で作成されます。Docker環境ではボリュームマウントされており、ホスト側のファイルを直接更新・参照可能です。
+データは MySQL の `spaces`・`epics`・`todos` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
-`todos.csv` の列は `ID,Title,Done,Deadline,Status,EpicID,Description,SpaceID` で、行の順番がタスクの表示順になります。`epics.csv` の列は `ID,Title,SpaceID`、`spaces.csv` の列は `ID,Title` です。`Description` や `SpaceID` の列がない旧形式のファイルもそのまま読み込め（`SpaceID` は 0 = 未割り当て）、次に書き込んだときに列が追加されます。
+- `todos.position` がタスクの表示順です。
+- `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
+- `Deadline` は `DATE` 型で、期限なし（空文字）は `NULL` として保存します。
 
-Docker で起動している場合、`spaces.csv` がないと Docker がディレクトリを作成してしまうため、更新後は `cp -n spaces.example.csv spaces.csv` を実行してから起動し直してください。
+### CSV からの移行
 
-## MySQL（CSV からの移行中）
-
-データの保存先を CSV から MySQL へ移行している途中です（issue #4）。Repository の MySQL 実装（`internal/repository/*_mysql.go`）はできていますが、CSV からのデータ移行が済むまでは API は CSV を使っており、MySQL には接続しません。
-
-- 接続先は環境変数 `DB_DSN` で指定します（例: `kanban:kanban@tcp(localhost:3306)/kanban`）。未設定の場合はこの例の値を使います。
-- `docker compose up -d` を実行すると `mysql`（MySQL 8.4、ポート 3306）も起動します。データは名前付きボリューム `mysql-data` に保存されます。
-- テーブル（`spaces`・`epics`・`todos`）は `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。`todos.position` はタスクの表示順です。
-
-### テスト
-
-MySQL を使うテストは、環境変数 `TEST_DB_DSN` にテスト専用のデータベースを指定したときだけ実行されます（未設定の場合はスキップされます）。テストはテーブルの中身を消すことがあるので、実データのデータベースは指定しないでください。
+以前はデータを `todos.csv`・`epics.csv`・`spaces.csv` に保存していました。これらのファイルを MySQL に取り込むには、`bff/` で次を実行します（`DB_DSN` の MySQL に取り込みます）。ID とタスクの並び順はそのまま引き継ぎます。CSV は読むだけで変更しません。取り込み先のテーブルが空でない場合は何もしません。
 
 ```bash
-TEST_DB_DSN='kanban:kanban@tcp(localhost:3306)/kanban_test' go test ./...
+go run ./cmd/import-csv            # カレントディレクトリの CSV を取り込む
+go run ./cmd/import-csv -dir 別の場所  # 別のディレクトリの CSV を取り込む
+```
+
+## テスト
+
+MySQL を使うテストは、環境変数 `TEST_DB_DSN` を指定したときだけ実行されます（未設定の場合はスキップされます）。テストは `TEST_DB_DSN` のデータベース名に `_repository`・`_handler` などを付けたデータベースを作り、中身を消しながら使います。そのため、DSN のユーザーにはデータベースを作成する権限が必要です。実データのデータベースは指定しないでください。
+
+```bash
+TEST_DB_DSN='root:root@tcp(localhost:3306)/kanban_test' go test ./...
 ```
 
 ## ライセンス

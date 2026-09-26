@@ -4,37 +4,42 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 
+	"todo-api/internal/database/dbtest"
 	"todo-api/internal/domain"
 	"todo-api/internal/repository"
 	"todo-api/internal/service"
 )
 
+type testRepos struct {
+	todo  repository.TodoRepository
+	epic  repository.EpicRepository
+	space repository.SpaceRepository
+}
+
+// newTestRepos は空のテスト用 MySQL を使うリポジトリを返す（TEST_DB_DSN が未設定ならスキップ）
+func newTestRepos(t *testing.T) testRepos {
+	t.Helper()
+	db := dbtest.Open(t, "handler")
+	return testRepos{
+		todo:  repository.NewTodoMySQLRepository(db),
+		epic:  repository.NewEpicMySQLRepository(db),
+		space: repository.NewSpaceMySQLRepository(db),
+	}
+}
+
 func setupTodoRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	dir := t.TempDir()
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(wd); err != nil {
-			t.Fatal(err)
-		}
-	})
+	return newTodoRouter(newTestRepos(t))
+}
 
+func newTodoRouter(repos testRepos) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	todoRepo := repository.NewTodoRepository()
-	epicRepo := repository.NewEpicRepository()
-	h := NewTodoHandler(service.NewTodoService(todoRepo, epicRepo, repository.NewSpaceRepository()))
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)

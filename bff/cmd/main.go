@@ -1,9 +1,13 @@
 package main
 
 import (
+	"log"
+	"time"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	"todo-api/internal/database"
 	"todo-api/internal/handler"
 	"todo-api/internal/repository"
 	"todo-api/internal/service"
@@ -21,9 +25,19 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	repo := repository.NewTodoRepository()
-	epicRepo := repository.NewEpicRepository()
-	spaceRepo := repository.NewSpaceRepository()
+	// docker compose で MySQL と同時に起動しても待てるよう、接続は 30 秒まで再試行する
+	db, err := database.Open(database.DSNFromEnv(), 30*time.Second)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(db); err != nil {
+		log.Fatal(err)
+	}
+
+	repo := repository.NewTodoMySQLRepository(db)
+	epicRepo := repository.NewEpicMySQLRepository(db)
+	spaceRepo := repository.NewSpaceMySQLRepository(db)
 	svc := service.NewTodoService(repo, epicRepo, spaceRepo)
 	h := handler.NewTodoHandler(svc)
 	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo)
@@ -46,5 +60,7 @@ func main() {
 	r.POST("/spaces", spaceHandler.CreateSpace)
 	r.DELETE("/spaces/:id", spaceHandler.DeleteSpace)
 
-	r.Run(":8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal(err)
+	}
 }

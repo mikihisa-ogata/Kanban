@@ -2,36 +2,15 @@ package repository
 
 import (
 	"database/sql"
-	"os"
 	"testing"
-	"time"
 
-	"todo-api/internal/database"
+	"todo-api/internal/database/dbtest"
 	"todo-api/internal/domain"
 )
 
-// openTestDB は環境変数 TEST_DB_DSN の MySQL に接続し、全テーブルを空にして返す。
-// 未設定ならテストをスキップする。実データの DB を壊さないよう、テスト専用のデータベースを指定すること
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv("TEST_DB_DSN")
-	if dsn == "" {
-		t.Skip("TEST_DB_DSN が未設定のため MySQL を使うテストをスキップする")
-	}
-	db, err := database.Open(dsn, 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { db.Close() })
-	if err := database.Migrate(db); err != nil {
-		t.Fatal(err)
-	}
-	for _, table := range []string{"todos", "epics", "spaces"} {
-		if _, err := db.Exec("TRUNCATE TABLE " + table); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return db
+	return dbtest.Open(t, "repository")
 }
 
 func TestTodoMySQLRepository_CRUD(t *testing.T) {
@@ -225,4 +204,17 @@ func TestSpaceMySQLRepository_CRUD(t *testing.T) {
 	if len(spaces) != 1 || spaces[0] != (domain.Space{ID: 2, Title: "s2"}) {
 		t.Errorf("spaces = %+v, want [{2 s2}]", spaces)
 	}
+}
+
+func todoIDs(t *testing.T, repo TodoRepository) []int {
+	t.Helper()
+	todos, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := []int{}
+	for _, todo := range todos {
+		ids = append(ids, todo.ID)
+	}
+	return ids
 }

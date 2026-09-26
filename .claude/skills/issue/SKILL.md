@@ -25,17 +25,17 @@ argument-hint: <issue番号>
 ## 3. 実装する
 
 - 既存の書き方に合わせ、issue の範囲外の変更（ついでのリファクタリングなど）はしない。
-- bff のロジックやハンドラーを変更したら、`go test` で確かめられるテストを `_test.go` に追加する。Repository のテストでは、カレントディレクトリを `t.TempDir()` に切り替えて実データに触れないようにする（go.mod は Go 1.23 のため、`t.Chdir` ではなく `os.Chdir` を使い、終了時に元へ戻す）。
+- bff のロジックやハンドラーを変更したら、`go test` で確かめられるテストを `_test.go` に追加する。DB を使うテストでは `internal/database/dbtest` の `dbtest.Open(t, "<パッケージ名>")` で空のテスト用データベースを用意し、実データに触れないようにする。
 - フロントにはテストランナーがないので、新しく導入しない。
 
 ## 4. 自分で検証する
 
 次の中から、変更した側に当てはまるものをすべて実行し、すべて通るまで直す。
 
-- bff: `cd bff && go build ./... && go vet ./... && go test ./...`
+- bff: 検証用 MySQL（`CLAUDE.md` のコマンド表）を起動し、`cd bff && go build ./... && go vet ./... && TEST_DB_DSN='root:root@tcp(127.0.0.1:3307)/kanban_test' go test ./...`。MySQL を使うテストが SKIP ではなく PASS になっていることを確かめる。
 - frontend: `cd frontend && pnpm build:verify`（`pnpm build` は起動中の dev サーバーを壊すので使わない）
 - 画面や API の挙動が変わる場合は、実際に動かして確認する。
-  - API: スクラッチ用のディレクトリに `bff/*.example.csv` を `todos.csv` / `epics.csv` / `spaces.csv` としてコピーし、`go build -o <scratch>/bff ./cmd` でビルドしたバイナリをそのディレクトリで起動して、`curl` で確認する。ポート 8080 が使用中なら、検証のためにオーナーのプロセスは止めない。代わりに別ポートで起動するか、httptest のテストで確認する。
+  - API: `go build -o <scratch>/bff ./cmd` でビルドしたバイナリを `DB_DSN='root:root@tcp(127.0.0.1:3307)/kanban_verify'` を付けて起動し、`curl` で確認する（データベース `kanban_verify` は事前に作成しておく）。ポート 8080 が使用中なら、検証のためにオーナーのプロセスは止めない。代わりに別ポートで起動するか、httptest のテストで確認する。
   - 画面: claude-in-chrome スキルで http://localhost:3000 を開き、変更箇所を確認する。オーナーが起動中のサーバーでは表示確認のみ行い、データを変更する操作はしない。サーバーが起動していない場合は、上のスクラッチ用の bff と `pnpm dev` を自分で起動して操作を確認し、終わったら自分で起動したプロセスを止める。
   - Chrome 連携が使えないなど、確認できなかったことは報告に「未確認」として正直に書く。
 
@@ -56,8 +56,8 @@ bff を変更して push した場合は、オーナーが起動中の bff に�
 
 - `lsof -iTCP:8080 -sTCP:LISTEN` で起動中か確認する。起動していなければ何もしない。
 - `ps -o pid,ppid,command` と `lsof -a -p <pid> -d cwd` で起動方法を確かめる。
-  - `go run ./cmd/main.go`（カレントが `bff/`）の場合: 子プロセス（`go-build/.../main`）と親の `go run` を `kill` し、8080 が空いたら `cd bff && nohup go run ./cmd/main.go >> ~/Library/Logs/kanban-bff.log 2>&1 < /dev/null & disown` で起動し直す。セッション終了後も動き続けるよう、バックグラウンドタスク（run_in_background）では起動しない。
-  - Docker（`docker compose`）の場合: 新しい CSV ファイルが必要なら先に `cp -n` で雛形から作り、`cd bff && docker compose up -d --build` で作り直す。
+  - `go run ./cmd/main.go`（カレントが `bff/`）の場合: 先に `lsof -iTCP:3306 -sTCP:LISTEN` で MySQL が動いていることを確かめ（動いていなければ `cd bff && docker compose up -d mysql`）、子プロセス（`go-build/.../main`）と親の `go run` を `kill` し、8080 が空いたら `cd bff && nohup go run ./cmd/main.go >> ~/Library/Logs/kanban-bff.log 2>&1 < /dev/null & disown` で起動し直す。セッション終了後も動き続けるよう、バックグラウンドタスク（run_in_background）では起動しない。
+  - Docker（`docker compose`）の場合: `cd bff && docker compose up -d --build` で作り直す（`down -v` はしない。実データのボリュームが消える）。
   - それ以外の起動方法の場合は止めずに、報告に「再起動が必要」と書く。
 - 起動後に `curl` で GET の API が 200 を返すことを確かめる（POST・PUT・DELETE は実データを書き換えるので実行しない）。
 - 再起動できたかどうかを報告に書く。

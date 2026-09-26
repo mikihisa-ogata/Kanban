@@ -8,19 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"todo-api/internal/domain"
-	"todo-api/internal/repository"
 	"todo-api/internal/service"
 )
 
 func setupSpaceRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	r := setupTodoRouter(t)
+	repos := newTestRepos(t)
+	r := newTodoRouter(repos)
 
-	todoRepo := repository.NewTodoRepository()
-	epicRepo := repository.NewEpicRepository()
-	spaceRepo := repository.NewSpaceRepository()
-	eh := NewEpicHandler(service.NewEpicService(epicRepo, todoRepo, spaceRepo))
-	sh := NewSpaceHandler(service.NewSpaceService(spaceRepo, epicRepo, todoRepo))
+	eh := NewEpicHandler(service.NewEpicService(repos.epic, repos.todo, repos.space))
+	sh := NewSpaceHandler(service.NewSpaceService(repos.space, repos.epic, repos.todo))
 
 	r.GET("/epics", eh.GetEpics)
 	r.POST("/epics", eh.CreateEpic)
