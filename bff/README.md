@@ -27,7 +27,8 @@ bff/
 ├── epics.example.csv        # エピックデータの雛形（epics.csv はgit管理外）
 ├── spaces.example.csv       # スペースデータの雛形（spaces.csv はgit管理外）
 ├── Dockerfile               # Dockerビルド設定
-├── docker-compose.yml       # Docker Compose設定
+├── docker-compose.yml       # Docker Compose設定（bff のみ）
+├── .dockerignore            # CSV をイメージに含めない設定
 └── README.md
 ```
 
@@ -39,7 +40,7 @@ bff/
 
 ### Dockerを使用した起動
 
-Dockerを使用することで、環境構築なしでサーバーを起動できます。データは `todos.csv`・`epics.csv`・`spaces.csv` に永続化されます。
+Dockerを使用することで、環境構築なしでサーバーを起動できます。フロントエンドもまとめて起動する場合は、リポジトリのルートの `docker-compose.yml` を使います（[README.md](../README.md) を参照）。データは `todos.csv`・`epics.csv`・`spaces.csv` に永続化されます。
 
 初回のみ、雛形からデータファイルを作成してください（ファイルがないとDockerがディレクトリを作成してしまうため）。
 
