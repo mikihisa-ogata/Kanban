@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-2xl p-8 shadow-2xl mx-4 max-w-2xl w-full max-h-120 overflow-y-auto relative">
+  <div class="bg-white rounded-2xl px-8 pt-10 pb-6 shadow-2xl mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
     <!-- 閉じるボタン -->
     <button 
       @click="$emit('close')"
@@ -8,10 +8,9 @@
     >
       ×
     </button>
-    
-    <h3 class="m-0 mb-6 text-2xl font-bold text-gray-900">新しいタスクを作成</h3>
+
     <form @submit.prevent="handleSubmit">
-      <div class="mb-6">
+      <div class="mb-4">
         <label for="title" class="block mb-2 text-sm font-semibold text-gray-700">
           タイトル <span class="text-red-500">*</span>
         </label>
@@ -25,7 +24,7 @@
         />
       </div>
       
-      <div class="mb-6">
+      <div class="mb-4">
         <label for="description" class="block mb-2 text-sm font-semibold text-gray-700">
           説明
         </label>
@@ -38,7 +37,7 @@
         ></textarea>
       </div>
 
-      <div class="mb-6">
+      <div class="mb-4">
         <label for="deadline" class="block mb-2 text-sm font-semibold text-gray-700">
           期限
         </label>
@@ -50,7 +49,7 @@
         />
       </div>
       
-      <div class="mb-7">
+      <div class="mb-4">
         <label for="status" class="block mb-2 text-sm font-semibold text-gray-700">
           ステータス
         </label>
@@ -66,7 +65,7 @@
         </select>
       </div>
 
-      <div v-if="spaces.length" class="mb-7">
+      <div v-if="spaces.length" class="mb-4">
         <label for="space" class="block mb-2 text-sm font-semibold text-gray-700">
           スペース
         </label>
@@ -80,7 +79,7 @@
         </select>
       </div>
 
-      <div class="mb-7">
+      <div class="mb-4">
         <label for="epic" class="block mb-2 text-sm font-semibold text-gray-700">
           エピック
         </label>
