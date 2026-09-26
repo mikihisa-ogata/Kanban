@@ -16,6 +16,7 @@
         :epics="epics"
         @delete="$emit('delete-task', $event)"
         @change-epic="$emit('change-epic', $event)"
+        @open="$emit('open-task', $event)"
       />
       <!-- +ボタン -->
       <button
@@ -47,7 +48,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['drop', 'delete-task', 'add-task', 'change-epic']);
+const emit = defineEmits(['drop', 'delete-task', 'add-task', 'change-epic', 'open-task']);
 
 const isDragOver = ref(false);
 

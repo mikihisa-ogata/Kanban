@@ -99,7 +99,8 @@
           :disabled="isSubmitting"
           class="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 rounded-lg text-base font-semibold cursor-pointer transition-all duration-200 hover:enabled:-translate-y-0.5 hover:enabled:shadow-lg hover:enabled:shadow-blue-400 active:enabled:translate-y-0 active:enabled:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {{ isSubmitting ? '作成中...' : 'タスクを作成' }}
+          <template v-if="task">{{ isSubmitting ? '保存中...' : '保存' }}</template>
+          <template v-else>{{ isSubmitting ? '作成中...' : 'タスクを作成' }}</template>
         </button>
       </div>
     </form>
@@ -129,19 +130,33 @@ const props = defineProps({
   spaces: {
     type: Array,
     default: () => []
+  },
+  // 指定した場合は、そのタスクの詳細を表示・編集する
+  task: {
+    type: Object,
+    default: null
   }
 });
 
 const emit = defineEmits(['submit', 'close']);
 
-const formData = ref({
-  title: '',
-  description: '',
-  deadline: '',
-  status: props.initialStatus,
-  epicId: props.initialEpicId,
-  spaceId: props.initialSpaceId
-});
+const formData = ref(props.task
+  ? {
+      title: props.task.Title,
+      description: props.task.Description,
+      deadline: props.task.Deadline,
+      status: props.task.Status,
+      epicId: props.task.EpicID,
+      spaceId: props.task.SpaceID
+    }
+  : {
+      title: '',
+      description: '',
+      deadline: '',
+      status: props.initialStatus,
+      epicId: props.initialEpicId,
+      spaceId: props.initialSpaceId
+    });
 
 // 選択中のスペースに属するエピックだけを選べる
 const spaceEpics = computed(() => props.epics.filter(epic => epic.SpaceID === formData.value.spaceId));
@@ -166,6 +181,7 @@ const handleSubmit = async () => {
   isSubmitting.value = true;
   try {
     await emit('submit', { ...formData.value });
+    if (props.task) return;
     // フォームをリセット
     formData.value = {
       title: '',

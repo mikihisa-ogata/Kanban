@@ -32,6 +32,7 @@
         @drop="$emit('drop', { ...$event, epicId: epic ? epic.ID : 0 })"
         @change-epic="$emit('change-epic', $event)"
         @delete-task="$emit('delete-task', $event)"
+        @open-task="$emit('open-task', $event)"
         @add-task="$emit('add-task', { status: $event, epicId: epic ? epic.ID : 0 })"
       />
     </div>
@@ -68,7 +69,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['drop', 'change-epic', 'delete-task', 'add-task', 'delete-epic']);
+const emit = defineEmits(['drop', 'change-epic', 'delete-task', 'add-task', 'delete-epic', 'open-task']);
 
 // 子タスクのうちクローズ済みの件数 / 全件数
 const progressLabel = computed(() => {

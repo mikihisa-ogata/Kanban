@@ -43,6 +43,7 @@
             @delete-task="handleDeleteTodo"
             @add-task="openModal"
             @delete-epic="handleDeleteEpic"
+            @open-task="openDetailModal"
           />
 
           <form class="flex items-center gap-2" @submit.prevent="handleCreateEpic">
@@ -84,6 +85,21 @@
         @close="closeModal"
       />
     </div>
+
+    <!-- タスク詳細のモーダル -->
+    <div
+      v-if="detailTask"
+      class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
+      @click.self="closeDetailModal"
+    >
+      <TaskForm
+        :task="detailTask"
+        :epics="epics"
+        :spaces="spaces"
+        @submit="handleUpdateTodoFromModal"
+        @close="closeDetailModal"
+      />
+    </div>
   </div>
 </template>
 
@@ -108,6 +124,8 @@ const error = ref('');
 const showModalForm = ref(false);
 const modalInitialStatus = ref('Open');
 const modalInitialEpicId = ref(0);
+// 詳細モーダルで表示中のタスク（null の場合は閉じている）
+const detailTask = ref(null);
 
 const columns = [
   { status: 'Open', title: 'オープン' },
@@ -366,6 +384,39 @@ const closeModal = () => {
   showModalForm.value = false;
   modalInitialStatus.value = 'Open';
   modalInitialEpicId.value = 0;
+};
+
+// タスク詳細のモーダルを開く
+const openDetailModal = (task) => {
+  detailTask.value = task;
+};
+
+// タスク詳細のモーダルを閉じる
+const closeDetailModal = () => {
+  detailTask.value = null;
+};
+
+// タスク詳細のモーダルから保存
+const handleUpdateTodoFromModal = async (formData) => {
+  const task = detailTask.value;
+  try {
+    error.value = '';
+    await todosApi.update(task.ID, {
+      title: formData.title,
+      description: formData.description,
+      done: task.Done,
+      deadline: formData.deadline,
+      status: formData.status,
+      epicId: formData.epicId,
+      spaceId: formData.spaceId
+    });
+    closeDetailModal();
+    await fetchTodos(); // リストを再取得
+  } catch (err) {
+    error.value = 'タスクの更新に失敗しました: ' + err.message;
+    console.error('Failed to update todo:', err);
+    await resyncTodos();
+  }
 };
 
 // ドラッグ&ドロップでステータスを更新（別のエピックのレーンへ落としたらエピックも変える）

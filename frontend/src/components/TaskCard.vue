@@ -1,8 +1,8 @@
 <template>
-  <div class="bg-white rounded-lg p-4 mb-4 shadow hover:shadow-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:-translate-y-1" draggable="true" @dragstart="handleDragStart">
+  <div class="bg-white rounded-lg p-4 mb-4 shadow hover:shadow-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:-translate-y-1" draggable="true" @dragstart="handleDragStart" @click="$emit('open', task)">
     <div class="flex justify-between items-start mb-3">
       <h3 class="m-0 text-base font-semibold text-gray-900 flex-1 leading-relaxed">{{ task.Title }}</h3>
-      <button class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-6 h-6 flex items-center justify-center rounded hover:bg-red-100 hover:text-red-500 transition-all duration-200 leading-none" @click="$emit('delete', task.ID)" title="削除">
+      <button class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-6 h-6 flex items-center justify-center rounded hover:bg-red-100 hover:text-red-500 transition-all duration-200 leading-none" @click.stop="$emit('delete', task.ID)" title="削除">
         ×
       </button>
     </div>
@@ -19,6 +19,7 @@
           task.EpicID ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-200'
         ]"
         title="エピック"
+        @click.stop
         @change="$emit('change-epic', { taskId: task.ID, epicId: Number($event.target.value) })"
       >
         <option :value="0">エピックなし</option>
@@ -46,7 +47,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['dragstart', 'delete', 'change-epic']);
+const emit = defineEmits(['dragstart', 'delete', 'change-epic', 'open']);
 
 // タスクと同じスペースのエピックだけを選べる
 const spaceEpics = computed(() => props.epics.filter(epic => epic.SpaceID === props.task.SpaceID));
