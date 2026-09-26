@@ -87,6 +87,15 @@ const fetchTodos = async () => {
   }
 };
 
+// 操作失敗後に画面をサーバーの状態へ合わせる（エラー表示は残す）
+const resyncTodos = async () => {
+  try {
+    todos.value = await todosApi.fetchAll();
+  } catch (err) {
+    console.error('Failed to resync todos:', err);
+  }
+};
+
 // エピック一覧を取得
 const fetchEpics = async () => {
   try {
@@ -191,6 +200,7 @@ const handleDrop = async ({ taskId, newStatus }) => {
   } catch (err) {
     error.value = 'タスクの更新に失敗しました: ' + err.message;
     console.error('Failed to update todo:', err);
+    await resyncTodos();
   }
 };
 
@@ -215,6 +225,7 @@ const handleChangeEpic = async ({ taskId, epicId }) => {
   } catch (err) {
     error.value = 'エピックの変更に失敗しました: ' + err.message;
     console.error('Failed to change epic:', err);
+    await resyncTodos();
   }
 };
 
@@ -231,6 +242,7 @@ const handleDeleteTodo = async (taskId) => {
   } catch (err) {
     error.value = 'タスクの削除に失敗しました: ' + err.message;
     console.error('Failed to delete todo:', err);
+    await resyncTodos();
   }
 };
 
