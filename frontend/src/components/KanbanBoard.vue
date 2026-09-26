@@ -429,8 +429,9 @@ const handleUpdateTodoFromModal = async (formData) => {
   }
 };
 
-// ドラッグ&ドロップでステータスを更新（別のエピックのレーンへ落としたらエピックも変える）
-const handleDrop = async ({ taskId, newStatus, epicId }) => {
+// ドラッグ&ドロップでステータスと並び順を更新（別のエピックのレーンへ落としたらエピックも変える）
+// beforeId はドロップ先の直後のタスクの ID（0 は末尾、null は並び順を変えない）
+const handleDrop = async ({ taskId, newStatus, epicId, beforeId }) => {
   try {
     error.value = '';
     const task = todos.value.find(t => t.ID === taskId);
@@ -444,24 +445,30 @@ const handleDrop = async ({ taskId, newStatus, epicId }) => {
       : task.EpicID === epicId;
     const newEpicId = isSameLane ? task.EpicID : epicId;
 
-    // ステータスもレーンも変わらない場合は何もしない
-    if (task.Status === newStatus && isSameLane) {
+    // ステータスもレーンも並び順も変わらない場合は何もしない
+    if (task.Status === newStatus && isSameLane && beforeId === null) {
       return;
     }
 
-    // タスクはエピックと同じスペースに置く
-    const epic = epics.value.find(e => e.ID === newEpicId);
-    
-    // タスクを更新
-    await todosApi.update(taskId, {
-      title: task.Title,
-      description: task.Description,
-      done: task.Done,
-      deadline: task.Deadline,
-      status: newStatus,
-      epicId: newEpicId,
-      spaceId: epic ? epic.SpaceID : task.SpaceID
-    });
+    if (task.Status !== newStatus || !isSameLane) {
+      // タスクはエピックと同じスペースに置く
+      const epic = epics.value.find(e => e.ID === newEpicId);
+
+      // タスクを更新
+      await todosApi.update(taskId, {
+        title: task.Title,
+        description: task.Description,
+        done: task.Done,
+        deadline: task.Deadline,
+        status: newStatus,
+        epicId: newEpicId,
+        spaceId: epic ? epic.SpaceID : task.SpaceID
+      });
+    }
+
+    if (beforeId !== null) {
+      await todosApi.move(taskId, beforeId);
+    }
     
     await fetchTodos(); // リストを再取得
   } catch (err) {

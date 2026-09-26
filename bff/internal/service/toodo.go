@@ -14,6 +14,7 @@ type TodoService interface {
 	CreateTodo(title string, deadline string, status string, epicID int, description string, spaceID int) error
 	UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string, spaceID int) error
 	DeleteTodo(id int) error
+	MoveTodo(id int, beforeID int) error
 }
 
 type todoService struct {
@@ -72,6 +73,11 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 
 func (s *todoService) DeleteTodo(id int) error {
 	return s.repo.Delete(id)
+}
+
+// MoveTodo はタスクを beforeID のタスクの直前へ移動する。beforeID が 0 の場合は末尾へ移動する
+func (s *todoService) MoveTodo(id int, beforeID int) error {
+	return s.repo.Move(id, beforeID)
 }
 
 // validateEpicAndSpace はスペースとエピックが存在し、エピックがタスクと同じスペースに属することを確かめる

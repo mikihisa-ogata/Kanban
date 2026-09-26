@@ -40,6 +40,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 	r.GET("/todos", h.GetTodos)
 	r.POST("/todos", h.CreateTodo)
 	r.PUT("/todos/:id", h.UpdateTodo)
+	r.POST("/todos/:id/move", h.MoveTodo)
 	return r
 }
 
@@ -152,5 +153,46 @@ func TestTodoHandler_DeadlineOptional(t *testing.T) {
 	w = doRequest(t, r, http.MethodPost, "/todos", `{"deadline":"2026-10-01"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("POST without title status = %d, want 400", w.Code)
+	}
+}
+
+func TestTodoHandler_Move(t *testing.T) {
+	r := setupTodoRouter(t)
+	for _, title := range []string{"a", "b", "c"} {
+		if w := doRequest(t, r, http.MethodPost, "/todos", `{"title":"`+title+`"}`); w.Code != http.StatusCreated {
+			t.Fatalf("POST status = %d, body = %s", w.Code, w.Body)
+		}
+	}
+
+	titles := func() string {
+		s := ""
+		for _, todo := range getTodos(t, r) {
+			s += todo.Title
+		}
+		return s
+	}
+
+	w := doRequest(t, r, http.MethodPost, "/todos/3/move", `{"beforeId":1}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("move status = %d, body = %s", w.Code, w.Body)
+	}
+	if got := titles(); got != "cab" {
+		t.Errorf("order = %s, want cab", got)
+	}
+
+	// beforeId を省略すると末尾へ移動する
+	w = doRequest(t, r, http.MethodPost, "/todos/3/move", `{}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("move status = %d, body = %s", w.Code, w.Body)
+	}
+	if got := titles(); got != "abc" {
+		t.Errorf("order = %s, want abc", got)
+	}
+
+	if w := doRequest(t, r, http.MethodPost, "/todos/x/move", `{}`); w.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status = %d, want 400", w.Code)
+	}
+	if w := doRequest(t, r, http.MethodPost, "/todos/99/move", `{}`); w.Code != http.StatusInternalServerError {
+		t.Errorf("unknown id status = %d, want 500", w.Code)
 	}
 }

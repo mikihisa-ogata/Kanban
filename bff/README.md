@@ -140,6 +140,21 @@ PUT /todos/:id
 DELETE /todos/:id
 ```
 
+### TODOを並び替え
+
+```
+POST /todos/:id/move
+```
+
+**リクエスト:**
+```json
+{
+  "BeforeID": 3
+}
+```
+
+タスクを `BeforeID` のタスクの直前へ移動します。`BeforeID` が 0 または省略の場合は末尾へ移動します。`GET /todos` はこの並び順（`todos.csv` の行の順番）で返します。
+
 `EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
 
 ### エピック
@@ -178,7 +193,7 @@ DELETE /spaces/:id
 
 TODOデータは `bff/todos.csv`、エピックデータは `bff/epics.csv`、スペースデータは `bff/spaces.csv` に保存されます。いずれも個人のチケットデータのため git 管理外で、リポジトリには雛形の `*.example.csv` のみを置いています。`go run` で起動する場合はファイルがなくても自動で作成されます。Docker環境ではボリュームマウントされており、ホスト側のファイルを直接更新・参照可能です。
 
-`todos.csv` の列は `ID,Title,Done,Deadline,Status,EpicID,Description,SpaceID`、`epics.csv` の列は `ID,Title,SpaceID`、`spaces.csv` の列は `ID,Title` です。`Description` や `SpaceID` の列がない旧形式のファイルもそのまま読み込め（`SpaceID` は 0 = 未割り当て）、次に書き込んだときに列が追加されます。
+`todos.csv` の列は `ID,Title,Done,Deadline,Status,EpicID,Description,SpaceID` で、行の順番がタスクの表示順になります。`epics.csv` の列は `ID,Title,SpaceID`、`spaces.csv` の列は `ID,Title` です。`Description` や `SpaceID` の列がない旧形式のファイルもそのまま読み込め（`SpaceID` は 0 = 未割り当て）、次に書き込んだときに列が追加されます。
 
 Docker で起動している場合、`spaces.csv` がないと Docker がディレクトリを作成してしまうため、更新後は `cp -n spaces.example.csv spaces.csv` を実行してから起動し直してください。
 

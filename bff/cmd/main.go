@@ -35,6 +35,7 @@ func main() {
 	r.POST("/todos", h.CreateTodo)
 	r.PUT("/todos/:id", h.UpdateTodo)
 	r.DELETE("/todos/:id", h.DeleteTodo)
+	r.POST("/todos/:id/move", h.MoveTodo)
 
 	r.GET("/epics", epicHandler.GetEpics)
 	r.POST("/epics", epicHandler.CreateEpic)

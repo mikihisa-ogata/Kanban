@@ -17,7 +17,7 @@ todo-api/
 - タスクへの説明（Description）の追加
 - スペース（プロダクトなどの単位）> エピック > タスクの階層での管理
 - カンバンボード形式でのタスク管理
-- ドラッグ&ドロップによるステータス変更
+- ドラッグ&ドロップによるステータス変更・並び替え
 - CSV形式でのデータ永続化
 
 ## クイックスタート
@@ -57,6 +57,7 @@ pnpm dev
 - `POST /todos` - 新規TODOを作成
 - `PUT /todos/:id` - TODOを更新
 - `DELETE /todos/:id` - TODOを削除
+- `POST /todos/:id/move` - TODOの並び順を変更（`BeforeID` のTODOの直前へ移動。0 なら末尾）
 - `GET /epics` / `POST /epics` / `PUT /epics/:id` / `DELETE /epics/:id` - エピックの取得・作成・更新・削除
 - `GET /spaces` / `POST /spaces` / `DELETE /spaces/:id` - スペースの取得・作成・削除
 

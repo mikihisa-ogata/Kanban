@@ -147,6 +147,54 @@ func (r *todoRepository) Delete(id int) error {
 	return fmt.Errorf("todo with ID %d not found", id)
 }
 
+// Move は CSV の行を並べ替える。タスクの表示順は CSV の行の順番に従う
+func (r *todoRepository) Move(id int, beforeID int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	todos, err := r.readCSV()
+	if err != nil {
+		return err
+	}
+
+	index := -1
+	for i, t := range todos {
+		if t.ID == id {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		return fmt.Errorf("todo with ID %d not found", id)
+	}
+	if beforeID == id {
+		return nil
+	}
+
+	moved := todos[index]
+	rest := append(todos[:index:index], todos[index+1:]...)
+
+	insertAt := len(rest)
+	if beforeID != 0 {
+		insertAt = -1
+		for i, t := range rest {
+			if t.ID == beforeID {
+				insertAt = i
+				break
+			}
+		}
+		if insertAt == -1 {
+			return fmt.Errorf("todo with ID %d not found", beforeID)
+		}
+	}
+
+	reordered := make([]domain.Todo, 0, len(todos))
+	reordered = append(reordered, rest[:insertAt]...)
+	reordered = append(reordered, moved)
+	reordered = append(reordered, rest[insertAt:]...)
+	return r.writeCSV(reordered)
+}
+
 func (r *todoRepository) readCSV() ([]domain.Todo, error) {
 	file, err := os.Open(csvFilePath)
 	if err != nil {

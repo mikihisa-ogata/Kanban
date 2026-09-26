@@ -135,6 +135,41 @@ func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 	})
 }
 
+// MoveTodo はタスクの並び順を変更する。beforeId のタスクの直前へ移動し、0 または省略時は末尾へ移動する
+func (h *TodoHandler) MoveTodo(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "不正なIDです",
+		})
+		return
+	}
+
+	var req struct {
+		BeforeID int `json:"beforeId"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	err = h.service.MoveTodo(id, req.BeforeID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Todoの並び替えに成功しました",
+	})
+}
+
 // isTodoValidationError はリクエストの内容が不正なことによるエラーかを返す
 func isTodoValidationError(err error) bool {
 	return errors.Is(err, service.ErrEpicNotFound) ||

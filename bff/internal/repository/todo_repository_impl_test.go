@@ -133,3 +133,73 @@ func TestTodoRepository_SpaceID(t *testing.T) {
 		t.Errorf("csv = %q, want %q", data, want)
 	}
 }
+
+func todoIDs(t *testing.T, repo TodoRepository) []int {
+	t.Helper()
+	todos, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := []int{}
+	for _, todo := range todos {
+		ids = append(ids, todo.ID)
+	}
+	return ids
+}
+
+func TestTodoRepository_Move(t *testing.T) {
+	chdirTemp(t)
+	repo := NewTodoRepository()
+	for _, title := range []string{"a", "b", "c", "d"} {
+		if err := repo.Create(domain.Todo{Title: title, Status: domain.StatusOpen}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name     string
+		id       int
+		beforeID int
+		want     []int
+	}{
+		{"後ろのタスクを前へ", 4, 2, []int{1, 4, 2, 3}},
+		{"前のタスクを後ろへ", 1, 3, []int{4, 2, 1, 3}},
+		{"先頭へ", 3, 4, []int{3, 4, 2, 1}},
+		{"末尾へ", 3, 0, []int{4, 2, 1, 3}},
+		{"自分自身の直前は変化なし", 2, 2, []int{4, 2, 1, 3}},
+	}
+	for _, tt := range tests {
+		if err := repo.Move(tt.id, tt.beforeID); err != nil {
+			t.Fatalf("%s: %v", tt.name, err)
+		}
+		got := todoIDs(t, repo)
+		if len(got) != len(tt.want) {
+			t.Fatalf("%s: ids = %v, want %v", tt.name, got, tt.want)
+		}
+		for i := range got {
+			if got[i] != tt.want[i] {
+				t.Fatalf("%s: ids = %v, want %v", tt.name, got, tt.want)
+			}
+		}
+	}
+
+	// 移動しても内容は変わらない
+	todos, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if todos[0].ID != 4 || todos[0].Title != "d" {
+		t.Errorf("todo = %+v", todos[0])
+	}
+
+	// 存在しないタスクはエラーになり、並び順は変わらない
+	if err := repo.Move(99, 0); err == nil {
+		t.Error("Move(99, 0) error = nil")
+	}
+	if err := repo.Move(1, 99); err == nil {
+		t.Error("Move(1, 99) error = nil")
+	}
+	if got := todoIDs(t, repo); got[0] != 4 || got[1] != 2 || got[2] != 1 || got[3] != 3 {
+		t.Errorf("ids = %v, want [4 2 1 3]", got)
+	}
+}

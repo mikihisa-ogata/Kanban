@@ -36,6 +36,19 @@ export const todosApi = {
     return response.json();
   },
   
+  // タスクの並び替え（beforeId のタスクの直前へ移動。0 の場合は末尾へ移動）
+  async move(id, beforeId) {
+    const response = await fetch(`${API_BASE_URL}/todos/${id}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ beforeId })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to move todo');
+    }
+    return response.json();
+  },
+  
   // タスク削除
   async delete(id) {
     const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
