@@ -27,7 +27,7 @@ frontend/   Nuxt 3（srcDir: src）+ Vue 3 + Tailwind CSS v4
 | bff ビルド・静的解析 | `cd bff && go build ./... && go vet ./...` |
 | bff テスト | `cd bff && go test ./...` |
 | bff 起動 | `cd bff && go run ./cmd/main.go`（または `docker compose up -d`） |
-| フロント起動 | `cd frontend && pnpm dev --port 5173`（http://localhost:5173。bff の CORS 許可に合わせる） |
+| フロント起動 | `cd frontend && pnpm dev`（http://localhost:3000。bff の CORS 許可に合わせる） |
 | フロントビルド確認 | `cd frontend && pnpm build:verify`（出力先は `.nuxt-verify/`） |
 
 - ビルド確認には必ず `pnpm build:verify` を使う。`pnpm build` は起動中の `nuxt dev` と同じ `.nuxt/` に本番ビルドを上書きし、dev の画面を `#internal/nuxt/paths` エラーで壊す。
@@ -45,7 +45,7 @@ frontend/   Nuxt 3（srcDir: src）+ Vue 3 + Tailwind CSS v4
 
 - `bff/todos.csv` と `bff/epics.csv` はオーナーの実データで、git 管理外。**コミットしない・書き換えない・削除しない。**
 - CSV のパスは実行時のカレントディレクトリからの相対パス。実データに触れずに検証するときは、スクラッチ用のディレクトリに `*.example.csv` をコピーし、そのディレクトリをカレントにしてビルド済みのバイナリを起動する。
-- オーナーが bff やフロントを起動していることがある（8080 / 5173。3000 番は別プロジェクトが使っていることがある）。そのプロセスを止めない。起動中の画面では、表示の確認だけにとどめる。タスクの作成・変更・削除は実データを書き換えるので行わない。
+- オーナーが bff やフロントを起動していることがある（8080 / 3000）。そのプロセスを止めない。起動中の画面では、表示の確認だけにとどめる。タスクの作成・変更・削除は実データを書き換えるので行わない。
 
 ## Git
 
