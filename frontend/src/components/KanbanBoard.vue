@@ -1,15 +1,27 @@
 <template>
   <div class="flex min-h-screen">
-    <SpaceSidebar
-      v-if="sidebarOpen"
-      :spaces="spaces"
-      :todos="todos"
-      :selected-space-id="selectedSpaceId"
-      @select="selectSpace"
-      @create="handleCreateSpace"
-      @delete="handleDeleteSpace"
-      @move="handleMoveToSpace"
-    />
+    <!-- 開閉時は幅を広げながらサイドバーを画面左端からスライドさせ、ボードの位置もなめらかに動かす -->
+    <div
+      :class="[
+        'sticky top-17 self-start shrink-0 overflow-hidden transition-[width] duration-300 ease-out motion-reduce:transition-none',
+        sidebarOpen ? 'w-64' : 'w-0'
+      ]"
+      :inert="!sidebarOpen"
+    >
+      <SpaceSidebar
+        :class="[
+          'transition-transform duration-300 ease-out motion-reduce:transition-none',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        ]"
+        :spaces="spaces"
+        :todos="todos"
+        :selected-space-id="selectedSpaceId"
+        @select="selectSpace"
+        @create="handleCreateSpace"
+        @delete="handleDeleteSpace"
+        @move="handleMoveToSpace"
+      />
+    </div>
 
     <div class="flex-1 min-w-0 px-8 py-8">
       <h2 class="m-0 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
