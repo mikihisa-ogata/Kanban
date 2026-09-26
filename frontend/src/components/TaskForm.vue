@@ -37,58 +37,61 @@
         ></textarea>
       </div>
 
-      <div class="mb-4">
-        <label for="deadline" class="block mb-2 text-sm font-semibold text-gray-700">
-          期限
-        </label>
-        <input
-          id="deadline"
-          v-model="formData.deadline"
-          type="date"
-          class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
-        />
-      </div>
-      
-      <div class="mb-4">
-        <label for="status" class="block mb-2 text-sm font-semibold text-gray-700">
-          ステータス
-        </label>
-        <OptionSelect
-          id="status"
-          v-model="formData.status"
-          :options="statusOptions"
-        />
+      <!-- 短い値の項目は、ラベルと値を横に並べて内容の幅に合わせる -->
+      <div class="flex flex-col gap-3 mt-6">
+        <div class="flex items-center gap-4">
+          <label for="deadline" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+            期限
+          </label>
+          <input
+            id="deadline"
+            v-model="formData.deadline"
+            type="date"
+            class="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+          />
+        </div>
+
+        <div class="flex items-center gap-4">
+          <label for="status" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+            ステータス
+          </label>
+          <OptionSelect
+            id="status"
+            v-model="formData.status"
+            :options="statusOptions"
+          />
+        </div>
+
+        <div v-if="spaces.length" class="flex items-center gap-4">
+          <label for="space" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+            スペース
+          </label>
+          <OptionSelect
+            id="space"
+            v-model="formData.spaceId"
+            :options="spaceOptions"
+            :empty-value="0"
+          />
+        </div>
+
+        <div class="flex items-center gap-4">
+          <label for="epic" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+            エピック
+          </label>
+          <OptionSelect
+            id="epic"
+            v-model="formData.epicId"
+            :options="epicOptions"
+            :empty-value="0"
+          />
+        </div>
       </div>
 
-      <div v-if="spaces.length" class="mb-4">
-        <label for="space" class="block mb-2 text-sm font-semibold text-gray-700">
-          スペース
-        </label>
-        <OptionSelect
-          id="space"
-          v-model="formData.spaceId"
-          :options="spaceOptions"
-          :empty-value="0"
-        />
-      </div>
-
-      <div class="mb-4">
-        <label for="epic" class="block mb-2 text-sm font-semibold text-gray-700">
-          エピック
-        </label>
-        <OptionSelect
-          id="epic"
-          v-model="formData.epicId"
-          :options="epicOptions"
-          :empty-value="0"
-        />
-      </div>
-      
-      <div class="mt-5">
+      <div class="flex justify-end mt-6">
         <button 
           type="submit" 
           :disabled="isSubmitting"
-          class="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 rounded-lg text-base font-semibold cursor-pointer transition-all duration-200 hover:enabled:-translate-y-0.5 hover:enabled:shadow-lg hover:enabled:shadow-blue-400 active:enabled:translate-y-0 active:enabled:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+          class="py-2.5 px-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 rounded-lg text-base font-semibold cursor-pointer transition-all duration-200 hover:enabled:-translate-y-0.5 hover:enabled:shadow-lg hover:enabled:shadow-blue-400 active:enabled:translate-y-0 active:enabled:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <template v-if="task">{{ isSubmitting ? '保存中...' : '保存' }}</template>
           <template v-else>{{ isSubmitting ? '作成中...' : 'タスクを作成' }}</template>

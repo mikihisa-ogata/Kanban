@@ -1,10 +1,10 @@
 <template>
   <!-- 選択中の値を枠付きのチップで表示し、選択肢から選んだ値だとわかるようにする -->
-  <div class="relative flex items-center w-full min-h-11 pl-2 pr-10 py-1.5 border-2 border-gray-300 rounded-lg bg-white cursor-pointer transition-all duration-200 hover:border-gray-400 focus-within:border-blue-500 focus-within:shadow-sm focus-within:shadow-blue-100">
+  <div class="relative inline-flex items-center min-w-0 max-w-full min-h-10 pl-1.5 pr-9 py-1 border-2 border-gray-300 rounded-lg bg-white cursor-pointer transition-all duration-200 hover:border-gray-400 focus-within:border-blue-500 focus-within:shadow-sm focus-within:shadow-blue-100">
     <span
       v-if="selectedLabel"
       :class="[
-        'inline-flex items-center px-2.5 py-0.5 rounded-md border text-sm font-medium',
+        'block truncate px-2.5 py-0.5 rounded-md border text-sm font-medium',
         isEmpty ? 'border-gray-300 bg-gray-50 text-gray-500' : 'border-blue-300 bg-blue-50 text-blue-700'
       ]"
     >
