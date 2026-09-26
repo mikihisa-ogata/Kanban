@@ -53,6 +53,20 @@
           <option value="Closed">クローズ</option>
         </select>
       </div>
+
+      <div class="mb-7">
+        <label for="epic" class="block mb-2 text-sm font-semibold text-gray-700">
+          エピック
+        </label>
+        <select
+          id="epic"
+          v-model="formData.epicId"
+          class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white cursor-pointer focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        >
+          <option :value="0">なし</option>
+          <option v-for="epic in epics" :key="epic.ID" :value="epic.ID">{{ epic.Title }}</option>
+        </select>
+      </div>
       
       <div class="mt-5">
         <button 
@@ -74,6 +88,14 @@ const props = defineProps({
   initialStatus: {
     type: String,
     default: 'Open'
+  },
+  initialEpicId: {
+    type: Number,
+    default: 0
+  },
+  epics: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -82,7 +104,8 @@ const emit = defineEmits(['submit', 'close']);
 const formData = ref({
   title: '',
   deadline: '',
-  status: props.initialStatus
+  status: props.initialStatus,
+  epicId: props.initialEpicId
 });
 
 // initialStatusが変更された時に formData.status を更新
@@ -102,7 +125,8 @@ const handleSubmit = async () => {
     formData.value = {
       title: '',
       deadline: '',
-      status: props.initialStatus
+      status: props.initialStatus,
+      epicId: props.initialEpicId
     };
   } finally {
     isSubmitting.value = false;

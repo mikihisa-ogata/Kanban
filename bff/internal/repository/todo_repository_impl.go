@@ -56,12 +56,18 @@ func (r *todoRepository) FindAll() ([]domain.Todo, error) {
 			status = domain.Status(record[4])
 		}
 
+		epicID := 0
+		if len(record) >= 6 {
+			epicID, _ = strconv.Atoi(record[5])
+		}
+
 		todo := domain.Todo{
 			ID:       id,
 			Title:    record[1],
 			Done:     done,
 			Deadline: record[3],
 			Status:   status,
+			EpicID:   epicID,
 		}
 		todos = append(todos, todo)
 	}
@@ -159,12 +165,18 @@ func (r *todoRepository) readCSV() ([]domain.Todo, error) {
 			status = domain.Status(record[4])
 		}
 
+		epicID := 0
+		if len(record) >= 6 {
+			epicID, _ = strconv.Atoi(record[5])
+		}
+
 		todo := domain.Todo{
 			ID:       id,
 			Title:    record[1],
 			Done:     done,
 			Deadline: record[3],
 			Status:   status,
+			EpicID:   epicID,
 		}
 		todos = append(todos, todo)
 	}
@@ -182,7 +194,7 @@ func (r *todoRepository) writeCSV(todos []domain.Todo) error {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	writer.Write([]string{"ID", "Title", "Done", "Deadline", "Status"})
+	writer.Write([]string{"ID", "Title", "Done", "Deadline", "Status", "EpicID"})
 
 	for _, todo := range todos {
 		writer.Write([]string{
@@ -191,6 +203,7 @@ func (r *todoRepository) writeCSV(todos []domain.Todo) error {
 			strconv.FormatBool(todo.Done),
 			todo.Deadline,
 			string(todo.Status),
+			strconv.Itoa(todo.EpicID),
 		})
 	}
 

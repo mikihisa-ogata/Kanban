@@ -22,7 +22,9 @@
         v-for="task in tasks"
         :key="task.ID"
         :task="task"
+        :epics="epics"
         @delete="$emit('delete-task', $event)"
+        @change-epic="$emit('change-epic', $event)"
       />
       <div v-if="tasks.length === 0" class="text-center py-10 text-gray-400 text-sm italic">
         タスクがありません
@@ -55,10 +57,14 @@ const props = defineProps({
   tasks: {
     type: Array,
     required: true
+  },
+  epics: {
+    type: Array,
+    default: () => []
   }
 });
 
-const emit = defineEmits(['drop', 'delete-task', 'add-task']);
+const emit = defineEmits(['drop', 'delete-task', 'add-task', 'change-epic']);
 
 const isDragOver = ref(false);
 

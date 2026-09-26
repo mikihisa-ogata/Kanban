@@ -22,13 +22,20 @@ func main() {
 	}))
 
 	repo := repository.NewTodoRepository()
-	svc := service.NewTodoService(repo)
+	epicRepo := repository.NewEpicRepository()
+	svc := service.NewTodoService(repo, epicRepo)
 	h := handler.NewTodoHandler(svc)
+	epicSvc := service.NewEpicService(epicRepo, repo)
+	epicHandler := handler.NewEpicHandler(epicSvc)
 
 	r.GET("/todos", h.GetTodos)
 	r.POST("/todos", h.CreateTodo)
 	r.PUT("/todos/:id", h.UpdateTodo)
 	r.DELETE("/todos/:id", h.DeleteTodo)
+
+	r.GET("/epics", epicHandler.GetEpics)
+	r.POST("/epics", epicHandler.CreateEpic)
+	r.DELETE("/epics/:id", epicHandler.DeleteEpic)
 
 	r.Run(":8080")
 }

@@ -5,4 +5,5 @@ services:
       - "8080:8080"
     volumes:
       - ./todos.csv:/app/todos.csv
+      - ./epics.csv:/app/epics.csv
     restart: always

@@ -11,6 +11,18 @@
         <span class="text-sm">📅</span>
         <span>{{ formatDate(task.Deadline) }}</span>
       </div>
+      <select
+        :value="task.EpicID"
+        :class="[
+          'max-w-40 truncate px-2 py-0.5 rounded-full text-xs font-semibold border cursor-pointer focus:outline-none',
+          task.EpicID ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-200'
+        ]"
+        title="エピック"
+        @change="$emit('change-epic', { taskId: task.ID, epicId: Number($event.target.value) })"
+      >
+        <option :value="0">エピックなし</option>
+        <option v-for="epic in epics" :key="epic.ID" :value="epic.ID">{{ epic.Title }}</option>
+      </select>
     </div>
     <div v-if="task.Done" class="mt-3 pt-3 border-t border-gray-200 flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
       <span class="text-sm">✓</span>
@@ -26,10 +38,14 @@ const props = defineProps({
   task: {
     type: Object,
     required: true
+  },
+  epics: {
+    type: Array,
+    default: () => []
   }
 });
 
-const emit = defineEmits(['dragstart', 'delete']);
+const emit = defineEmits(['dragstart', 'delete', 'change-epic']);
 
 const handleDragStart = (event) => {
   event.dataTransfer.effectAllowed = 'move';

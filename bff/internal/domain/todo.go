@@ -15,4 +15,5 @@ type Todo struct {
 	Done     bool
 	Deadline string
 	Status   Status
+	EpicID   int // 0 の場合はエピック未割り当て
 }
