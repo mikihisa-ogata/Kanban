@@ -1,6 +1,0 @@
-node_modules
-.nuxt
-.nuxt-verify
-.output
-dist
-*.log

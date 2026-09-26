@@ -28,24 +28,7 @@ todo-api/
 - Node.js 14+
 - pnpm
 
-### Dockerでの起動
-
-Docker と Docker Compose があれば、Go や Node.js を入れずに bff とフロントエンドをまとめて起動できます。
-
-初回のみ、雛形からデータファイルを作成してください（ファイルがないとDockerがディレクトリを作成してしまうため）。
-
-```bash
-cp -n bff/todos.example.csv bff/todos.csv
-cp -n bff/epics.example.csv bff/epics.csv
-cp -n bff/spaces.example.csv bff/spaces.csv
-docker compose up -d --build
-```
-
-フロントエンドは `http://localhost:3000`、bff は `http://localhost:8080` で起動します。データは `bff/*.csv` に保存されます。フロントエンドは API を `http://localhost:8080` に固定で呼び出し、bff は `http://localhost:3000` からのアクセスのみ許可しているため、ポートは変更しないでください。
-
-停止する場合は `docker compose down` を実行します。bff だけを Docker で起動する場合は [bff/README.md](bff/README.md) を参照してください。
-
-### セットアップ（Dockerを使用しない場合）
+### セットアップ
 
 #### バックエンド（bff）の起動
 

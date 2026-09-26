@@ -60,10 +60,6 @@ pnpm build
 
 ビルド結果は `dist/` ディレクトリに出力されます。
 
-## Dockerでの起動
-
-リポジトリのルートで `docker compose up -d --build` を実行すると、bff と一緒に `http://localhost:3000` で起動します。詳細はルートの [README.md](../README.md) を参照してください。
-
 ## プレビュー
 
 ビルドしたアプリケーションを確認：
