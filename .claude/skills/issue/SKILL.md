@@ -35,7 +35,7 @@ argument-hint: <issue番号>
 - bff: `cd bff && go build ./... && go vet ./... && go test ./...`
 - frontend: `cd frontend && pnpm build:verify`（`pnpm build` は起動中の dev サーバーを壊すので使わない）
 - 画面や API の挙動が変わる場合は、実際に動かして確認する。
-  - API: スクラッチ用のディレクトリに `bff/*.example.csv` を `todos.csv` / `epics.csv` / `spaces.csv` としてコピーし、`go build -o <scratch>/bff ./cmd` でビルドしたバイナリをそのディレクトリで起動して、`curl` で確認する。ポート 8080 が使用中なら、オーナーのプロセスは止めない。代わりに httptest のテストで確認する。
+  - API: スクラッチ用のディレクトリに `bff/*.example.csv` を `todos.csv` / `epics.csv` / `spaces.csv` としてコピーし、`go build -o <scratch>/bff ./cmd` でビルドしたバイナリをそのディレクトリで起動して、`curl` で確認する。ポート 8080 が使用中なら、検証のためにオーナーのプロセスは止めない。代わりに別ポートで起動するか、httptest のテストで確認する。
   - 画面: claude-in-chrome スキルで http://localhost:3000 を開き、変更箇所を確認する。オーナーが起動中のサーバーでは表示確認のみ行い、データを変更する操作はしない。サーバーが起動していない場合は、上のスクラッチ用の bff と `pnpm dev` を自分で起動して操作を確認し、終わったら自分で起動したプロセスを止める。
   - Chrome 連携が使えないなど、確認できなかったことは報告に「未確認」として正直に書く。
 
@@ -50,13 +50,26 @@ argument-hint: <issue番号>
 - コミットメッセージは gitmoji + 日本語の要約。本文に `Closes #$ARGUMENTS` を書く。
 - `git push origin main` する。push が拒否されたら `git pull --rebase origin main` してから検証を再実行し、もう一度 push する。force push はしない。
 
-## 7. 報告する
+## 7. 起動中の bff を再起動する
+
+bff を変更して push した場合は、オーナーが起動中の bff に新しいコードを自分で反映する。オーナーに再起動を頼まない（フロントの `nuxt dev` はホットリロードされるので触らない）。
+
+- `lsof -iTCP:8080 -sTCP:LISTEN` で起動中か確認する。起動していなければ何もしない。
+- `ps -o pid,ppid,command` と `lsof -a -p <pid> -d cwd` で起動方法を確かめる。
+  - `go run ./cmd/main.go`（カレントが `bff/`）の場合: 子プロセス（`go-build/.../main`）と親の `go run` を `kill` し、8080 が空いたら `cd bff && nohup go run ./cmd/main.go >> ~/Library/Logs/kanban-bff.log 2>&1 < /dev/null & disown` で起動し直す。セッション終了後も動き続けるよう、バックグラウンドタスク（run_in_background）では起動しない。
+  - Docker（`docker compose`）の場合: 新しい CSV ファイルが必要なら先に `cp -n` で雛形から作り、`cd bff && docker compose up -d --build` で作り直す。
+  - それ以外の起動方法の場合は止めずに、報告に「再起動が必要」と書く。
+- 起動後に `curl` で GET の API が 200 を返すことを確かめる（POST・PUT・DELETE は実データを書き換えるので実行しない）。
+- 再起動できたかどうかを報告に書く。
+
+## 8. 報告する
 
 `gh issue comment $ARGUMENTS` で issue に次をコメントし、同じ内容をユーザーにも返す。
 
 - 何を変えたか（ユーザーから見た変化）
 - 自分で判断したことと、その理由
 - 実行した検証とその結果
+- 起動中の bff を再起動したか
 - 未確認の点や、残っている懸念（なければ「なし」）
 - コミットのハッシュ
 
