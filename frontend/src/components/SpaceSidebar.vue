@@ -1,5 +1,6 @@
 <template>
-  <aside class="w-64 shrink-0 bg-white bg-opacity-95 px-4 py-6 flex flex-col gap-2">
+  <!-- 固定したヘッダーの下に張り付け、スクロール中に開いても画面内に表示する -->
+  <aside class="sticky top-17 self-start h-[calc(100vh-4.25rem)] overflow-y-auto w-64 shrink-0 bg-white bg-opacity-95 px-4 py-6 flex flex-col gap-2">
     <span class="px-1 text-sm font-bold text-gray-700">スペース</span>
 
     <button
