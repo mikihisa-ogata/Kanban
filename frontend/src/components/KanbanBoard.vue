@@ -54,6 +54,7 @@
             @delete-task="handleDeleteTodo"
             @add-task="openModal"
             @delete-epic="handleDeleteEpic"
+            @rename-epic="handleRenameEpic"
             @open-task="openDetailModal"
           />
 
@@ -369,6 +370,22 @@ const handleCreateEpic = async () => {
   } catch (err) {
     error.value = 'エピックの作成に失敗しました: ' + err.message;
     console.error('Failed to create epic:', err);
+  }
+};
+
+// エピックの名前を変更
+const handleRenameEpic = async ({ id, title }) => {
+  try {
+    error.value = '';
+    const epic = epics.value.find(e => e.ID === id);
+    if (!epic) {
+      throw new Error('エピックが見つかりません');
+    }
+    await epicsApi.update(id, { title, spaceId: epic.SpaceID });
+    await fetchEpics();
+  } catch (err) {
+    error.value = 'エピックの名前の変更に失敗しました: ' + err.message;
+    console.error('Failed to rename epic:', err);
   }
 };
 

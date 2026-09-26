@@ -3,13 +3,38 @@
     <div
       :class="[
         'flex items-center gap-2 px-2 pb-3 text-white',
-        epic ? 'cursor-grab active:cursor-grabbing' : ''
+        epic && !editing ? 'cursor-grab active:cursor-grabbing' : ''
       ]"
-      :draggable="!!epic"
-      :title="epic ? 'サイドバーのスペースへドラッグすると、子タスクごと移動できます' : ''"
+      :draggable="!!epic && !editing"
+      :title="epic && !editing ? 'サイドバーのスペースへドラッグすると、子タスクごと移動できます' : ''"
       @dragstart="handleDragStart"
     >
-      <h2 class="m-0 text-base font-bold truncate">{{ epic ? epic.Title : 'エピックなし' }}</h2>
+      <input
+        v-if="editing"
+        ref="titleInput"
+        v-model="editTitle"
+        type="text"
+        class="min-w-0 w-64 px-2 py-0.5 border-2 border-indigo-300 rounded-md text-base font-bold text-gray-900 bg-white focus:outline-none focus:border-indigo-500"
+        @keydown.enter="handleEnter"
+        @keydown.esc="cancelEdit"
+        @blur="commitEdit"
+      />
+      <h2
+        v-else
+        class="m-0 text-base font-bold truncate"
+        :title="epic ? 'ダブルクリックで名前を変更' : ''"
+        @dblclick="startEdit"
+      >
+        {{ epic ? epic.Title : 'エピックなし' }}
+      </h2>
+      <button
+        v-if="epic && !editing"
+        class="bg-transparent border-0 p-0 leading-none text-sm text-white opacity-60 hover:opacity-100 cursor-pointer"
+        title="エピックの名前を変更"
+        @click="startEdit"
+      >
+        ✎
+      </button>
       <span v-if="spaceTitle" class="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold">{{ spaceTitle }}</span>
       <span class="text-xs opacity-80">{{ progressLabel }}</span>
       <button
@@ -38,7 +63,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import KanbanColumn from './KanbanColumn.vue';
 
 const props = defineProps({
@@ -63,7 +88,42 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['drop', 'delete-task', 'add-task', 'delete-epic', 'open-task']);
+const emit = defineEmits(['drop', 'delete-task', 'add-task', 'delete-epic', 'rename-epic', 'open-task']);
+
+// エピック名を編集中かどうかと、入力中の名前
+const editing = ref(false);
+const editTitle = ref('');
+const titleInput = ref(null);
+
+// エピック名の編集を始める
+const startEdit = async () => {
+  if (!props.epic) return;
+  editTitle.value = props.epic.Title;
+  editing.value = true;
+  await nextTick();
+  titleInput.value?.focus();
+  titleInput.value?.select();
+};
+
+// 入力した名前で確定する。空欄や変更なしの場合は元の名前に戻す
+const commitEdit = () => {
+  if (!editing.value) return;
+  editing.value = false;
+  const title = editTitle.value.trim();
+  if (!title || title === props.epic.Title) return;
+  emit('rename-epic', { id: props.epic.ID, title });
+};
+
+// 日本語入力の変換確定の Enter では確定しない
+const handleEnter = (event) => {
+  if (event.isComposing || event.keyCode === 229) return;
+  commitEdit();
+};
+
+// 編集をやめて元の名前に戻す
+const cancelEdit = () => {
+  editing.value = false;
+};
 
 // 子タスクのうちクローズ済みの件数 / 全件数
 const progressLabel = computed(() => {
