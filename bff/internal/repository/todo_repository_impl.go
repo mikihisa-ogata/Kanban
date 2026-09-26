@@ -39,7 +39,7 @@ func (r *todoRepository) FindAll() ([]domain.Todo, error) {
 		return nil, err
 	}
 
-	var todos []domain.Todo
+	todos := []domain.Todo{}
 	for i, record := range records {
 		if i == 0 {
 			continue
@@ -148,7 +148,7 @@ func (r *todoRepository) readCSV() ([]domain.Todo, error) {
 		return nil, err
 	}
 
-	var todos []domain.Todo
+	todos := []domain.Todo{}
 	for i, record := range records {
 		if i == 0 {
 			continue
