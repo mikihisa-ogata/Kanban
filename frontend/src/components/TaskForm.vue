@@ -24,7 +24,7 @@
         />
       </div>
       
-      <div class="mb-4">
+      <div>
         <label for="description" class="block mb-2 text-sm font-semibold text-gray-700">
           説明
         </label>
@@ -33,12 +33,12 @@
           v-model="formData.description"
           rows="3"
           placeholder="タスクの詳細を入力（任意）"
-          class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white resize-y focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+          class="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white resize-y focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
         ></textarea>
       </div>
 
       <!-- 短い値の項目は、ラベルと値を横に並べて内容の幅に合わせる -->
-      <div class="flex flex-col gap-3 mt-6">
+      <div class="flex flex-col gap-3 mt-4">
         <div class="flex items-center gap-4">
           <label for="deadline" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
             期限
