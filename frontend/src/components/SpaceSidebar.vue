@@ -1,53 +1,51 @@
 <template>
-  <div class="bg-white bg-opacity-95 rounded-xl px-5 py-4 shadow-md">
-    <div class="flex items-center gap-3 flex-wrap">
-      <span class="text-sm font-bold text-gray-700">スペース</span>
+  <aside class="w-64 shrink-0 bg-white bg-opacity-95 px-4 py-6 flex flex-col gap-2">
+    <span class="px-1 text-sm font-bold text-gray-700">スペース</span>
 
+    <button
+      :class="itemClass(selectedSpaceId === null, false)"
+      @click="$emit('select', null)"
+    >
+      <span class="flex-1 truncate">すべて</span>
+    </button>
+
+    <div
+      v-for="space in spaces"
+      :key="space.ID"
+      :class="itemClass(selectedSpaceId === space.ID, dragOverSpaceId === space.ID)"
+      title="タスクやエピックをドラッグすると、このスペースへ移動できます"
+      @click="$emit('select', space.ID)"
+      @dragover="handleDragOver($event, space.ID)"
+      @dragleave="handleDragLeave(space.ID)"
+      @drop="handleDrop($event, space.ID)"
+    >
+      <span class="flex-1 truncate">{{ space.Title }}</span>
+      <span class="text-xs opacity-75">{{ progressLabel(space.ID) }}</span>
       <button
-        :class="chipClass(selectedSpaceId === null, false)"
-        @click="$emit('select', null)"
+        class="bg-transparent border-0 p-0 leading-none text-base opacity-60 hover:opacity-100 cursor-pointer"
+        title="スペースを削除"
+        @click.stop="$emit('delete', space.ID)"
       >
-        すべて
+        ×
       </button>
-
-      <div
-        v-for="space in spaces"
-        :key="space.ID"
-        :class="[chipClass(selectedSpaceId === space.ID, dragOverSpaceId === space.ID), 'flex items-center gap-2']"
-        title="タスクやエピックをドラッグすると、このスペースへ移動できます"
-        @click="$emit('select', space.ID)"
-        @dragover="handleDragOver($event, space.ID)"
-        @dragleave="handleDragLeave(space.ID)"
-        @drop="handleDrop($event, space.ID)"
-      >
-        <span>{{ space.Title }}</span>
-        <span class="text-xs opacity-75">{{ progressLabel(space.ID) }}</span>
-        <button
-          class="bg-transparent border-0 p-0 leading-none text-base opacity-60 hover:opacity-100 cursor-pointer"
-          title="スペースを削除"
-          @click.stop="$emit('delete', space.ID)"
-        >
-          ×
-        </button>
-      </div>
-
-      <form class="flex items-center gap-2" @submit.prevent="handleCreate">
-        <input
-          v-model="newTitle"
-          type="text"
-          placeholder="新しいスペース"
-          class="px-3 py-1.5 border-2 border-gray-300 rounded-full text-sm text-gray-900 bg-white focus:outline-none focus:border-teal-500"
-        />
-        <button
-          type="submit"
-          :disabled="!newTitle.trim()"
-          class="px-3 py-1.5 bg-teal-500 text-white border-0 rounded-full text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          + 追加
-        </button>
-      </form>
     </div>
-  </div>
+
+    <form class="mt-2 flex items-center gap-2" @submit.prevent="handleCreate">
+      <input
+        v-model="newTitle"
+        type="text"
+        placeholder="新しいスペース"
+        class="min-w-0 flex-1 px-3 py-1.5 border-2 border-gray-300 rounded-full text-sm text-gray-900 bg-white focus:outline-none focus:border-teal-500"
+      />
+      <button
+        type="submit"
+        :disabled="!newTitle.trim()"
+        class="shrink-0 px-3 py-1.5 bg-teal-500 text-white border-0 rounded-full text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        + 追加
+      </button>
+    </form>
+  </aside>
 </template>
 
 <script setup>
@@ -73,8 +71,8 @@ const emit = defineEmits(['select', 'create', 'delete', 'move']);
 const newTitle = ref('');
 const dragOverSpaceId = ref(null);
 
-const chipClass = (active, dragOver) => [
-  'px-3 py-1.5 rounded-full text-sm font-semibold cursor-pointer transition-all duration-200 border-2',
+const itemClass = (active, dragOver) => [
+  'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-left cursor-pointer transition-all duration-200 border-2',
   active
     ? 'bg-teal-500 text-white border-teal-500'
     : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100',
