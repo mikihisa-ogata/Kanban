@@ -34,7 +34,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	todoRepo := repository.NewTodoRepository()
 	epicRepo := repository.NewEpicRepository()
-	h := NewTodoHandler(service.NewTodoService(todoRepo, epicRepo))
+	h := NewTodoHandler(service.NewTodoService(todoRepo, epicRepo, repository.NewSpaceRepository()))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)

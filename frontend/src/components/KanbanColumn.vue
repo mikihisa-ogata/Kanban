@@ -74,7 +74,11 @@ const statusHeaderClass = computed(() => {
   return statusMap[props.status] || '';
 });
 
+// タスクカード以外（エピックなど）のドラッグは受け付けない
+const isTaskDrag = (event) => Array.from(event.dataTransfer.types).includes('taskid');
+
 const handleDragOver = (event) => {
+  if (!isTaskDrag(event)) return;
   event.preventDefault();
   event.dataTransfer.dropEffect = 'move';
   isDragOver.value = true;
@@ -88,6 +92,7 @@ const handleDrop = (event) => {
   event.preventDefault();
   isDragOver.value = false;
   const taskId = parseInt(event.dataTransfer.getData('taskId'));
+  if (Number.isNaN(taskId)) return;
   emit('drop', { taskId, newStatus: props.status });
 };
 </script>

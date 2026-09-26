@@ -56,6 +56,26 @@ func (r *epicRepository) Create(epic domain.Epic) error {
 	return r.writeCSV(epics)
 }
 
+func (r *epicRepository) Update(id int, epic domain.Epic) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	epics, err := r.readCSV()
+	if err != nil {
+		return err
+	}
+
+	for i, e := range epics {
+		if e.ID == id {
+			epic.ID = id
+			epics[i] = epic
+			return r.writeCSV(epics)
+		}
+	}
+
+	return fmt.Errorf("epic with ID %d not found", id)
+}
+
 func (r *epicRepository) Delete(id int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -98,9 +118,16 @@ func (r *epicRepository) readCSV() ([]domain.Epic, error) {
 		}
 
 		id, _ := strconv.Atoi(record[0])
+
+		spaceID := 0
+		if len(record) >= 3 {
+			spaceID, _ = strconv.Atoi(record[2])
+		}
+
 		epics = append(epics, domain.Epic{
-			ID:    id,
-			Title: record[1],
+			ID:      id,
+			Title:   record[1],
+			SpaceID: spaceID,
 		})
 	}
 
@@ -117,12 +144,13 @@ func (r *epicRepository) writeCSV(epics []domain.Epic) error {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	writer.Write([]string{"ID", "Title"})
+	writer.Write([]string{"ID", "Title", "SpaceID"})
 
 	for _, epic := range epics {
 		writer.Write([]string{
 			strconv.Itoa(epic.ID),
 			epic.Title,
+			strconv.Itoa(epic.SpaceID),
 		})
 	}
 

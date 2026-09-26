@@ -22,7 +22,7 @@
         @change="$emit('change-epic', { taskId: task.ID, epicId: Number($event.target.value) })"
       >
         <option :value="0">エピックなし</option>
-        <option v-for="epic in epics" :key="epic.ID" :value="epic.ID">{{ epic.Title }}</option>
+        <option v-for="epic in spaceEpics" :key="epic.ID" :value="epic.ID">{{ epic.Title }}</option>
       </select>
     </div>
     <div v-if="task.Done" class="mt-3 pt-3 border-t border-gray-200 flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, computed } from 'vue';
 
 const props = defineProps({
   task: {
@@ -47,6 +47,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['dragstart', 'delete', 'change-epic']);
+
+// タスクと同じスペースのエピックだけを選べる
+const spaceEpics = computed(() => props.epics.filter(epic => epic.SpaceID === props.task.SpaceID));
 
 const handleDragStart = (event) => {
   event.dataTransfer.effectAllowed = 'move';

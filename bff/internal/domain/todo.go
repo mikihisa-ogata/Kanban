@@ -17,4 +17,5 @@ type Todo struct {
 	Status      Status
 	EpicID      int    // 0 の場合はエピック未割り当て
 	Description string // 任意。空文字の場合は説明なし
+	SpaceID     int    // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース
 }

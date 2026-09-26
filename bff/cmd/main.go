@@ -23,10 +23,13 @@ func main() {
 
 	repo := repository.NewTodoRepository()
 	epicRepo := repository.NewEpicRepository()
-	svc := service.NewTodoService(repo, epicRepo)
+	spaceRepo := repository.NewSpaceRepository()
+	svc := service.NewTodoService(repo, epicRepo, spaceRepo)
 	h := handler.NewTodoHandler(svc)
-	epicSvc := service.NewEpicService(epicRepo, repo)
+	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo)
 	epicHandler := handler.NewEpicHandler(epicSvc)
+	spaceSvc := service.NewSpaceService(spaceRepo, epicRepo, repo)
+	spaceHandler := handler.NewSpaceHandler(spaceSvc)
 
 	r.GET("/todos", h.GetTodos)
 	r.POST("/todos", h.CreateTodo)
@@ -35,7 +38,12 @@ func main() {
 
 	r.GET("/epics", epicHandler.GetEpics)
 	r.POST("/epics", epicHandler.CreateEpic)
+	r.PUT("/epics/:id", epicHandler.UpdateEpic)
 	r.DELETE("/epics/:id", epicHandler.DeleteEpic)
+
+	r.GET("/spaces", spaceHandler.GetSpaces)
+	r.POST("/spaces", spaceHandler.CreateSpace)
+	r.DELETE("/spaces/:id", spaceHandler.DeleteSpace)
 
 	r.Run(":8080")
 }

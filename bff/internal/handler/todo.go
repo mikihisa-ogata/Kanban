@@ -37,6 +37,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		Status      string `json:"status"`
 		EpicID      int    `json:"epicId"`
 		Description string `json:"description"`
+		SpaceID     int    `json:"spaceId"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -46,8 +47,8 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.EpicID, req.Description)
-	if errors.Is(err, service.ErrEpicNotFound) {
+	err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.EpicID, req.Description, req.SpaceID)
+	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -82,6 +83,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		Status      string `json:"status" binding:"required"`
 		EpicID      int    `json:"epicId"`
 		Description string `json:"description"`
+		SpaceID     int    `json:"spaceId"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -91,8 +93,8 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.EpicID, req.Description)
-	if errors.Is(err, service.ErrEpicNotFound) {
+	err = h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.EpicID, req.Description, req.SpaceID)
+	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -131,4 +133,11 @@ func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Todoの削除に成功しました",
 	})
+}
+
+// isTodoValidationError はリクエストの内容が不正なことによるエラーかを返す
+func isTodoValidationError(err error) bool {
+	return errors.Is(err, service.ErrEpicNotFound) ||
+		errors.Is(err, service.ErrSpaceNotFound) ||
+		errors.Is(err, service.ErrEpicSpaceMismatch)
 }

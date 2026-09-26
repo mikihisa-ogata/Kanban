@@ -34,8 +34,10 @@
       "Bash(git add --force:*)",
       "Edit(bff/todos.csv)",
       "Edit(bff/epics.csv)",
+      "Edit(bff/spaces.csv)",
       "Write(bff/todos.csv)",
-      "Write(bff/epics.csv)"
+      "Write(bff/epics.csv)",
+      "Write(bff/spaces.csv)"
     ]
   }
 }

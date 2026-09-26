@@ -14,7 +14,9 @@
         v-for="epic in epics"
         :key="epic.ID"
         :class="[chipClass(selectedEpicId === epic.ID), 'flex items-center gap-2']"
+        draggable="true"
         @click="$emit('select', epic.ID)"
+        @dragstart="handleDragStart($event, epic.ID)"
       >
         <span>{{ epic.Title }}</span>
         <span class="text-xs opacity-75">{{ progressLabel(epic.ID) }}</span>
@@ -80,6 +82,12 @@ const progressLabel = (epicId) => {
   const children = props.todos.filter(todo => todo.EpicID === epicId);
   const closed = children.filter(todo => todo.Status === 'Closed').length;
   return `${closed}/${children.length}`;
+};
+
+// スペースバーへドロップすると、エピックを子タスクごと別のスペースへ移動できる
+const handleDragStart = (event, epicId) => {
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('epicId', epicId);
 };
 
 const handleCreate = () => {

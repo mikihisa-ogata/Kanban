@@ -7,30 +7,31 @@ import (
 	"todo-api/internal/repository"
 )
 
-var ErrEpicNotFound = errors.New("指定されたエピックが存在しません")
+var ErrEpicSpaceMismatch = errors.New("エピックとタスクのスペースが一致しません")
 
 type TodoService interface {
 	GetTodos() ([]domain.Todo, error)
-	CreateTodo(title string, deadline string, status string, epicID int, description string) error
-	UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string) error
+	CreateTodo(title string, deadline string, status string, epicID int, description string, spaceID int) error
+	UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string, spaceID int) error
 	DeleteTodo(id int) error
 }
 
 type todoService struct {
-	repo     repository.TodoRepository
-	epicRepo repository.EpicRepository
+	repo      repository.TodoRepository
+	epicRepo  repository.EpicRepository
+	spaceRepo repository.SpaceRepository
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e}
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s}
 }
 
 func (s *todoService) GetTodos() ([]domain.Todo, error) {
 	return s.repo.FindAll()
 }
 
-func (s *todoService) CreateTodo(title string, deadline string, status string, epicID int, description string) error {
-	if err := s.validateEpic(epicID); err != nil {
+func (s *todoService) CreateTodo(title string, deadline string, status string, epicID int, description string, spaceID int) error {
+	if err := s.validateEpicAndSpace(epicID, spaceID); err != nil {
 		return err
 	}
 
@@ -47,12 +48,13 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, e
 		Status:      todoStatus,
 		EpicID:      epicID,
 		Description: description,
+		SpaceID:     spaceID,
 	}
 	return s.repo.Create(todo)
 }
 
-func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string) error {
-	if err := s.validateEpic(epicID); err != nil {
+func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string, spaceID int) error {
+	if err := s.validateEpicAndSpace(epicID, spaceID); err != nil {
 		return err
 	}
 
@@ -63,6 +65,7 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 		Status:      domain.Status(status),
 		EpicID:      epicID,
 		Description: description,
+		SpaceID:     spaceID,
 	}
 	return s.repo.Update(id, todo)
 }
@@ -71,13 +74,24 @@ func (s *todoService) DeleteTodo(id int) error {
 	return s.repo.Delete(id)
 }
 
-func (s *todoService) validateEpic(epicID int) error {
-	exists, err := epicExists(s.epicRepo, epicID)
+// validateEpicAndSpace はスペースとエピックが存在し、エピックがタスクと同じスペースに属することを確かめる
+func (s *todoService) validateEpicAndSpace(epicID int, spaceID int) error {
+	if err := validateSpace(s.spaceRepo, spaceID); err != nil {
+		return err
+	}
+	if epicID == 0 {
+		return nil
+	}
+
+	epic, err := findEpic(s.epicRepo, epicID)
 	if err != nil {
 		return err
 	}
-	if !exists {
+	if epic == nil {
 		return ErrEpicNotFound
+	}
+	if epic.SpaceID != spaceID {
+		return ErrEpicSpaceMismatch
 	}
 	return nil
 }

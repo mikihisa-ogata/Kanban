@@ -98,7 +98,37 @@ func TestTodoRepository_ReadsLegacyCSVWithoutDescription(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "ID,Title,Done,Deadline,Status,EpicID,Description\n1,old,false,2026-10-01,Open,0,\n2,new,false,2026-10-02,Open,0,説明\n"
+	want := "ID,Title,Done,Deadline,Status,EpicID,Description,SpaceID\n1,old,false,2026-10-01,Open,0,,0\n2,new,false,2026-10-02,Open,0,説明,0\n"
+	if string(data) != want {
+		t.Errorf("csv = %q, want %q", data, want)
+	}
+}
+
+// SpaceID 列がない旧形式の CSV はスペース未割り当てとして読み込め、書き戻すと列が追加される
+func TestTodoRepository_SpaceID(t *testing.T) {
+	chdirTemp(t)
+	legacy := "ID,Title,Done,Deadline,Status,EpicID,Description\n1,old,false,,Open,0,説明\n"
+	if err := os.WriteFile(csvFilePath, []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewTodoRepository()
+
+	if err := repo.Create(domain.Todo{Title: "new", Status: domain.StatusOpen, SpaceID: 3}); err != nil {
+		t.Fatal(err)
+	}
+	todos, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(todos) != 2 || todos[0].SpaceID != 0 || todos[0].Description != "説明" || todos[1].SpaceID != 3 {
+		t.Fatalf("todos = %+v", todos)
+	}
+
+	data, err := os.ReadFile(csvFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "ID,Title,Done,Deadline,Status,EpicID,Description,SpaceID\n1,old,false,,Open,0,説明,0\n2,new,false,,Open,0,,3\n"
 	if string(data) != want {
 		t.Errorf("csv = %q, want %q", data, want)
 	}

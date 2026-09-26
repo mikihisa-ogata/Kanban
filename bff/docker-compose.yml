@@ -6,4 +6,5 @@ services:
     volumes:
       - ./todos.csv:/app/todos.csv
       - ./epics.csv:/app/epics.csv
+      - ./spaces.csv:/app/spaces.csv
     restart: always

@@ -1,7 +1,18 @@
 <template>
   <div class="px-8 py-8 min-h-screen">
+    <SpaceBar
+      :spaces="spaces"
+      :todos="todos"
+      :selected-space-id="selectedSpaceId"
+      @select="selectSpace"
+      @create="handleCreateSpace"
+      @delete="handleDeleteSpace"
+      @move="handleMoveToSpace"
+    />
+
     <EpicBar
-      :epics="epics"
+      class="mt-4"
+      :epics="visibleEpics"
       :todos="todos"
       :selected-epic-id="selectedEpicId"
       @select="selectedEpicId = $event"
@@ -37,7 +48,9 @@
       <TaskForm 
         :initial-status="modalInitialStatus"
         :initial-epic-id="selectedEpicId ?? 0"
+        :initial-space-id="modalInitialSpaceId"
         :epics="epics"
+        :spaces="spaces"
         @submit="handleCreateTodoFromModal"
         @close="closeModal"
       />
@@ -46,15 +59,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import KanbanColumn from './KanbanColumn.vue';
 import TaskForm from './TaskForm.vue';
 import EpicBar from './EpicBar.vue';
+import SpaceBar from './SpaceBar.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
+import { spacesApi } from '../api/spaces';
 
 const todos = ref([]);
 const epics = ref([]);
+const spaces = ref([]);
+// null の場合は全スペースを表示
+const selectedSpaceId = ref(null);
 // null の場合は全タスクを表示
 const selectedEpicId = ref(null);
 const error = ref('');
@@ -68,12 +86,32 @@ const columns = [
   { status: 'Closed', title: 'クローズ' }
 ];
 
-// ステータスごとにタスクをフィルタリング（エピック選択中はその子タスクのみ）
+// 選択中のスペースに属するエピック
+const visibleEpics = computed(() =>
+  selectedSpaceId.value === null
+    ? epics.value
+    : epics.value.filter(epic => epic.SpaceID === selectedSpaceId.value)
+);
+
+// タスク作成フォームの初期スペース（エピック選択中はそのエピックのスペース）
+const modalInitialSpaceId = computed(() => {
+  const epic = epics.value.find(e => e.ID === selectedEpicId.value);
+  return epic ? epic.SpaceID : (selectedSpaceId.value ?? 0);
+});
+
+// ステータスごとにタスクをフィルタリング（スペース・エピック選択中はそれに属するタスクのみ）
 const getTasksByStatus = (status) => {
   return todos.value.filter(todo =>
     todo.Status === status &&
+    (selectedSpaceId.value === null || todo.SpaceID === selectedSpaceId.value) &&
     (selectedEpicId.value === null || todo.EpicID === selectedEpicId.value)
   );
+};
+
+// スペースを切り替える（エピックの選択は解除する）
+const selectSpace = (spaceId) => {
+  selectedSpaceId.value = spaceId;
+  selectedEpicId.value = null;
 };
 
 // タスク一覧を取得
@@ -107,11 +145,99 @@ const fetchEpics = async () => {
   }
 };
 
-// エピックを作成
+// スペース一覧を取得
+const fetchSpaces = async () => {
+  try {
+    error.value = '';
+    spaces.value = await spacesApi.fetchAll();
+  } catch (err) {
+    error.value = 'スペースの取得に失敗しました: ' + err.message;
+    console.error('Failed to fetch spaces:', err);
+  }
+};
+
+// スペースを作成
+const handleCreateSpace = async (title) => {
+  try {
+    error.value = '';
+    await spacesApi.create({ title });
+    await fetchSpaces();
+  } catch (err) {
+    error.value = 'スペースの作成に失敗しました: ' + err.message;
+    console.error('Failed to create space:', err);
+  }
+};
+
+// スペースを削除（エピックとタスクは削除されず、スペース未割り当てになる）
+const handleDeleteSpace = async (spaceId) => {
+  if (!confirm('このスペースを削除してもよろしいですか？\nエピックとタスクは削除されず、スペース未割り当てになります。')) {
+    return;
+  }
+
+  try {
+    error.value = '';
+    await spacesApi.delete(spaceId);
+    if (selectedSpaceId.value === spaceId) {
+      selectSpace(null);
+    }
+    await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos()]);
+  } catch (err) {
+    error.value = 'スペースの削除に失敗しました: ' + err.message;
+    console.error('Failed to delete space:', err);
+  }
+};
+
+// タスクまたはエピックを別のスペースへ移動する
+const handleMoveToSpace = async ({ type, id, spaceId }) => {
+  try {
+    error.value = '';
+    if (type === 'epic') {
+      const epic = epics.value.find(e => e.ID === id);
+      if (!epic) {
+        throw new Error('エピックが見つかりません');
+      }
+      if (epic.SpaceID === spaceId) {
+        return;
+      }
+      // 子タスクもエピックと一緒に移動する
+      await epicsApi.update(id, { title: epic.Title, spaceId });
+      if (selectedEpicId.value === id && selectedSpaceId.value !== null) {
+        selectedEpicId.value = null;
+      }
+      await Promise.all([fetchEpics(), fetchTodos()]);
+      return;
+    }
+
+    const task = todos.value.find(t => t.ID === id);
+    if (!task) {
+      throw new Error('タスクが見つかりません');
+    }
+    if (task.SpaceID === spaceId) {
+      return;
+    }
+    // エピックは移動元のスペースに属するので、紐付けを外す
+    await todosApi.update(id, {
+      title: task.Title,
+      description: task.Description,
+      done: task.Done,
+      deadline: task.Deadline,
+      status: task.Status,
+      epicId: 0,
+      spaceId
+    });
+    await fetchTodos();
+  } catch (err) {
+    error.value = 'スペースの移動に失敗しました: ' + err.message;
+    console.error('Failed to move to space:', err);
+    await Promise.all([resyncTodos(), fetchEpics()]);
+  }
+};
+
+// エピックを作成（スペース選択中はそのスペースに作る）
 const handleCreateEpic = async (title) => {
   try {
     error.value = '';
-    await epicsApi.create({ title });
+    await epicsApi.create({ title, spaceId: selectedSpaceId.value ?? 0 });
     await fetchEpics();
   } catch (err) {
     error.value = 'エピックの作成に失敗しました: ' + err.message;
@@ -147,7 +273,8 @@ const handleCreateTodo = async (formData) => {
       description: formData.description,
       deadline: formData.deadline,
       status: formData.status,
-      epicId: formData.epicId
+      epicId: formData.epicId,
+      spaceId: formData.spaceId
     });
     await fetchTodos(); // リストを再取得
   } catch (err) {
@@ -195,7 +322,8 @@ const handleDrop = async ({ taskId, newStatus }) => {
       done: task.Done,
       deadline: task.Deadline,
       status: newStatus,
-      epicId: task.EpicID
+      epicId: task.EpicID,
+      spaceId: task.SpaceID
     });
     
     await fetchTodos(); // リストを再取得
@@ -221,7 +349,8 @@ const handleChangeEpic = async ({ taskId, epicId }) => {
       done: task.Done,
       deadline: task.Deadline,
       status: task.Status,
-      epicId
+      epicId,
+      spaceId: task.SpaceID
     });
 
     await fetchTodos(); // リストを再取得
@@ -253,5 +382,6 @@ const handleDeleteTodo = async (taskId) => {
 onMounted(() => {
   fetchTodos();
   fetchEpics();
+  fetchSpaces();
 });
 </script>

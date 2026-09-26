@@ -23,6 +23,19 @@ export const epicsApi = {
     return response.json();
   },
 
+  // エピック更新（スペースを変えると子タスクも移動する）
+  async update(id, epic) {
+    const response = await fetch(`${API_BASE_URL}/epics/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(epic)
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update epic');
+    }
+    return response.json();
+  },
+
   // エピック削除
   async delete(id) {
     const response = await fetch(`${API_BASE_URL}/epics/${id}`, {

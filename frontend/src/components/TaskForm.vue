@@ -66,6 +66,20 @@
         </select>
       </div>
 
+      <div v-if="spaces.length" class="mb-7">
+        <label for="space" class="block mb-2 text-sm font-semibold text-gray-700">
+          スペース
+        </label>
+        <select
+          id="space"
+          v-model="formData.spaceId"
+          class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white cursor-pointer focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        >
+          <option :value="0">なし</option>
+          <option v-for="space in spaces" :key="space.ID" :value="space.ID">{{ space.Title }}</option>
+        </select>
+      </div>
+
       <div class="mb-7">
         <label for="epic" class="block mb-2 text-sm font-semibold text-gray-700">
           エピック
@@ -76,7 +90,7 @@
           class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white cursor-pointer focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
         >
           <option :value="0">なし</option>
-          <option v-for="epic in epics" :key="epic.ID" :value="epic.ID">{{ epic.Title }}</option>
+          <option v-for="epic in spaceEpics" :key="epic.ID" :value="epic.ID">{{ epic.Title }}</option>
         </select>
       </div>
       
@@ -94,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, defineEmits, defineProps, watch } from 'vue';
+import { ref, defineEmits, defineProps, watch, computed } from 'vue';
 
 const props = defineProps({
   initialStatus: {
@@ -105,7 +119,15 @@ const props = defineProps({
     type: Number,
     default: 0
   },
+  initialSpaceId: {
+    type: Number,
+    default: 0
+  },
   epics: {
+    type: Array,
+    default: () => []
+  },
+  spaces: {
     type: Array,
     default: () => []
   }
@@ -118,7 +140,18 @@ const formData = ref({
   description: '',
   deadline: '',
   status: props.initialStatus,
-  epicId: props.initialEpicId
+  epicId: props.initialEpicId,
+  spaceId: props.initialSpaceId
+});
+
+// 選択中のスペースに属するエピックだけを選べる
+const spaceEpics = computed(() => props.epics.filter(epic => epic.SpaceID === formData.value.spaceId));
+
+// スペースを変えたら、別のスペースのエピックは外す
+watch(() => formData.value.spaceId, () => {
+  if (!spaceEpics.value.some(epic => epic.ID === formData.value.epicId)) {
+    formData.value.epicId = 0;
+  }
 });
 
 // initialStatusが変更された時に formData.status を更新
@@ -140,7 +173,8 @@ const handleSubmit = async () => {
       description: '',
       deadline: '',
       status: props.initialStatus,
-      epicId: props.initialEpicId
+      epicId: props.initialEpicId,
+      spaceId: props.initialSpaceId
     };
   } finally {
     isSubmitting.value = false;

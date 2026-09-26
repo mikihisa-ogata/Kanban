@@ -7,7 +7,7 @@
 ## 構成
 
 ```
-bff/        Go 1.23 + gin。データは CSV（todos.csv / epics.csv）に保存
+bff/        Go 1.23 + gin。データは CSV（todos.csv / epics.csv / spaces.csv）に保存
   cmd/main.go            ルーティングと依存の組み立て（ポート 8080 固定）
   internal/domain/       エンティティ（Todo, Epic）
   internal/handler/      HTTP の入出力のみ
@@ -43,7 +43,7 @@ frontend/   Nuxt 3（srcDir: src）+ Vue 3 + Tailwind CSS v4
 
 ## データの扱い（重要）
 
-- `bff/todos.csv` と `bff/epics.csv` はオーナーの実データで、git 管理外。**コミットしない・書き換えない・削除しない。**
+- `bff/todos.csv`・`bff/epics.csv`・`bff/spaces.csv` はオーナーの実データで、git 管理外。**コミットしない・書き換えない・削除しない。**
 - CSV のパスは実行時のカレントディレクトリからの相対パス。実データに触れずに検証するときは、スクラッチ用のディレクトリに `*.example.csv` をコピーし、そのディレクトリをカレントにしてビルド済みのバイナリを起動する。
 - オーナーが bff やフロントを起動していることがある（8080 / 3000）。そのプロセスを止めない。起動中の画面では、表示の確認だけにとどめる。タスクの作成・変更・削除は実データを書き換えるので行わない。
 
