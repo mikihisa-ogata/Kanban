@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-blue-500 to-blue-800">
     <!-- スクロールしてもハンバーガーメニューを押せるよう、ヘッダーは画面上部に固定する（高さはサイドバーの位置と合わせる） -->
-    <header class="sticky top-0 z-40 h-17 bg-white bg-opacity-95 backdrop-blur-md px-8 flex items-center gap-4">
+    <header class="sticky top-0 z-40 h-17 bg-white bg-opacity-95 backdrop-blur-md border-b border-gray-200 px-8 flex items-center gap-4">
       <button
         type="button"
         class="bg-transparent border-0 p-1.5 rounded-lg text-blue-900 cursor-pointer hover:bg-blue-50 transition-all duration-200"
