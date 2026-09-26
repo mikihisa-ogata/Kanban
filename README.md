@@ -42,10 +42,10 @@ go run ./cmd/main.go
 ```bash
 cd frontend
 pnpm install
-pnpm dev --port 5173
+pnpm dev
 ```
 
-フロントエンドは `http://localhost:5173` で利用可能になります。
+フロントエンドは `http://localhost:3000` で利用可能になります。
 
 ## API
 

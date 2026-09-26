@@ -9,6 +9,11 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
+  // bff の CORS で許可しているポートに固定する
+  devServer: {
+    port: 3000
+  },
+
   css: ['~/style.css'],
 
   app: {
