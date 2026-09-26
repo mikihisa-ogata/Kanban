@@ -27,10 +27,10 @@ frontend/   Nuxt 3（srcDir: src）+ Vue 3 + Tailwind CSS v4
 | bff ビルド・静的解析 | `cd bff && go build ./... && go vet ./...` |
 | bff テスト | `cd bff && go test ./...` |
 | bff 起動 | `cd bff && go run ./cmd/main.go`（または `docker compose up -d`） |
-| フロント起動 | `cd frontend && npm run dev -- --port 5173`（http://localhost:5173。bff の CORS 許可に合わせる） |
-| フロントビルド確認 | `cd frontend && npm run build:verify`（出力先は `.nuxt-verify/`） |
+| フロント起動 | `cd frontend && pnpm dev --port 5173`（http://localhost:5173。bff の CORS 許可に合わせる） |
+| フロントビルド確認 | `cd frontend && pnpm build:verify`（出力先は `.nuxt-verify/`） |
 
-- ビルド確認には必ず `npm run build:verify` を使う。`npm run build` は起動中の `nuxt dev` と同じ `.nuxt/` に本番ビルドを上書きし、dev の画面を `#internal/nuxt/paths` エラーで壊す。
+- ビルド確認には必ず `pnpm build:verify` を使う。`pnpm build` は起動中の `nuxt dev` と同じ `.nuxt/` に本番ビルドを上書きし、dev の画面を `#internal/nuxt/paths` エラーで壊す。
 - フロントにはテストランナーがない。検証はビルドと画面確認で行う。
 
 ## 設計ルール
