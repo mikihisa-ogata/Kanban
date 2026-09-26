@@ -53,62 +53,35 @@
         <label for="status" class="block mb-2 text-sm font-semibold text-gray-700">
           ステータス
         </label>
-        <div class="relative">
-          <select
-            id="status" 
-            v-model="formData.status"
-            class="w-full appearance-none pl-3 pr-10 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
-          >
-            <option value="Open">オープン</option>
-            <option value="InProgress">進行中</option>
-            <option value="Waiting">待ち状況</option>
-            <option value="Closed">クローズ</option>
-          </select>
-          <!-- 選択肢から選ぶ項目だとわかるよう、右端から余白を取って矢印を表示する -->
-          <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-          </svg>
-        </div>
+        <OptionSelect
+          id="status"
+          v-model="formData.status"
+          :options="statusOptions"
+        />
       </div>
 
       <div v-if="spaces.length" class="mb-4">
         <label for="space" class="block mb-2 text-sm font-semibold text-gray-700">
           スペース
         </label>
-        <div class="relative">
-          <select
-            id="space"
-            v-model="formData.spaceId"
-            class="w-full appearance-none pl-3 pr-10 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
-          >
-            <option :value="0">なし</option>
-            <option v-for="space in spaces" :key="space.ID" :value="space.ID">{{ space.Title }}</option>
-          </select>
-          <!-- 選択肢から選ぶ項目だとわかるよう、右端から余白を取って矢印を表示する -->
-          <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-          </svg>
-        </div>
+        <OptionSelect
+          id="space"
+          v-model="formData.spaceId"
+          :options="spaceOptions"
+          :empty-value="0"
+        />
       </div>
 
       <div class="mb-4">
         <label for="epic" class="block mb-2 text-sm font-semibold text-gray-700">
           エピック
         </label>
-        <div class="relative">
-          <select
-            id="epic"
-            v-model="formData.epicId"
-            class="w-full appearance-none pl-3 pr-10 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
-          >
-            <option :value="0">なし</option>
-            <option v-for="epic in spaceEpics" :key="epic.ID" :value="epic.ID">{{ epic.Title }}</option>
-          </select>
-          <!-- 選択肢から選ぶ項目だとわかるよう、右端から余白を取って矢印を表示する -->
-          <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-          </svg>
-        </div>
+        <OptionSelect
+          id="epic"
+          v-model="formData.epicId"
+          :options="epicOptions"
+          :empty-value="0"
+        />
       </div>
       
       <div class="mt-5">
@@ -127,6 +100,7 @@
 
 <script setup>
 import { ref, defineEmits, defineProps, watch, computed } from 'vue';
+import OptionSelect from './OptionSelect.vue';
 
 const props = defineProps({
   initialStatus: {
@@ -178,6 +152,23 @@ const formData = ref(props.task
 
 // 選択中のスペースに属するエピックだけを選べる
 const spaceEpics = computed(() => props.epics.filter(epic => epic.SpaceID === formData.value.spaceId));
+
+const statusOptions = [
+  { value: 'Open', label: 'オープン' },
+  { value: 'InProgress', label: '進行中' },
+  { value: 'Waiting', label: '待ち状況' },
+  { value: 'Closed', label: 'クローズ' }
+];
+
+const spaceOptions = computed(() => [
+  { value: 0, label: 'なし' },
+  ...props.spaces.map(space => ({ value: space.ID, label: space.Title }))
+]);
+
+const epicOptions = computed(() => [
+  { value: 0, label: 'なし' },
+  ...spaceEpics.value.map(epic => ({ value: epic.ID, label: epic.Title }))
+]);
 
 // スペースを変えたら、別のスペースのエピックは外す
 watch(() => formData.value.spaceId, () => {
