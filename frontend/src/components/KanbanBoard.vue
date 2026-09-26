@@ -23,10 +23,11 @@
       />
     </div>
 
-    <div class="flex-1 min-w-0 px-8 py-8">
-      <h2 class="m-0 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
+    <div class="flex-1 min-w-0 py-8">
+      <h2 class="m-0 px-8 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
 
-      <div class="overflow-x-auto pb-6 mt-6">
+      <!-- 画面が狭いときに画面端で見切れるよう、左右の余白は外側ではなくスクロール領域の内側に持たせる -->
+      <div class="overflow-x-auto px-8 pb-6 mt-6">
         <div class="min-w-5xl flex flex-col gap-4">
           <div class="grid grid-cols-4 gap-4 px-3">
             <div
