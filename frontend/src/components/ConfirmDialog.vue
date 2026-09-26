@@ -10,17 +10,16 @@
       aria-describedby="confirm-dialog-message"
       class="bg-white rounded-2xl px-8 pt-8 pb-6 shadow-2xl mx-4 max-w-md w-full"
     >
-      <div class="flex items-start gap-4">
+      <!-- アイコンとタイトルを横に並べ、本文はその下に全幅で置く -->
+      <div class="flex items-center gap-4">
         <div class="shrink-0 w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl font-bold">
           !
         </div>
-        <div class="min-w-0">
-          <h3 id="confirm-dialog-title" class="m-0 text-lg font-bold text-gray-900">{{ title }}</h3>
-          <p id="confirm-dialog-message" class="mt-2 text-sm text-gray-600 whitespace-pre-line break-words">{{ message }}</p>
-        </div>
+        <h3 id="confirm-dialog-title" class="m-0 min-w-0 text-lg font-bold text-gray-900">{{ title }}</h3>
       </div>
+      <p id="confirm-dialog-message" class="mt-4 text-sm text-gray-600 whitespace-pre-line break-words">{{ message }}</p>
 
-      <div class="flex justify-end gap-3 mt-6">
+      <div class="flex justify-center gap-3 mt-6">
         <button
           ref="cancelButton"
           type="button"
