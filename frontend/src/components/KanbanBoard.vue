@@ -110,6 +110,15 @@
         @close="closeDetailModal"
       />
     </div>
+
+    <!-- 削除の確認モーダル -->
+    <ConfirmDialog
+      v-if="confirmDialog"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      @confirm="closeConfirmDialog(true)"
+      @cancel="closeConfirmDialog(false)"
+    />
   </div>
 </template>
 
@@ -118,6 +127,7 @@ import { ref, computed, onMounted } from 'vue';
 import TaskForm from './TaskForm.vue';
 import EpicLane from './EpicLane.vue';
 import SpaceSidebar from './SpaceSidebar.vue';
+import ConfirmDialog from './ConfirmDialog.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
@@ -136,6 +146,8 @@ const modalInitialStatus = ref('Open');
 const modalInitialEpicId = ref(0);
 // 詳細モーダルで表示中のタスク（null の場合は閉じている）
 const detailTask = ref(null);
+// 削除の確認モーダルの内容と、選んだ結果を返す関数（null の場合は閉じている）
+const confirmDialog = ref(null);
 
 const columns = [
   { status: 'Open', title: 'オープン' },
@@ -204,6 +216,19 @@ const modalInitialSpaceId = computed(() => {
   return epic ? epic.SpaceID : (selectedSpaceId.value ?? 0);
 });
 
+// 確認モーダルを開き、削除を選んだら true、キャンセルしたら false で解決する
+const askConfirm = (title, message) => new Promise((resolve) => {
+  confirmDialog.value = { title, message, resolve };
+});
+
+// 確認モーダルを閉じる
+const closeConfirmDialog = (confirmed) => {
+  const dialog = confirmDialog.value;
+  if (!dialog) return;
+  confirmDialog.value = null;
+  dialog.resolve(confirmed);
+};
+
 // スペースを切り替える
 const selectSpace = (spaceId) => {
   selectedSpaceId.value = spaceId;
@@ -265,7 +290,12 @@ const handleCreateSpace = async (title) => {
 
 // スペースを削除（エピックとタスクは削除されず、スペース未割り当てになる）
 const handleDeleteSpace = async (spaceId) => {
-  if (!confirm('このスペースを削除してもよろしいですか？\nエピックとタスクは削除されず、スペース未割り当てになります。')) {
+  const space = spaces.value.find(s => s.ID === spaceId);
+  const confirmed = await askConfirm(
+    'スペースを削除しますか？',
+    `「${space ? space.Title : ''}」を削除します。\nエピックとタスクは削除されず、スペース未割り当てになります。`
+  );
+  if (!confirmed) {
     return;
   }
 
@@ -343,7 +373,12 @@ const handleCreateEpic = async () => {
 
 // エピックを削除（子タスクは未割り当てに戻る）
 const handleDeleteEpic = async (epicId) => {
-  if (!confirm('このエピックを削除してもよろしいですか？\n子タスクは削除されず、エピック未割り当てになります。')) {
+  const epic = epics.value.find(e => e.ID === epicId);
+  const confirmed = await askConfirm(
+    'エピックを削除しますか？',
+    `「${epic ? epic.Title : ''}」を削除します。\n子タスクは削除されず、エピック未割り当てになります。`
+  );
+  if (!confirmed) {
     return;
   }
 
@@ -480,7 +515,12 @@ const handleDrop = async ({ taskId, newStatus, epicId, beforeId }) => {
 
 // タスクを削除
 const handleDeleteTodo = async (taskId) => {
-  if (!confirm('このタスクを削除してもよろしいですか？')) {
+  const task = todos.value.find(t => t.ID === taskId);
+  const confirmed = await askConfirm(
+    'タスクを削除しますか？',
+    `「${task ? task.Title : ''}」を削除します。この操作は取り消せません。`
+  );
+  if (!confirmed) {
     return;
   }
   
