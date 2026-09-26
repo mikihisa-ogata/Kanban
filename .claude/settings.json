@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)",
+      "Bash(go vet:*)",
+      "Bash(go test:*)",
+      "Bash(go run:*)",
+      "Bash(go fmt:*)",
+      "Bash(gofmt:*)",
+      "Bash(go mod tidy)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(npm install)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh issue close:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git pull --rebase origin main)",
+      "Bash(git push origin main)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git add -f:*)",
+      "Bash(git add --force:*)",
+      "Edit(bff/todos.csv)",
+      "Edit(bff/epics.csv)",
+      "Write(bff/todos.csv)",
+      "Write(bff/epics.csv)"
+    ]
+  }
+}
