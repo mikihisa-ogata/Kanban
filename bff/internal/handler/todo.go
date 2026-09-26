@@ -33,7 +33,7 @@ func (h *TodoHandler) GetTodos(c *gin.Context) {
 func (h *TodoHandler) CreateTodo(c *gin.Context) {
 	var req struct {
 		Title       string `json:"title" binding:"required"`
-		Deadline    string `json:"deadline" binding:"required"`
+		Deadline    string `json:"deadline"`
 		Status      string `json:"status"`
 		EpicID      int    `json:"epicId"`
 		Description string `json:"description"`
@@ -78,7 +78,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 	var req struct {
 		Title       string `json:"title" binding:"required"`
 		Done        bool   `json:"done"`
-		Deadline    string `json:"deadline" binding:"required"`
+		Deadline    string `json:"deadline"`
 		Status      string `json:"status" binding:"required"`
 		EpicID      int    `json:"epicId"`
 		Description string `json:"description"`

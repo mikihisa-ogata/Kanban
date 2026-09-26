@@ -98,3 +98,59 @@ func TestTodoHandler_Description(t *testing.T) {
 		t.Errorf("todo = %+v", todos[0])
 	}
 }
+
+func TestTodoHandler_DeadlineOptional(t *testing.T) {
+	r := setupTodoRouter(t)
+
+	// deadline は省略可能
+	w := doRequest(t, r, http.MethodPost, "/todos", `{"title":"a"}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST status = %d, body = %s", w.Code, w.Body)
+	}
+	w = doRequest(t, r, http.MethodPost, "/todos", `{"title":"b","deadline":""}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST status = %d, body = %s", w.Code, w.Body)
+	}
+
+	todos := getTodos(t, r)
+	if len(todos) != 2 {
+		t.Fatalf("len = %d, want 2", len(todos))
+	}
+	for _, todo := range todos {
+		if todo.Deadline != "" {
+			t.Errorf("Deadline = %q, want empty", todo.Deadline)
+		}
+	}
+
+	// 期限なしのタスクをそのまま更新できる
+	w = doRequest(t, r, http.MethodPut, "/todos/1", `{"title":"a","deadline":"","status":"InProgress"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d, body = %s", w.Code, w.Body)
+	}
+	// 期限を設定したあとで外せる
+	w = doRequest(t, r, http.MethodPut, "/todos/2", `{"title":"b","deadline":"2026-10-01","status":"Open"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d, body = %s", w.Code, w.Body)
+	}
+	if todos = getTodos(t, r); todos[1].Deadline != "2026-10-01" {
+		t.Errorf("Deadline = %q, want 2026-10-01", todos[1].Deadline)
+	}
+	w = doRequest(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Open"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d, body = %s", w.Code, w.Body)
+	}
+
+	todos = getTodos(t, r)
+	if todos[0].Deadline != "" || todos[0].Status != domain.StatusInProgress {
+		t.Errorf("todo = %+v", todos[0])
+	}
+	if todos[1].Deadline != "" {
+		t.Errorf("Deadline = %q, want empty", todos[1].Deadline)
+	}
+
+	// title は引き続き必須
+	w = doRequest(t, r, http.MethodPost, "/todos", `{"deadline":"2026-10-01"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("POST without title status = %d, want 400", w.Code)
+	}
+}

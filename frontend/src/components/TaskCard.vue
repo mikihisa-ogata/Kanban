@@ -8,14 +8,14 @@
     </div>
     <p v-if="task.Description" class="m-0 mb-3 text-sm text-gray-600 whitespace-pre-wrap break-words line-clamp-3" :title="task.Description">{{ task.Description }}</p>
     <div class="flex justify-between items-center gap-2 flex-wrap">
-      <div class="flex items-center gap-1.5 text-sm text-gray-600">
+      <div v-if="task.Deadline" class="flex items-center gap-1.5 text-sm text-gray-600">
         <span class="text-sm">📅</span>
         <span>{{ formatDate(task.Deadline) }}</span>
       </div>
       <select
         :value="task.EpicID"
         :class="[
-          'max-w-40 truncate px-2 py-0.5 rounded-full text-xs font-semibold border cursor-pointer focus:outline-none',
+          'ml-auto max-w-40 truncate px-2 py-0.5 rounded-full text-xs font-semibold border cursor-pointer focus:outline-none',
           task.EpicID ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-200'
         ]"
         title="エピック"

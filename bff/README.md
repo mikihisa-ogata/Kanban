@@ -86,7 +86,7 @@ GET /todos
     "ID": 1,
     "Title": "タスク1",
     "Done": false,
-    "Deadline": "2026-03-31",
+    "Deadline": "2026-03-31（省略可。省略すると期限なし）",
     "Status": "Waiting",
     "EpicID": 0,
     "Description": "タスクの説明（任意。改行を含められる）"
@@ -104,7 +104,7 @@ POST /todos
 ```json
 {
   "Title": "新しいタスク",
-  "Deadline": "2026-03-31",
+  "Deadline": "2026-03-31（省略可。省略すると期限なし）",
   "Status": "Open",
   "Description": "タスクの説明（省略可）"
 }
@@ -121,7 +121,7 @@ PUT /todos/:id
 {
   "Title": "更新されたタスク",
   "Done": true,
-  "Deadline": "2026-03-31",
+  "Deadline": "2026-03-31（省略すると期限なしになる）",
   "Status": "InProgress",
   "Description": "タスクの説明（省略すると空になる）"
 }
