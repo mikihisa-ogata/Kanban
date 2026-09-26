@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.18.0",
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
@@ -20,5 +21,11 @@
     "@vue/test-utils": "^2.4.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "esbuild"
+    ]
   }
 }

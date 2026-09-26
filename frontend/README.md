@@ -25,7 +25,7 @@ frontend/
 ├── public/                    # 静的ファイル
 ├── index.html                 # HTMLテンプレート
 ├── vite.config.js            # Vite設定ファイル
-├── package.json              # npm依存関係
+├── package.json              # 依存関係（pnpm で管理）
 └── README.md
 ```
 
@@ -34,18 +34,18 @@ frontend/
 ### 前提条件
 
 - Node.js 14+ 
-- npm
+- pnpm
 
 ### インストール
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## 開発サーバーの起動
 
 ```bash
-npm run dev
+pnpm dev --port 5173
 ```
 
 開発サーバーは `http://localhost:5173` で起動します。ファイルの変更は自動的にホットリロードされます。
@@ -55,7 +55,7 @@ npm run dev
 プロダクション用のビルド：
 
 ```bash
-npm run build
+pnpm build
 ```
 
 ビルド結果は `dist/` ディレクトリに出力されます。
@@ -65,7 +65,7 @@ npm run build
 ビルドしたアプリケーションを確認：
 
 ```bash
-npm run preview
+pnpm preview
 ```
 
 ## 機能

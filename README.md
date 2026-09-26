@@ -24,7 +24,7 @@ todo-api/
 
 - Go 1.16+
 - Node.js 14+
-- npm
+- pnpm
 
 ### セットアップ
 
@@ -41,8 +41,8 @@ go run ./cmd/main.go
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev --port 5173
 ```
 
 フロントエンドは `http://localhost:5173` で利用可能になります。
