@@ -13,6 +13,8 @@ bff/
 ├── cmd/
 │   └── main.go              # アプリケーション エントリーポイント
 ├── internal/
+│   ├── database/
+│   │   └── database.go      # MySQL への接続とテーブル作成
 │   ├── domain/
 │   │   └── todo.go          # TODOドメインモデル
 │   ├── handler/
@@ -197,6 +199,22 @@ TODOデータは `bff/todos.csv`、エピックデータは `bff/epics.csv`、�
 `todos.csv` の列は `ID,Title,Done,Deadline,Status,EpicID,Description,SpaceID` で、行の順番がタスクの表示順になります。`epics.csv` の列は `ID,Title,SpaceID`、`spaces.csv` の列は `ID,Title` です。`Description` や `SpaceID` の列がない旧形式のファイルもそのまま読み込め（`SpaceID` は 0 = 未割り当て）、次に書き込んだときに列が追加されます。
 
 Docker で起動している場合、`spaces.csv` がないと Docker がディレクトリを作成してしまうため、更新後は `cp -n spaces.example.csv spaces.csv` を実行してから起動し直してください。
+
+## MySQL（CSV からの移行中）
+
+データの保存先を CSV から MySQL へ移行している途中です（issue #4）。現時点では API はまだ CSV を使っており、MySQL には接続しません。
+
+- 接続先は環境変数 `DB_DSN` で指定します（例: `kanban:kanban@tcp(localhost:3306)/kanban`）。未設定の場合はこの例の値を使います。
+- `docker compose up -d` を実行すると `mysql`（MySQL 8.4、ポート 3306）も起動します。データは名前付きボリューム `mysql-data` に保存されます。
+- テーブル（`spaces`・`epics`・`todos`）は `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。`todos.position` はタスクの表示順です。
+
+### テスト
+
+MySQL を使うテストは、環境変数 `TEST_DB_DSN` にテスト専用のデータベースを指定したときだけ実行されます（未設定の場合はスキップされます）。テストはテーブルの中身を消すことがあるので、実データのデータベースは指定しないでください。
+
+```bash
+TEST_DB_DSN='kanban:kanban@tcp(localhost:3306)/kanban_test' go test ./...
+```
 
 ## ライセンス
 

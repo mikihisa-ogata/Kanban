@@ -26,6 +26,7 @@ frontend/   Nuxt 3（srcDir: src）+ Vue 3 + Tailwind CSS v4
 |---|---|
 | bff ビルド・静的解析 | `cd bff && go build ./... && go vet ./...` |
 | bff テスト | `cd bff && go test ./...` |
+| bff テスト（MySQL 含む） | `cd bff && TEST_DB_DSN='<user>:<pass>@tcp(<host>:<port>)/<テスト専用DB>' go test ./...`（未設定だと MySQL のテストはスキップ。実データの DB は指定しない） |
 | bff 起動 | `cd bff && go run ./cmd/main.go`（または `docker compose up -d`） |
 | フロント起動 | `cd frontend && pnpm dev`（http://localhost:3000。bff の CORS 許可に合わせる） |
 | フロントビルド確認 | `cd frontend && pnpm build:verify`（出力先は `.nuxt-verify/`） |
