@@ -87,7 +87,9 @@ GET /todos
     "Title": "タスク1",
     "Done": false,
     "Deadline": "2026-03-31",
-    "Status": "Waiting"
+    "Status": "Waiting",
+    "EpicID": 0,
+    "Description": "タスクの説明（任意。改行を含められる）"
   }
 ]
 ```
@@ -103,7 +105,8 @@ POST /todos
 {
   "Title": "新しいタスク",
   "Deadline": "2026-03-31",
-  "Status": "Open"
+  "Status": "Open",
+  "Description": "タスクの説明（省略可）"
 }
 ```
 
@@ -119,7 +122,8 @@ PUT /todos/:id
   "Title": "更新されたタスク",
   "Done": true,
   "Deadline": "2026-03-31",
-  "Status": "InProgress"
+  "Status": "InProgress",
+  "Description": "タスクの説明（省略すると空になる）"
 }
 ```
 
@@ -141,6 +145,8 @@ DELETE /todos/:id
 ## データ永続化
 
 TODOデータは `bff/todos.csv`、エピックデータは `bff/epics.csv` に保存されます。どちらも個人のチケットデータのため git 管理外で、リポジトリには雛形の `*.example.csv` のみを置いています。`go run` で起動する場合はファイルがなくても自動で作成されます。Docker環境ではボリュームマウントされており、ホスト側のファイルを直接更新・参照可能です。
+
+`todos.csv` の列は `ID,Title,Done,Deadline,Status,EpicID,Description` です。`Description` 列がない旧形式のファイルもそのまま読み込め、次に書き込んだときに列が追加されます。
 
 ## ライセンス
 

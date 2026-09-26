@@ -144,6 +144,7 @@ const handleCreateTodo = async (formData) => {
     error.value = '';
     await todosApi.create({
       title: formData.title,
+      description: formData.description,
       deadline: formData.deadline,
       status: formData.status,
       epicId: formData.epicId
@@ -190,6 +191,7 @@ const handleDrop = async ({ taskId, newStatus }) => {
     // タスクを更新
     await todosApi.update(taskId, {
       title: task.Title,
+      description: task.Description,
       done: task.Done,
       deadline: task.Deadline,
       status: newStatus,
@@ -215,6 +217,7 @@ const handleChangeEpic = async ({ taskId, epicId }) => {
 
     await todosApi.update(taskId, {
       title: task.Title,
+      description: task.Description,
       done: task.Done,
       deadline: task.Deadline,
       status: task.Status,

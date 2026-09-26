@@ -26,6 +26,19 @@
       </div>
       
       <div class="mb-6">
+        <label for="description" class="block mb-2 text-sm font-semibold text-gray-700">
+          説明
+        </label>
+        <textarea
+          id="description"
+          v-model="formData.description"
+          rows="3"
+          placeholder="タスクの詳細を入力（任意）"
+          class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white resize-y focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        ></textarea>
+      </div>
+
+      <div class="mb-6">
         <label for="deadline" class="block mb-2 text-sm font-semibold text-gray-700">
           期限 <span class="text-red-500">*</span>
         </label>
@@ -103,6 +116,7 @@ const emit = defineEmits(['submit', 'close']);
 
 const formData = ref({
   title: '',
+  description: '',
   deadline: '',
   status: props.initialStatus,
   epicId: props.initialEpicId
@@ -124,6 +138,7 @@ const handleSubmit = async () => {
     // フォームをリセット
     formData.value = {
       title: '',
+      description: '',
       deadline: '',
       status: props.initialStatus,
       epicId: props.initialEpicId

@@ -11,8 +11,8 @@ var ErrEpicNotFound = errors.New("指定されたエピックが存在しませ�
 
 type TodoService interface {
 	GetTodos() ([]domain.Todo, error)
-	CreateTodo(title string, deadline string, status string, epicID int) error
-	UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int) error
+	CreateTodo(title string, deadline string, status string, epicID int, description string) error
+	UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string) error
 	DeleteTodo(id int) error
 }
 
@@ -29,7 +29,7 @@ func (s *todoService) GetTodos() ([]domain.Todo, error) {
 	return s.repo.FindAll()
 }
 
-func (s *todoService) CreateTodo(title string, deadline string, status string, epicID int) error {
+func (s *todoService) CreateTodo(title string, deadline string, status string, epicID int, description string) error {
 	if err := s.validateEpic(epicID); err != nil {
 		return err
 	}
@@ -41,26 +41,28 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, e
 	}
 
 	todo := domain.Todo{
-		Title:    title,
-		Done:     false,
-		Deadline: deadline,
-		Status:   todoStatus,
-		EpicID:   epicID,
+		Title:       title,
+		Done:        false,
+		Deadline:    deadline,
+		Status:      todoStatus,
+		EpicID:      epicID,
+		Description: description,
 	}
 	return s.repo.Create(todo)
 }
 
-func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int) error {
+func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string) error {
 	if err := s.validateEpic(epicID); err != nil {
 		return err
 	}
 
 	todo := domain.Todo{
-		Title:    title,
-		Done:     done,
-		Deadline: deadline,
-		Status:   domain.Status(status),
-		EpicID:   epicID,
+		Title:       title,
+		Done:        done,
+		Deadline:    deadline,
+		Status:      domain.Status(status),
+		EpicID:      epicID,
+		Description: description,
 	}
 	return s.repo.Update(id, todo)
 }

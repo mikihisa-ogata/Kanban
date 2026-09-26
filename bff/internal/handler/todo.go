@@ -32,10 +32,11 @@ func (h *TodoHandler) GetTodos(c *gin.Context) {
 
 func (h *TodoHandler) CreateTodo(c *gin.Context) {
 	var req struct {
-		Title    string `json:"title" binding:"required"`
-		Deadline string `json:"deadline" binding:"required"`
-		Status   string `json:"status"`
-		EpicID   int    `json:"epicId"`
+		Title       string `json:"title" binding:"required"`
+		Deadline    string `json:"deadline" binding:"required"`
+		Status      string `json:"status"`
+		EpicID      int    `json:"epicId"`
+		Description string `json:"description"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -45,7 +46,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.EpicID)
+	err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.EpicID, req.Description)
 	if errors.Is(err, service.ErrEpicNotFound) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -75,11 +76,12 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 	}
 
 	var req struct {
-		Title    string `json:"title" binding:"required"`
-		Done     bool   `json:"done"`
-		Deadline string `json:"deadline" binding:"required"`
-		Status   string `json:"status" binding:"required"`
-		EpicID   int    `json:"epicId"`
+		Title       string `json:"title" binding:"required"`
+		Done        bool   `json:"done"`
+		Deadline    string `json:"deadline" binding:"required"`
+		Status      string `json:"status" binding:"required"`
+		EpicID      int    `json:"epicId"`
+		Description string `json:"description"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -89,7 +91,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.EpicID)
+	err = h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.EpicID, req.Description)
 	if errors.Is(err, service.ErrEpicNotFound) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),

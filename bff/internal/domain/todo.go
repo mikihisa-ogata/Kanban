@@ -10,10 +10,11 @@ const (
 )
 
 type Todo struct {
-	ID       int
-	Title    string
-	Done     bool
-	Deadline string
-	Status   Status
-	EpicID   int // 0 の場合はエピック未割り当て
+	ID          int
+	Title       string
+	Done        bool
+	Deadline    string
+	Status      Status
+	EpicID      int    // 0 の場合はエピック未割り当て
+	Description string // 任意。空文字の場合は説明なし
 }

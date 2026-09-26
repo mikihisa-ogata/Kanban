@@ -6,6 +6,7 @@
         ×
       </button>
     </div>
+    <p v-if="task.Description" class="m-0 mb-3 text-sm text-gray-600 whitespace-pre-wrap break-words line-clamp-3" :title="task.Description">{{ task.Description }}</p>
     <div class="flex justify-between items-center gap-2 flex-wrap">
       <div class="flex items-center gap-1.5 text-sm text-gray-600">
         <span class="text-sm">📅</span>
