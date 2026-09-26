@@ -27,6 +27,9 @@ func Open(dsn string, timeout time.Duration) (*sql.DB, error) {
 		return nil, fmt.Errorf("invalid DB_DSN: %w", err)
 	}
 	cfg.ParseTime = true
+	// UPDATE の RowsAffected を「変更した行数」ではなく「一致した行数」にする。
+	// 値が変わらない更新を「存在しない」と誤判定しないため
+	cfg.ClientFoundRows = true
 
 	db, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {

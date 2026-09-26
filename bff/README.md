@@ -202,7 +202,7 @@ Docker で起動している場合、`spaces.csv` がないと Docker がディ�
 
 ## MySQL（CSV からの移行中）
 
-データの保存先を CSV から MySQL へ移行している途中です（issue #4）。現時点では API はまだ CSV を使っており、MySQL には接続しません。
+データの保存先を CSV から MySQL へ移行している途中です（issue #4）。Repository の MySQL 実装（`internal/repository/*_mysql.go`）はできていますが、CSV からのデータ移行が済むまでは API は CSV を使っており、MySQL には接続しません。
 
 - 接続先は環境変数 `DB_DSN` で指定します（例: `kanban:kanban@tcp(localhost:3306)/kanban`）。未設定の場合はこの例の値を使います。
 - `docker compose up -d` を実行すると `mysql`（MySQL 8.4、ポート 3306）も起動します。データは名前付きボリューム `mysql-data` に保存されます。
