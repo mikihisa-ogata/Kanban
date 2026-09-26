@@ -28,9 +28,7 @@
         :key="column.status"
         :status="column.status"
         :tasks="tasks.filter(task => task.Status === column.status)"
-        :epics="epics"
         @drop="$emit('drop', { ...$event, epicId: epic ? epic.ID : 0 })"
-        @change-epic="$emit('change-epic', $event)"
         @delete-task="$emit('delete-task', $event)"
         @open-task="$emit('open-task', $event)"
         @add-task="$emit('add-task', { status: $event, epicId: epic ? epic.ID : 0 })"
@@ -54,10 +52,6 @@ const props = defineProps({
     type: Array,
     required: true
   },
-  epics: {
-    type: Array,
-    default: () => []
-  },
   columns: {
     type: Array,
     required: true
@@ -69,7 +63,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['drop', 'change-epic', 'delete-task', 'add-task', 'delete-epic', 'open-task']);
+const emit = defineEmits(['drop', 'delete-task', 'add-task', 'delete-epic', 'open-task']);
 
 // 子タスクのうちクローズ済みの件数 / 全件数
 const progressLabel = computed(() => {

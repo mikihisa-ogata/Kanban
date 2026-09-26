@@ -35,11 +35,9 @@
             :key="lane.epic ? lane.epic.ID : 0"
             :epic="lane.epic"
             :tasks="lane.tasks"
-            :epics="epics"
             :columns="columns"
             :space-title="lane.spaceTitle"
             @drop="handleDrop"
-            @change-epic="handleChangeEpic"
             @delete-task="handleDeleteTodo"
             @add-task="openModal"
             @delete-epic="handleDeleteEpic"
@@ -457,33 +455,6 @@ const handleDrop = async ({ taskId, newStatus, epicId }) => {
   } catch (err) {
     error.value = 'タスクの更新に失敗しました: ' + err.message;
     console.error('Failed to update todo:', err);
-    await resyncTodos();
-  }
-};
-
-// タスクのエピックを変更
-const handleChangeEpic = async ({ taskId, epicId }) => {
-  try {
-    error.value = '';
-    const task = todos.value.find(t => t.ID === taskId);
-    if (!task) {
-      throw new Error('タスクが見つかりません');
-    }
-
-    await todosApi.update(taskId, {
-      title: task.Title,
-      description: task.Description,
-      done: task.Done,
-      deadline: task.Deadline,
-      status: task.Status,
-      epicId,
-      spaceId: task.SpaceID
-    });
-
-    await fetchTodos(); // リストを再取得
-  } catch (err) {
-    error.value = 'エピックの変更に失敗しました: ' + err.message;
-    console.error('Failed to change epic:', err);
     await resyncTodos();
   }
 };

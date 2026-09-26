@@ -13,9 +13,7 @@
         v-for="task in tasks"
         :key="task.ID"
         :task="task"
-        :epics="epics"
         @delete="$emit('delete-task', $event)"
-        @change-epic="$emit('change-epic', $event)"
         @open="$emit('open-task', $event)"
       />
       <!-- +ボタン -->
@@ -41,14 +39,10 @@ const props = defineProps({
   tasks: {
     type: Array,
     required: true
-  },
-  epics: {
-    type: Array,
-    default: () => []
   }
 });
 
-const emit = defineEmits(['drop', 'delete-task', 'add-task', 'change-epic', 'open-task']);
+const emit = defineEmits(['drop', 'delete-task', 'add-task', 'open-task']);
 
 const isDragOver = ref(false);
 
