@@ -27,6 +27,7 @@ func setupSpaceRouter(t *testing.T) *gin.Engine {
 	r.GET("/spaces", sh.GetSpaces)
 	r.GET("/spaces/key-suggestion", sh.SuggestSpaceKey)
 	r.POST("/spaces", sh.CreateSpace)
+	r.PUT("/spaces/:id", sh.UpdateSpace)
 	r.DELETE("/spaces/:id", sh.DeleteSpace)
 	return r
 }
@@ -210,4 +211,39 @@ func keysOf(todos []domain.Todo) string {
 		keys = append(keys, todo.Key)
 	}
 	return strings.Join(keys, " ")
+}
+
+func TestSpace_UpdateNameAndKey(t *testing.T) {
+	r := setupSpaceRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Kanban","key":"KAN"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Money","key":"MON"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a","spaceId":1}`, http.StatusCreated)
+
+	// 名前とキーを変えると、属するタスクの課題キーも変わる（番号は変わらない）
+	mustStatus(t, r, http.MethodPut, "/spaces/1", `{"title":"かんばん","key":"board"}`, http.StatusOK)
+	spaces := getJSON[[]domain.Space](t, r, "/spaces")
+	if spaces[0] != (domain.Space{ID: 1, Title: "かんばん", Key: "BOARD"}) {
+		t.Fatalf("spaces[0] = %+v", spaces[0])
+	}
+	if got := keysOf(getTodos(t, r)); got != "BOARD-1" {
+		t.Fatalf("keys = %s, want BOARD-1", got)
+	}
+
+	// 自分の今のキーのままなら名前だけ変えられる
+	mustStatus(t, r, http.MethodPut, "/spaces/1", `{"title":"Board","key":"BOARD"}`, http.StatusOK)
+
+	mustStatus(t, r, http.MethodPut, "/spaces/1", `{"title":"x","key":"MON"}`, http.StatusConflict)
+	mustStatus(t, r, http.MethodPut, "/spaces/1", `{"title":"x","key":"B"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, "/spaces/1", `{"title":"x","key":"TASK"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, "/spaces/1", `{"title":"x"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, "/spaces/1", `{"key":"XYZ"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, "/spaces/99", `{"title":"x","key":"XYZ"}`, http.StatusNotFound)
+	mustStatus(t, r, http.MethodPut, "/spaces/0", `{"title":"x","key":"XYZ"}`, http.StatusNotFound)
+	mustStatus(t, r, http.MethodPut, "/spaces/abc", `{"title":"x","key":"XYZ"}`, http.StatusBadRequest)
+
+	// 失敗した更新は反映されない
+	spaces = getJSON[[]domain.Space](t, r, "/spaces")
+	if spaces[0] != (domain.Space{ID: 1, Title: "Board", Key: "BOARD"}) || spaces[1].Key != "MON" {
+		t.Fatalf("spaces = %+v", spaces)
+	}
 }

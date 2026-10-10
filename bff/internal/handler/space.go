@@ -68,6 +68,60 @@ func (h *SpaceHandler) CreateSpace(c *gin.Context) {
 	})
 }
 
+// UpdateSpace はスペースの名前とキーを変える
+func (h *SpaceHandler) UpdateSpace(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "不正なIDです",
+		})
+		return
+	}
+
+	var req struct {
+		Title string `json:"title" binding:"required"`
+		Key   string `json:"key" binding:"required"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	err = h.service.UpdateSpace(id, req.Title, req.Key)
+	if errors.Is(err, service.ErrSpaceNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if errors.Is(err, service.ErrInvalidSpaceKey) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if errors.Is(err, service.ErrSpaceKeyDuplicate) {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "スペースの更新に成功しました",
+	})
+}
+
 // SuggestSpaceKey はスペース名（クエリ title）から、既存と重複しないキーの候補を返す
 func (h *SpaceHandler) SuggestSpaceKey(c *gin.Context) {
 	key, err := h.service.SuggestSpaceKey(c.Query("title"))

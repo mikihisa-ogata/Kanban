@@ -42,6 +42,16 @@ func (r *spaceMySQLRepository) Create(space domain.Space) error {
 	return err
 }
 
+// Update はスペースの名前とキーを変える。課題キーはスペースのキーから作るので、属するタスクのキーも変わる
+func (r *spaceMySQLRepository) Update(id int, space domain.Space) error {
+	key := sql.NullString{String: space.Key, Valid: space.Key != ""}
+	result, err := r.db.Exec(`UPDATE spaces SET title = ?, space_key = ? WHERE id = ?`, space.Title, key, id)
+	if err != nil {
+		return err
+	}
+	return requireAffected(result, "space", id)
+}
+
 func (r *spaceMySQLRepository) Delete(id int) error {
 	result, err := r.db.Exec(`DELETE FROM spaces WHERE id = ?`, id)
 	if err != nil {

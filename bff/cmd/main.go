@@ -59,6 +59,7 @@ func main() {
 	r.GET("/spaces", spaceHandler.GetSpaces)
 	r.GET("/spaces/key-suggestion", spaceHandler.SuggestSpaceKey)
 	r.POST("/spaces", spaceHandler.CreateSpace)
+	r.PUT("/spaces/:id", spaceHandler.UpdateSpace)
 	r.DELETE("/spaces/:id", spaceHandler.DeleteSpace)
 
 	if err := r.Run(":8080"); err != nil {

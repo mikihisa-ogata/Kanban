@@ -19,6 +19,8 @@ type SpaceService interface {
 	GetSpaces() ([]domain.Space, error)
 	// CreateSpace はスペースを作成する。key が空なら名前から重複しないキーを作る
 	CreateSpace(title string, key string) error
+	// UpdateSpace はスペースの名前とキーを変える
+	UpdateSpace(id int, title string, key string) error
 	// SuggestSpaceKey は名前から、既存のスペースと重複しないキーの候補を返す
 	SuggestSpaceKey(title string) (string, error)
 	DeleteSpace(id int) error
@@ -39,7 +41,7 @@ func (s *spaceService) GetSpaces() ([]domain.Space, error) {
 }
 
 func (s *spaceService) CreateSpace(title string, key string) error {
-	taken, err := s.takenSpaceKeys()
+	taken, err := s.takenSpaceKeys(0)
 	if err != nil {
 		return err
 	}
@@ -57,23 +59,47 @@ func (s *spaceService) CreateSpace(title string, key string) error {
 	return s.spaceRepo.Create(domain.Space{Title: title, Key: key})
 }
 
+func (s *spaceService) UpdateSpace(id int, title string, key string) error {
+	exists, err := spaceExists(s.spaceRepo, id)
+	if err != nil {
+		return err
+	}
+	if id == 0 || !exists {
+		return ErrSpaceNotFound
+	}
+
+	// 自分の今のキーのままなら重複ではない
+	taken, err := s.takenSpaceKeys(id)
+	if err != nil {
+		return err
+	}
+	key = strings.ToUpper(strings.TrimSpace(key))
+	if !domain.ValidSpaceKey(key) {
+		return ErrInvalidSpaceKey
+	}
+	if taken[key] {
+		return ErrSpaceKeyDuplicate
+	}
+	return s.spaceRepo.Update(id, domain.Space{Title: title, Key: key})
+}
+
 func (s *spaceService) SuggestSpaceKey(title string) (string, error) {
-	taken, err := s.takenSpaceKeys()
+	taken, err := s.takenSpaceKeys(0)
 	if err != nil {
 		return "", err
 	}
 	return domain.SuggestSpaceKey(title, taken), nil
 }
 
-// takenSpaceKeys は既存のスペースが使っているキーを返す
-func (s *spaceService) takenSpaceKeys() (map[string]bool, error) {
+// takenSpaceKeys は既存のスペースが使っているキーを返す。excludeID のスペースのキーは含めない（0 なら全スペース）
+func (s *spaceService) takenSpaceKeys(excludeID int) (map[string]bool, error) {
 	spaces, err := s.spaceRepo.FindAll()
 	if err != nil {
 		return nil, err
 	}
 	taken := map[string]bool{}
 	for _, space := range spaces {
-		if space.Key != "" {
+		if space.Key != "" && space.ID != excludeID {
 			taken[space.Key] = true
 		}
 	}

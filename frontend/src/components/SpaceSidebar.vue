@@ -23,6 +23,17 @@
       <span class="flex-1 truncate">{{ space.Title }}</span>
       <span v-if="space.Key" class="font-mono text-xs opacity-75">{{ space.Key }}</span>
       <span class="text-xs opacity-75">{{ progressLabel(space.ID) }}</span>
+      <NuxtLink
+        :to="`/spaces/${space.ID}/settings`"
+        class="leading-none text-current opacity-60 hover:opacity-100"
+        title="スペースの設定"
+        @click.stop
+      >
+        <svg class="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </NuxtLink>
       <button
         class="bg-transparent border-0 p-0 leading-none text-base opacity-60 hover:opacity-100 cursor-pointer"
         title="スペースを削除"
@@ -71,6 +82,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { spacesApi } from '../api/spaces';
+import { normalizeSpaceKey, spaceKeyError } from '../utils/spaceKey';
 
 const props = defineProps({
   spaces: {
@@ -95,21 +107,7 @@ const newKey = ref('');
 const keyEdited = ref(false);
 const dragOverSpaceId = ref(null);
 
-// 課題キーの接頭辞の形式（bff の domain.ValidSpaceKey と同じ）。TASK は未割り当てのタスクで使う
-const SPACE_KEY_PATTERN = /^[A-Z][A-Z0-9]{1,9}$/;
-const RESERVED_KEY = 'TASK';
-
-const keyError = computed(() => {
-  const key = newKey.value;
-  if (!key) return 'キーを入力してください';
-  if (!SPACE_KEY_PATTERN.test(key) || key === RESERVED_KEY) {
-    return `英大文字で始まる英大文字・数字の 2〜10 文字にしてください（${RESERVED_KEY} は使えません）`;
-  }
-  if (props.spaces.some(space => space.Key === key)) {
-    return 'このキーは他のスペースで使われています';
-  }
-  return '';
-});
+const keyError = computed(() => spaceKeyError(newKey.value, props.spaces));
 
 const canCreate = computed(() => newTitle.value.trim() !== '' && !keyError.value);
 
@@ -139,7 +137,7 @@ const requestKeySuggestion = (title) => {
 watch(newTitle, requestKeySuggestion);
 
 const handleKeyInput = (event) => {
-  newKey.value = event.target.value.toUpperCase().replace(/\s/g, '');
+  newKey.value = normalizeSpaceKey(event.target.value);
   event.target.value = newKey.value;
   keyEdited.value = newKey.value !== '';
   if (!keyEdited.value) {

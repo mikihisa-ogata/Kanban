@@ -35,6 +35,20 @@ export const spacesApi = {
     return body.key;
   },
 
+  // スペースの名前とキーを変更。キーの形式違反や重複のときは、サーバーのメッセージを持つ Error を投げる
+  async update(id, space) {
+    const response = await fetch(`${API_BASE_URL}/spaces/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(space)
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || 'Failed to update space');
+    }
+    return response.json();
+  },
+
   // スペース削除
   async delete(id) {
     const response = await fetch(`${API_BASE_URL}/spaces/${id}`, {

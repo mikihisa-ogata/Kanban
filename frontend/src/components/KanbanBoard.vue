@@ -138,7 +138,8 @@ const todos = ref([]);
 const epics = ref([]);
 const spaces = ref([]);
 // null の場合は全スペースを表示
-const selectedSpaceId = ref(null);
+// 設定ページから戻ってきても選択を保つよう、ページをまたいで共有する
+const selectedSpaceId = useState('selectedSpaceId', () => null);
 // サイドバー（スペース一覧）の開閉状態。ヘッダーのハンバーガーメニューで切り替える
 const sidebarOpen = useState('sidebarOpen', () => false);
 const newEpicTitle = ref('');

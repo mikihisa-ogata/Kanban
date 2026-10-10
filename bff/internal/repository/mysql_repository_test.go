@@ -411,6 +411,23 @@ func TestSpaceMySQLRepository_Keys(t *testing.T) {
 	if len(spaces) != 3 || spaces[0].Key != "KAN" || spaces[1].Key != "" || spaces[2].Key != "" {
 		t.Errorf("spaces = %+v", spaces)
 	}
+
+	if err := repo.Update(2, domain.Space{Title: "renamed", Key: "REN"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Update(3, domain.Space{Title: "dup", Key: "KAN"}); err == nil {
+		t.Error("Update() with duplicate key error = nil")
+	}
+	if err := repo.Update(99, domain.Space{Title: "x", Key: "XYZ"}); err == nil {
+		t.Error("Update(99) error = nil")
+	}
+	spaces, err = repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spaces[1] != (domain.Space{ID: 2, Title: "renamed", Key: "REN"}) || spaces[2].Title != "no key" {
+		t.Errorf("spaces = %+v", spaces)
+	}
 }
 
 // todoKeys は表示順のタスクを「ID:課題キー」の空白区切りで返す
