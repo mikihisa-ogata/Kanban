@@ -11,10 +11,11 @@
       <span class="text-sm">📅</span>
       <span>{{ formatDate(task.Deadline) }}</span>
     </div>
-    <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下） -->
+    <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下）。優先度は右下 -->
     <div class="mt-3 flex items-center gap-1.5">
       <IssueTypeIcon :type="task.IssueType" />
       <span v-if="task.Key" class="font-mono text-xs font-semibold text-gray-500">{{ task.Key }}</span>
+      <PriorityIcon :priority="task.Priority" class="ml-auto" />
     </div>
     <div v-if="task.Done" class="mt-3 pt-3 border-t border-gray-200 flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
       <span class="text-sm">✓</span>
@@ -26,6 +27,7 @@
 <script setup>
 import { defineProps, defineEmits } from 'vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
+import PriorityIcon from './PriorityIcon.vue';
 
 const props = defineProps({
   task: {

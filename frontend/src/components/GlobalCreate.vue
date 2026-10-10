@@ -90,6 +90,7 @@ const handleSubmit = async (formData) => {
       deadline: formData.deadline,
       status: formData.status,
       issueType: formData.issueType,
+      priority: formData.priority,
       epicId: formData.epicId,
       spaceId: formData.spaceId
     });

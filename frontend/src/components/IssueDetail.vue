@@ -121,6 +121,17 @@
               />
             </dd>
 
+            <dt class="text-gray-600 font-semibold"><label :for="fieldId('priority')">優先度</label></dt>
+            <dd class="m-0 min-w-0 flex items-center gap-2">
+              <PriorityIcon :priority="task.Priority" />
+              <OptionSelect
+                :id="fieldId('priority')"
+                :model-value="task.Priority"
+                :options="PRIORITY_OPTIONS"
+                @update:model-value="save({ priority: $event })"
+              />
+            </dd>
+
             <template v-if="spaces.length">
               <dt class="text-gray-600 font-semibold"><label :for="fieldId('space')">スペース</label></dt>
               <dd class="m-0 min-w-0">
@@ -177,7 +188,9 @@
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
+import PriorityIcon from './PriorityIcon.vue';
 import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
+import { PRIORITY_OPTIONS } from '../utils/priorities';
 import { formatDateTime } from '../utils/datetime';
 import { issuePath } from '../utils/spaceRoutes';
 
@@ -233,6 +246,7 @@ const save = (changes) => {
     deadline: props.task.Deadline,
     status: props.task.Status,
     issueType: props.task.IssueType,
+    priority: props.task.Priority,
     epicId: props.task.EpicID,
     spaceId: props.task.SpaceID,
     ...changes

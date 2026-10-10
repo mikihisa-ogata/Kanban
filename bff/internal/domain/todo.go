@@ -25,6 +25,26 @@ func ValidIssueType(t IssueType) bool {
 	return t == IssueTypeTask || t == IssueTypeBug || t == IssueTypeStory
 }
 
+// Priority は優先度（Jira の Highest / High / Medium / Low / Lowest）
+type Priority string
+
+const (
+	PriorityHighest Priority = "Highest"
+	PriorityHigh    Priority = "High"
+	PriorityMedium  Priority = "Medium"
+	PriorityLow     Priority = "Low"
+	PriorityLowest  Priority = "Lowest"
+)
+
+// ValidPriority は優先度として使える値かを返す
+func ValidPriority(p Priority) bool {
+	switch p {
+	case PriorityHighest, PriorityHigh, PriorityMedium, PriorityLow, PriorityLowest:
+		return true
+	}
+	return false
+}
+
 type Todo struct {
 	ID          int
 	Title       string
@@ -32,6 +52,7 @@ type Todo struct {
 	Deadline    string
 	Status      Status
 	IssueType   IssueType // 課題タイプ。既存のタスクは Task
+	Priority    Priority  // 優先度。既定と既存のタスクは Medium
 	EpicID      int       // 0 の場合はエピック未割り当て
 	Description string    // 任意。空文字の場合は説明なし
 	SpaceID     int       // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース

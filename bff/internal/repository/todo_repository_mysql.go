@@ -22,7 +22,7 @@ func NewTodoMySQLRepository(db *sql.DB) TodoRepository {
 
 // selectTodos はタスクを読む SELECT。課題キーを作るためスペースのキーも読む（scanTodo と列を合わせる）
 const selectTodos = `SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_id, t.description, t.space_id,
-		        t.created_at, t.updated_at, t.number, s.space_key, t.issue_type
+		        t.created_at, t.updated_at, t.number, s.space_key, t.issue_type, t.priority
 		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id`
 
 // FindAll は表示順（position）でタスクを返す。課題キーはスペースのキーと番号から作る
@@ -78,13 +78,14 @@ func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 	var deadline sql.NullTime
 	var status string
 	var spaceKey sql.NullString
-	var issueType string
+	var issueType, priority string
 	if err := row.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
 		&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt,
-		&todo.Number, &spaceKey, &issueType); err != nil {
+		&todo.Number, &spaceKey, &issueType, &priority); err != nil {
 		return domain.Todo{}, err
 	}
 	todo.IssueType = domain.IssueType(issueType)
+	todo.Priority = domain.Priority(priority)
 	todo.Key = issueKey(todo.SpaceID, spaceKey.String, todo.Number)
 	todo.Status = domain.Status(status)
 	if deadline.Valid {
@@ -112,9 +113,9 @@ func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 	}
 	now := currentTime()
 	result, err := tx.Exec(
-		`INSERT INTO todos (title, done, deadline, status, issue_type, epic_id, description, space_id, number, position, created_at, updated_at)
-		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
-		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
+		`INSERT INTO todos (title, done, deadline, status, issue_type, priority, epic_id, description, space_id, number, position, created_at, updated_at)
+		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
+		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
 	if err != nil {
 		return 0, err
 	}
@@ -156,9 +157,9 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	}
 
 	_, err = tx.Exec(
-		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, issue_type = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
+		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, issue_type = ?, priority = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
 		 WHERE id = ?`,
-		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
+		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
 	if err != nil {
 		return err
 	}
@@ -256,6 +257,14 @@ func issueTypeOrDefault(t domain.IssueType) string {
 		return string(domain.IssueTypeTask)
 	}
 	return string(t)
+}
+
+// priorityOrDefault は保存する優先度を返す。空の場合は Medium にする
+func priorityOrDefault(p domain.Priority) string {
+	if p == "" {
+		return string(domain.PriorityMedium)
+	}
+	return string(p)
 }
 
 // currentTime は作成日時・更新日時に記録する現在日時を返す。DB の DATETIME に合わせて秒単位の UTC にする

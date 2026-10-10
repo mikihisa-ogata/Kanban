@@ -327,3 +327,25 @@ func TestTodoHandler_IssueType(t *testing.T) {
 		t.Errorf("todos = %+v", todos)
 	}
 }
+
+// 優先度を指定して作成・変更できる。省略すると作成時は Medium、更新時は今の優先度のまま。不正な値は 400
+func TestTodoHandler_Priority(t *testing.T) {
+	r := setupTodoRouter(t)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"b","priority":"Highest"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c","priority":"Urgent"}`, http.StatusBadRequest)
+	todos := getTodos(t, r)
+	if len(todos) != 2 || todos[0].Priority != domain.PriorityMedium || todos[1].Priority != domain.PriorityHighest {
+		t.Fatalf("todos = %+v", todos)
+	}
+
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"a","status":"Open","priority":"Lowest"}`, http.StatusOK)
+	// ドラッグでの移動のように優先度を送らない更新では、優先度は変わらない（課題タイプだけ変えても同じ）
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Closed","issueType":"Bug"}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Closed","priority":"high"}`, http.StatusBadRequest)
+	todos = getTodos(t, r)
+	if todos[0].Priority != domain.PriorityLowest || todos[1].Priority != domain.PriorityHighest || todos[1].IssueType != domain.IssueTypeBug {
+		t.Errorf("todos = %+v", todos)
+	}
+}

@@ -99,6 +99,8 @@ func addedColumns() []column {
 		{"todos", "number", "INT NOT NULL DEFAULT 0"},
 		// 課題タイプ（Task / Bug / Story）。追加前のタスクは Task になる
 		{"todos", "issue_type", "VARCHAR(20) NOT NULL DEFAULT 'Task'"},
+		// 優先度（Highest / High / Medium / Low / Lowest）。追加前のタスクは Medium になる
+		{"todos", "priority", "VARCHAR(20) NOT NULL DEFAULT 'Medium'"},
 	}
 }
 

@@ -359,6 +359,7 @@ const handleMoveToSpace = async ({ type, id, spaceId }) => {
       deadline: task.Deadline,
       status: task.Status,
       issueType: task.IssueType,
+      priority: task.Priority,
       epicId: 0,
       spaceId
     });
@@ -433,6 +434,7 @@ const handleCreateTodo = async (formData) => {
       deadline: formData.deadline,
       status: formData.status,
       issueType: formData.issueType,
+      priority: formData.priority,
       epicId: formData.epicId,
       spaceId: formData.spaceId
     });
@@ -526,6 +528,7 @@ const handleDrop = async ({ taskId, newStatus, epicId, beforeId }) => {
         deadline: task.Deadline,
         status: newStatus,
         issueType: task.IssueType,
+        priority: task.Priority,
         epicId: newEpicId,
         spaceId: epic ? epic.SpaceID : task.SpaceID
       });

@@ -54,6 +54,20 @@
         </div>
 
         <div class="flex items-center gap-4">
+          <label for="priority" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+            優先度
+          </label>
+          <div class="flex items-center gap-2 min-w-0">
+            <PriorityIcon :priority="formData.priority" />
+            <OptionSelect
+              id="priority"
+              v-model="formData.priority"
+              :options="PRIORITY_OPTIONS"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
           <label for="deadline" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
             期限
           </label>
@@ -118,7 +132,9 @@
 import { ref, defineEmits, defineProps, watch, computed } from 'vue';
 import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
+import PriorityIcon from './PriorityIcon.vue';
 import { ISSUE_TYPE_OPTIONS, DEFAULT_ISSUE_TYPE } from '../utils/issueTypes';
+import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from '../utils/priorities';
 
 const props = defineProps({
   initialStatus: {
@@ -151,6 +167,7 @@ const formData = ref({
   deadline: '',
   status: props.initialStatus,
   issueType: DEFAULT_ISSUE_TYPE,
+  priority: DEFAULT_PRIORITY,
   epicId: props.initialEpicId,
   spaceId: props.initialSpaceId
 });
@@ -202,6 +219,7 @@ const handleSubmit = async () => {
       deadline: '',
       status: props.initialStatus,
       issueType: DEFAULT_ISSUE_TYPE,
+      priority: DEFAULT_PRIORITY,
       epicId: props.initialEpicId,
       spaceId: props.initialSpaceId
     };

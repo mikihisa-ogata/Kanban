@@ -40,8 +40,8 @@ func TestImportCSV(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []domain.Todo{
-		{ID: 5, Title: "後ろに作ったタスク", Done: true, Deadline: "2026-10-01", Status: domain.StatusClosed, IssueType: domain.IssueTypeTask, EpicID: 3, Description: "1行目, カンマ\n2行目", SpaceID: 2},
-		{ID: 2, Title: "前に作ったタスク", Status: domain.StatusInProgress, IssueType: domain.IssueTypeTask},
+		{ID: 5, Title: "後ろに作ったタスク", Done: true, Deadline: "2026-10-01", Status: domain.StatusClosed, IssueType: domain.IssueTypeTask, Priority: domain.PriorityMedium, EpicID: 3, Description: "1行目, カンマ\n2行目", SpaceID: 2},
+		{ID: 2, Title: "前に作ったタスク", Status: domain.StatusInProgress, IssueType: domain.IssueTypeTask, Priority: domain.PriorityMedium},
 	}
 	if len(todos) != len(want) {
 		t.Fatalf("todos = %+v, want %+v", todos, want)
@@ -112,7 +112,7 @@ func TestImportCSV_LegacyAndMissingFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(todos) != 1 || todoWithoutTimes(todos[0]) != (domain.Todo{ID: 1, Title: "old", Deadline: "2026-10-01", Status: domain.StatusOpen, IssueType: domain.IssueTypeTask}) {
+	if len(todos) != 1 || todoWithoutTimes(todos[0]) != (domain.Todo{ID: 1, Title: "old", Deadline: "2026-10-01", Status: domain.StatusOpen, IssueType: domain.IssueTypeTask, Priority: domain.PriorityMedium}) {
 		t.Errorf("todos = %+v", todos)
 	}
 	epics, err := NewEpicMySQLRepository(db).FindAll()
