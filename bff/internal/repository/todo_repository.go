@@ -4,7 +4,9 @@ import "todo-api/internal/domain"
 
 type TodoRepository interface {
 	FindAll() ([]domain.Todo, error)
-	Create(todo domain.Todo) error
+	FindByID(id int) (domain.Todo, error)
+	// Create はタスクを作成し、その ID を返す
+	Create(todo domain.Todo) (int, error)
 	Update(id int, todo domain.Todo) error
 	Delete(id int) error
 	// Move はタスクを beforeID のタスクの直前へ移動する。beforeID が 0 の場合は末尾へ移動する

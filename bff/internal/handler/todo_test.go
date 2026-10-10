@@ -226,3 +226,25 @@ func TestTodoHandler_ReturnsTimestamps(t *testing.T) {
 		}
 	}
 }
+
+// POST /todos は作成したタスク（採番した課題キーを含む）を返す
+func TestTodoHandler_CreateReturnsTodo(t *testing.T) {
+	r := setupSpaceRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Kanban","key":"KAN"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a","spaceId":1}`, http.StatusCreated)
+
+	w := doRequest(t, r, http.MethodPost, "/todos", `{"title":"b","spaceId":1,"status":"InProgress"}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	var body struct {
+		Message string
+		Todo    domain.Todo `json:"todo"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Todo.ID != 2 || body.Todo.Key != "KAN-2" || body.Todo.Title != "b" || body.Todo.Status != domain.StatusInProgress {
+		t.Errorf("todo = %+v", body.Todo)
+	}
+}

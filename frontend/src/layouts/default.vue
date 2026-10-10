@@ -14,12 +14,25 @@
         </svg>
       </button>
       <h1 class="text-2xl font-bold text-blue-900">Kanban</h1>
+      <!-- Jira と同じく、どのページからでも課題を作成できる -->
+      <button
+        type="button"
+        class="ml-2 px-4 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-150"
+        @click="createIssueOpen = true"
+      >
+        + 作成
+      </button>
     </header>
     <slot />
+    <GlobalCreate />
   </div>
 </template>
 
 <script setup>
-// サイドバー（スペース一覧）の開閉状態。KanbanBoard と共有する
+import GlobalCreate from '~/components/GlobalCreate.vue';
+
+// サイドバー（スペース一覧）の開閉状態。SpaceShell と共有する
 const sidebarOpen = useState('sidebarOpen', () => false);
+// 課題の作成モーダルの開閉状態。GlobalCreate と共有する
+const createIssueOpen = useState('createIssueOpen', () => false);
 </script>

@@ -68,7 +68,7 @@ func TestImportCSV(t *testing.T) {
 	}
 
 	// 取り込み後に追加したタスクは続きの ID で末尾に並ぶ
-	if err := todoRepo.Create(domain.Todo{Title: "new", Status: domain.StatusOpen}); err != nil {
+	if _, err := todoRepo.Create(domain.Todo{Title: "new", Status: domain.StatusOpen}); err != nil {
 		t.Fatal(err)
 	}
 	if got := todoIDs(t, todoRepo); len(got) != 3 || got[0] != 5 || got[1] != 2 || got[2] != 6 {

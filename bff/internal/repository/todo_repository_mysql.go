@@ -20,13 +20,14 @@ func NewTodoMySQLRepository(db *sql.DB) TodoRepository {
 	return &todoMySQLRepository{db: db}
 }
 
+// selectTodos はタスクを読む SELECT。課題キーを作るためスペースのキーも読む（scanTodo と列を合わせる）
+const selectTodos = `SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_id, t.description, t.space_id,
+		        t.created_at, t.updated_at, t.number, s.space_key
+		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id`
+
 // FindAll は表示順（position）でタスクを返す。課題キーはスペースのキーと番号から作る
 func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
-	rows, err := r.db.Query(
-		`SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_id, t.description, t.space_id,
-		        t.created_at, t.updated_at, t.number, s.space_key
-		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id
-		 ORDER BY t.position, t.id`)
+	rows, err := r.db.Query(selectTodos + ` ORDER BY t.position, t.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -34,50 +35,76 @@ func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 
 	todos := []domain.Todo{}
 	for rows.Next() {
-		var todo domain.Todo
-		var deadline sql.NullTime
-		var status string
-		var spaceKey sql.NullString
-		if err := rows.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
-			&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt,
-			&todo.Number, &spaceKey); err != nil {
+		todo, err := scanTodo(rows)
+		if err != nil {
 			return nil, err
-		}
-		todo.Key = issueKey(todo.SpaceID, spaceKey.String, todo.Number)
-		todo.Status = domain.Status(status)
-		if deadline.Valid {
-			todo.Deadline = deadline.Time.Format(deadlineLayout)
 		}
 		todos = append(todos, todo)
 	}
 	return todos, rows.Err()
 }
 
-// Create はタスクを末尾に追加し、スペース内の次の番号を振る。作成日時・更新日時は現在日時にする
-func (r *todoMySQLRepository) Create(todo domain.Todo) error {
+// FindByID は指定 ID のタスクを返す。存在しなければ not found のエラーを返す
+func (r *todoMySQLRepository) FindByID(id int) (domain.Todo, error) {
+	todo, err := scanTodo(r.db.QueryRow(selectTodos+` WHERE t.id = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.Todo{}, fmt.Errorf("todo with ID %d not found", id)
+	}
+	return todo, err
+}
+
+// scanTodo は selectTodos の 1 行をタスクにする
+func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
+	var todo domain.Todo
+	var deadline sql.NullTime
+	var status string
+	var spaceKey sql.NullString
+	if err := row.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
+		&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt,
+		&todo.Number, &spaceKey); err != nil {
+		return domain.Todo{}, err
+	}
+	todo.Key = issueKey(todo.SpaceID, spaceKey.String, todo.Number)
+	todo.Status = domain.Status(status)
+	if deadline.Valid {
+		todo.Deadline = deadline.Time.Format(deadlineLayout)
+	}
+	return todo, nil
+}
+
+// Create はタスクを末尾に追加し、スペース内の次の番号を振る。作成日時・更新日時は現在日時にする。
+// 作成したタスクの ID を返す
+func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 	deadline, err := toNullDeadline(todo.Deadline)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	tx, err := r.db.Begin()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer tx.Rollback()
 
 	number, err := nextIssueNumber(tx, todo.SpaceID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	now := currentTime()
-	_, err = tx.Exec(
+	result, err := tx.Exec(
 		`INSERT INTO todos (title, done, deadline, status, epic_id, description, space_id, number, position, created_at, updated_at)
 		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
 		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return tx.Commit()
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return int(id), nil
 }
 
 // Update はタスクを更新し、更新日時を現在日時にする（作成日時は変えない）。

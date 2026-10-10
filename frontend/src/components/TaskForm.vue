@@ -1,5 +1,11 @@
 <template>
-  <div class="bg-white rounded-2xl px-8 pt-10 pb-6 shadow-2xl mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
+  <!-- 課題キーを左上に出すときは、タイトルと重ならないよう上の余白を広げる -->
+  <div
+    :class="[
+      'bg-white rounded-2xl px-8 pb-6 shadow-2xl mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative',
+      task && task.Key ? 'pt-16' : 'pt-10'
+    ]"
+  >
     <!-- 閉じるボタン -->
     <button 
       @click="$emit('close')"

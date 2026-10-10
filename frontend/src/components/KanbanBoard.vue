@@ -150,8 +150,15 @@ const error = ref('');
 const showModalForm = ref(false);
 const modalInitialStatus = ref('Open');
 const modalInitialEpicId = ref(0);
-// 詳細モーダルで表示中のタスク（null の場合は閉じている）
-const detailTask = ref(null);
+const route = useRoute();
+// 詳細モーダルで表示中のタスク（null の場合は閉じている）。
+// Jira と同じく URL の ?selectedIssue=KAN-12 で表し、リロードしても開いたままにする
+const detailTask = computed(() => {
+  const key = route.query.selectedIssue;
+  return key ? (todos.value.find(todo => todo.Key === key) || null) : null;
+});
+// ヘッダーの「作成」で課題が作られたら増える（GlobalCreate と共有）
+const issuesVersion = useState('issuesVersion', () => 0);
 // 削除の確認モーダルの内容と、選んだ結果を返す関数（null の場合は閉じている）
 const confirmDialog = ref(null);
 
@@ -282,6 +289,11 @@ const fetchSpaces = async () => {
 const handleSpacesChanged = async () => {
   await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos()]);
 };
+
+// ヘッダーの「作成」で作られた課題をボードに出す
+watch(issuesVersion, () => {
+  fetchTodos();
+});
 
 // `/` を開いたときに戻れるよう、表示したボードを覚える（存在しないスペースは覚えない）
 watch([currentSpace, () => props.spaceKey, spacesLoaded], () => {
@@ -426,12 +438,13 @@ const closeModal = () => {
 
 // タスク詳細のモーダルを開く
 const openDetailModal = (task) => {
-  detailTask.value = task;
+  navigateTo({ query: { ...route.query, selectedIssue: task.Key } });
 };
 
 // タスク詳細のモーダルを閉じる
 const closeDetailModal = () => {
-  detailTask.value = null;
+  const { selectedIssue, ...query } = route.query;
+  navigateTo({ query }, { replace: true });
 };
 
 // タスク詳細のモーダルから保存

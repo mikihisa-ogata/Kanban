@@ -20,10 +20,10 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 	repo := NewTodoMySQLRepository(openTestDB(t))
 
 	description := "1行目, カンマ入り\n2行目 \"引用符\""
-	if err := repo.Create(domain.Todo{Title: "a", Deadline: "2026-10-01", Status: domain.StatusOpen, Description: description, EpicID: 2, SpaceID: 3}); err != nil {
+	if _, err := repo.Create(domain.Todo{Title: "a", Deadline: "2026-10-01", Status: domain.StatusOpen, Description: description, EpicID: 2, SpaceID: 3}); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.Create(domain.Todo{Title: "b", Status: domain.StatusWaiting}); err != nil {
+	if _, err := repo.Create(domain.Todo{Title: "b", Status: domain.StatusWaiting}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -66,7 +66,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 	if err := repo.Update(99, updated); err == nil {
 		t.Error("Update(99) error = nil")
 	}
-	if err := repo.Create(domain.Todo{Title: "c", Deadline: "not a date", Status: domain.StatusOpen}); err == nil {
+	if _, err := repo.Create(domain.Todo{Title: "c", Deadline: "not a date", Status: domain.StatusOpen}); err == nil {
 		t.Error("Create() with invalid deadline error = nil")
 	}
 
@@ -84,7 +84,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 func TestTodoMySQLRepository_Move(t *testing.T) {
 	repo := NewTodoMySQLRepository(openTestDB(t))
 	for _, title := range []string{"a", "b", "c", "d"} {
-		if err := repo.Create(domain.Todo{Title: title, Status: domain.StatusOpen}); err != nil {
+		if _, err := repo.Create(domain.Todo{Title: title, Status: domain.StatusOpen}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -117,7 +117,7 @@ func TestTodoMySQLRepository_Move(t *testing.T) {
 	}
 
 	// 移動後に追加したタスクは末尾に並ぶ
-	if err := repo.Create(domain.Todo{Title: "e", Status: domain.StatusOpen}); err != nil {
+	if _, err := repo.Create(domain.Todo{Title: "e", Status: domain.StatusOpen}); err != nil {
 		t.Fatal(err)
 	}
 	if got := todoIDs(t, repo); len(got) != 5 || got[4] != 5 {
@@ -242,7 +242,7 @@ func TestTodoMySQLRepository_Timestamps(t *testing.T) {
 
 	before := currentTime()
 	for _, title := range []string{"a", "b"} {
-		if err := repo.Create(domain.Todo{Title: title, Status: domain.StatusOpen}); err != nil {
+		if _, err := repo.Create(domain.Todo{Title: title, Status: domain.StatusOpen}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -347,7 +347,7 @@ func TestTodoMySQLRepository_IssueNumbers(t *testing.T) {
 		{Title: "k1", SpaceID: 1}, {Title: "m1", SpaceID: 2}, {Title: "k2", SpaceID: 1}, {Title: "u1"},
 	} {
 		todo.Status = domain.StatusOpen
-		if err := repo.Create(todo); err != nil {
+		if _, err := repo.Create(todo); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -359,7 +359,7 @@ func TestTodoMySQLRepository_IssueNumbers(t *testing.T) {
 	if err := repo.Delete(3); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.Create(domain.Todo{Title: "k3", Status: domain.StatusOpen, SpaceID: 1}); err != nil {
+	if _, err := repo.Create(domain.Todo{Title: "k3", Status: domain.StatusOpen, SpaceID: 1}); err != nil {
 		t.Fatal(err)
 	}
 	if got := todoKeys(t, repo); got != "1:KAN-1 2:MON-1 4:TASK-1 5:KAN-3" {
@@ -442,4 +442,33 @@ func todoKeys(t *testing.T, repo TodoRepository) string {
 		keys = append(keys, fmt.Sprintf("%d:%s", todo.ID, todo.Key))
 	}
 	return strings.Join(keys, " ")
+}
+
+func TestTodoMySQLRepository_CreateReturnsIDAndFindByID(t *testing.T) {
+	db := openTestDB(t)
+	repo := NewTodoMySQLRepository(db)
+	if err := NewSpaceMySQLRepository(db).Create(domain.Space{Title: "Kanban", Key: "KAN"}); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, want := range []int{1, 2} {
+		id, err := repo.Create(domain.Todo{Title: fmt.Sprintf("t%d", i), Status: domain.StatusOpen, SpaceID: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id != want {
+			t.Errorf("Create() id = %d, want %d", id, want)
+		}
+	}
+
+	todo, err := repo.FindByID(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if todo.ID != 2 || todo.Title != "t1" || todo.Key != "KAN-2" || todo.CreatedAt.IsZero() {
+		t.Errorf("FindByID(2) = %+v", todo)
+	}
+	if _, err := repo.FindByID(99); err == nil {
+		t.Error("FindByID(99) error = nil")
+	}
 }

@@ -47,7 +47,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.EpicID, req.Description, req.SpaceID)
+	todo, err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -63,6 +63,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Todoの作成に成功しました",
+		"todo":    todo,
 	})
 }
 

@@ -11,7 +11,8 @@ var ErrEpicSpaceMismatch = errors.New("エピックとタスクのスペース�
 
 type TodoService interface {
 	GetTodos() ([]domain.Todo, error)
-	CreateTodo(title string, deadline string, status string, epicID int, description string, spaceID int) error
+	// CreateTodo はタスクを作成し、採番した課題キーを含む作成後のタスクを返す
+	CreateTodo(title string, deadline string, status string, epicID int, description string, spaceID int) (domain.Todo, error)
 	UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string, spaceID int) error
 	DeleteTodo(id int) error
 	MoveTodo(id int, beforeID int) error
@@ -31,9 +32,9 @@ func (s *todoService) GetTodos() ([]domain.Todo, error) {
 	return s.repo.FindAll()
 }
 
-func (s *todoService) CreateTodo(title string, deadline string, status string, epicID int, description string, spaceID int) error {
+func (s *todoService) CreateTodo(title string, deadline string, status string, epicID int, description string, spaceID int) (domain.Todo, error) {
 	if err := s.validateEpicAndSpace(epicID, spaceID); err != nil {
-		return err
+		return domain.Todo{}, err
 	}
 
 	// statusが空の場合はデフォルト値を設定
@@ -51,7 +52,11 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, e
 		Description: description,
 		SpaceID:     spaceID,
 	}
-	return s.repo.Create(todo)
+	id, err := s.repo.Create(todo)
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	return s.repo.FindByID(id)
 }
 
 func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, epicID int, description string, spaceID int) error {
