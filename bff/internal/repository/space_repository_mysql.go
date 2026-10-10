@@ -15,7 +15,7 @@ func NewSpaceMySQLRepository(db *sql.DB) SpaceRepository {
 }
 
 func (r *spaceMySQLRepository) FindAll() ([]domain.Space, error) {
-	rows, err := r.db.Query(`SELECT id, title FROM spaces ORDER BY id`)
+	rows, err := r.db.Query(`SELECT id, title, space_key FROM spaces ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -24,16 +24,21 @@ func (r *spaceMySQLRepository) FindAll() ([]domain.Space, error) {
 	spaces := []domain.Space{}
 	for rows.Next() {
 		var space domain.Space
-		if err := rows.Scan(&space.ID, &space.Title); err != nil {
+		// CSV から取り込んだ直後などはキーがない（次の Migrate で付く）
+		var key sql.NullString
+		if err := rows.Scan(&space.ID, &space.Title, &key); err != nil {
 			return nil, err
 		}
+		space.Key = key.String
 		spaces = append(spaces, space)
 	}
 	return spaces, rows.Err()
 }
 
+// Create はスペースを追加する。キーが空なら NULL（キーなし）にする
 func (r *spaceMySQLRepository) Create(space domain.Space) error {
-	_, err := r.db.Exec(`INSERT INTO spaces (title) VALUES (?)`, space.Title)
+	key := sql.NullString{String: space.Key, Valid: space.Key != ""}
+	_, err := r.db.Exec(`INSERT INTO spaces (title, space_key) VALUES (?, ?)`, space.Title, key)
 	return err
 }
 

@@ -31,5 +31,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// 取り込んだスペースのキーとタスクの番号を付ける
+	if err := database.Migrate(db); err != nil {
+		log.Fatal(err)
+	}
 	fmt.Printf("imported: todos=%d epics=%d spaces=%d\n", result.Todos, result.Epics, result.Spaces)
 }

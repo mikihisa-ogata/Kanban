@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -32,6 +33,7 @@ func (h *SpaceHandler) GetSpaces(c *gin.Context) {
 func (h *SpaceHandler) CreateSpace(c *gin.Context) {
 	var req struct {
 		Title string `json:"title" binding:"required"`
+		Key   string `json:"key"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -41,7 +43,19 @@ func (h *SpaceHandler) CreateSpace(c *gin.Context) {
 		return
 	}
 
-	err := h.service.CreateSpace(req.Title)
+	err := h.service.CreateSpace(req.Title, req.Key)
+	if errors.Is(err, service.ErrInvalidSpaceKey) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if errors.Is(err, service.ErrSpaceKeyDuplicate) {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -51,6 +65,21 @@ func (h *SpaceHandler) CreateSpace(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "スペースの作成に成功しました",
+	})
+}
+
+// SuggestSpaceKey はスペース名（クエリ title）から、既存と重複しないキーの候補を返す
+func (h *SpaceHandler) SuggestSpaceKey(c *gin.Context) {
+	key, err := h.service.SuggestSpaceKey(c.Query("title"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"key": key,
 	})
 }
 

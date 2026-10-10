@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,11 +20,13 @@ func NewTodoMySQLRepository(db *sql.DB) TodoRepository {
 	return &todoMySQLRepository{db: db}
 }
 
-// FindAll は表示順（position）でタスクを返す
+// FindAll は表示順（position）でタスクを返す。課題キーはスペースのキーと番号から作る
 func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 	rows, err := r.db.Query(
-		`SELECT id, title, done, deadline, status, epic_id, description, space_id, created_at, updated_at
-		 FROM todos ORDER BY position, id`)
+		`SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_id, t.description, t.space_id,
+		        t.created_at, t.updated_at, t.number, s.space_key
+		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id
+		 ORDER BY t.position, t.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -34,10 +37,13 @@ func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 		var todo domain.Todo
 		var deadline sql.NullTime
 		var status string
+		var spaceKey sql.NullString
 		if err := rows.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
-			&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
+			&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt,
+			&todo.Number, &spaceKey); err != nil {
 			return nil, err
 		}
+		todo.Key = issueKey(todo.SpaceID, spaceKey.String, todo.Number)
 		todo.Status = domain.Status(status)
 		if deadline.Valid {
 			todo.Deadline = deadline.Time.Format(deadlineLayout)
@@ -47,34 +53,68 @@ func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 	return todos, rows.Err()
 }
 
-// Create はタスクを末尾に追加する。作成日時・更新日時は現在日時にする
+// Create はタスクを末尾に追加し、スペース内の次の番号を振る。作成日時・更新日時は現在日時にする
 func (r *todoMySQLRepository) Create(todo domain.Todo) error {
 	deadline, err := toNullDeadline(todo.Deadline)
 	if err != nil {
 		return err
 	}
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	number, err := nextIssueNumber(tx, todo.SpaceID)
+	if err != nil {
+		return err
+	}
 	now := currentTime()
-	_, err = r.db.Exec(
-		`INSERT INTO todos (title, done, deadline, status, epic_id, description, space_id, position, created_at, updated_at)
-		 SELECT ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
-		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, now, now)
-	return err
+	_, err = tx.Exec(
+		`INSERT INTO todos (title, done, deadline, status, epic_id, description, space_id, number, position, created_at, updated_at)
+		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
-// Update はタスクを更新し、更新日時を現在日時にする（作成日時は変えない）
+// Update はタスクを更新し、更新日時を現在日時にする（作成日時は変えない）。
+// スペースが変わった場合は、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースで番号を振り直す
 func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	deadline, err := toNullDeadline(todo.Deadline)
 	if err != nil {
 		return err
 	}
-	result, err := r.db.Exec(
-		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, epic_id = ?, description = ?, space_id = ?, updated_at = ?
-		 WHERE id = ?`,
-		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, currentTime(), id)
+	tx, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
-	return requireAffected(result, "todo", id)
+	defer tx.Rollback()
+
+	var spaceID, number int
+	err = tx.QueryRow(`SELECT space_id, number FROM todos WHERE id = ? FOR UPDATE`, id).Scan(&spaceID, &number)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("todo with ID %d not found", id)
+	}
+	if err != nil {
+		return err
+	}
+	if spaceID != todo.SpaceID {
+		if number, err = nextIssueNumber(tx, todo.SpaceID); err != nil {
+			return err
+		}
+	}
+
+	_, err = tx.Exec(
+		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
+		 WHERE id = ?`,
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *todoMySQLRepository) Delete(id int) error {
@@ -140,6 +180,26 @@ func (r *todoMySQLRepository) Move(id int, beforeID int) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// nextIssueNumber はスペース内の次の番号を採番して返す。番号は issue_counters で管理し、タスクを削除しても再利用しない
+func nextIssueNumber(tx *sql.Tx, spaceID int) (int, error) {
+	if _, err := tx.Exec(
+		`INSERT INTO issue_counters (space_id, last_number) VALUES (?, 1)
+		 ON DUPLICATE KEY UPDATE last_number = last_number + 1`, spaceID); err != nil {
+		return 0, err
+	}
+	var number int
+	err := tx.QueryRow(`SELECT last_number FROM issue_counters WHERE space_id = ?`, spaceID).Scan(&number)
+	return number, err
+}
+
+// issueKey は課題キーを返す。スペース未割り当てのタスクは domain.UnassignedKeyPrefix を接頭辞にする
+func issueKey(spaceID int, spaceKey string, number int) string {
+	if spaceID == 0 {
+		return domain.IssueKey(domain.UnassignedKeyPrefix, number)
+	}
+	return domain.IssueKey(spaceKey, number)
 }
 
 // currentTime は作成日時・更新日時に記録する現在日時を返す。DB の DATETIME に合わせて秒単位の UTC にする

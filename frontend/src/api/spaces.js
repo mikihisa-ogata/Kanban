@@ -10,7 +10,8 @@ export const spacesApi = {
     return response.json();
   },
 
-  // スペース作成
+  // スペース作成（key を省略すると名前から作る）。
+  // キーの形式違反や重複のときは、サーバーのメッセージを持つ Error を投げる
   async create(space) {
     const response = await fetch(`${API_BASE_URL}/spaces`, {
       method: 'POST',
@@ -18,9 +19,20 @@ export const spacesApi = {
       body: JSON.stringify(space)
     });
     if (!response.ok) {
-      throw new Error('Failed to create space');
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || 'Failed to create space');
     }
     return response.json();
+  },
+
+  // スペース名から、既存と重複しないキーの候補を取得
+  async suggestKey(title) {
+    const response = await fetch(`${API_BASE_URL}/spaces/key-suggestion?title=${encodeURIComponent(title)}`);
+    if (!response.ok) {
+      throw new Error('Failed to suggest space key');
+    }
+    const body = await response.json();
+    return body.key;
   },
 
   // スペース削除

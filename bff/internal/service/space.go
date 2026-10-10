@@ -3,16 +3,24 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"todo-api/internal/domain"
 	"todo-api/internal/repository"
 )
 
-var ErrSpaceNotFound = errors.New("指定されたスペースが存在しません")
+var (
+	ErrSpaceNotFound     = errors.New("指定されたスペースが存在しません")
+	ErrInvalidSpaceKey   = fmt.Errorf("キーは英大文字で始まる英大文字・数字の 2〜10 文字にしてください（%s は使えません）", domain.UnassignedKeyPrefix)
+	ErrSpaceKeyDuplicate = errors.New("このキーは他のスペースで使われています")
+)
 
 type SpaceService interface {
 	GetSpaces() ([]domain.Space, error)
-	CreateSpace(title string) error
+	// CreateSpace はスペースを作成する。key が空なら名前から重複しないキーを作る
+	CreateSpace(title string, key string) error
+	// SuggestSpaceKey は名前から、既存のスペースと重複しないキーの候補を返す
+	SuggestSpaceKey(title string) (string, error)
 	DeleteSpace(id int) error
 }
 
@@ -30,8 +38,46 @@ func (s *spaceService) GetSpaces() ([]domain.Space, error) {
 	return s.spaceRepo.FindAll()
 }
 
-func (s *spaceService) CreateSpace(title string) error {
-	return s.spaceRepo.Create(domain.Space{Title: title})
+func (s *spaceService) CreateSpace(title string, key string) error {
+	taken, err := s.takenSpaceKeys()
+	if err != nil {
+		return err
+	}
+
+	key = strings.ToUpper(strings.TrimSpace(key))
+	if key == "" {
+		key = domain.SuggestSpaceKey(title, taken)
+	}
+	if !domain.ValidSpaceKey(key) {
+		return ErrInvalidSpaceKey
+	}
+	if taken[key] {
+		return ErrSpaceKeyDuplicate
+	}
+	return s.spaceRepo.Create(domain.Space{Title: title, Key: key})
+}
+
+func (s *spaceService) SuggestSpaceKey(title string) (string, error) {
+	taken, err := s.takenSpaceKeys()
+	if err != nil {
+		return "", err
+	}
+	return domain.SuggestSpaceKey(title, taken), nil
+}
+
+// takenSpaceKeys は既存のスペースが使っているキーを返す
+func (s *spaceService) takenSpaceKeys() (map[string]bool, error) {
+	spaces, err := s.spaceRepo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	taken := map[string]bool{}
+	for _, space := range spaces {
+		if space.Key != "" {
+			taken[space.Key] = true
+		}
+	}
+	return taken, nil
 }
 
 // DeleteSpace はスペースを削除し、属するエピックとタスクはスペース未割り当てに戻す

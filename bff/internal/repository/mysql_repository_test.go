@@ -2,6 +2,8 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,9 +31,10 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// スペース 3 は spaces にないのでキーの接頭辞がなく、課題キーは空になる
 	want := []domain.Todo{
-		{ID: 1, Title: "a", Deadline: "2026-10-01", Status: domain.StatusOpen, Description: description, EpicID: 2, SpaceID: 3},
-		{ID: 2, Title: "b", Status: domain.StatusWaiting},
+		{ID: 1, Title: "a", Deadline: "2026-10-01", Status: domain.StatusOpen, Description: description, EpicID: 2, SpaceID: 3, Number: 1},
+		{ID: 2, Title: "b", Status: domain.StatusWaiting, Number: 1, Key: "TASK-1"},
 	}
 	if len(todos) != len(want) {
 		t.Fatalf("todos = %+v, want %+v", todos, want)
@@ -54,7 +57,8 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	updated.ID = 1
+	// 未割り当てへ移したので、未割り当ての続きの番号になる（2 回目の更新ではスペースが同じなので変わらない）
+	updated.ID, updated.Number, updated.Key = 1, 2, "TASK-2"
 	if todoWithoutTimes(todos[0]) != updated {
 		t.Errorf("todos[0] = %+v, want %+v", todos[0], updated)
 	}
@@ -326,4 +330,99 @@ func findTodo(t *testing.T, repo TodoRepository, id int) domain.Todo {
 	}
 	t.Fatalf("todo %d not found", id)
 	return domain.Todo{}
+}
+
+func TestTodoMySQLRepository_IssueNumbers(t *testing.T) {
+	db := openTestDB(t)
+	repo := NewTodoMySQLRepository(db)
+	spaceRepo := NewSpaceMySQLRepository(db)
+	for _, space := range []domain.Space{{Title: "Kanban", Key: "KAN"}, {Title: "Money", Key: "MON"}} {
+		if err := spaceRepo.Create(space); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// スペースごとに 1 から採番する
+	for _, todo := range []domain.Todo{
+		{Title: "k1", SpaceID: 1}, {Title: "m1", SpaceID: 2}, {Title: "k2", SpaceID: 1}, {Title: "u1"},
+	} {
+		todo.Status = domain.StatusOpen
+		if err := repo.Create(todo); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := todoKeys(t, repo); got != "1:KAN-1 2:MON-1 3:KAN-2 4:TASK-1" {
+		t.Fatalf("keys = %s", got)
+	}
+
+	// 削除した番号は再利用しない
+	if err := repo.Delete(3); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Create(domain.Todo{Title: "k3", Status: domain.StatusOpen, SpaceID: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if got := todoKeys(t, repo); got != "1:KAN-1 2:MON-1 4:TASK-1 5:KAN-3" {
+		t.Fatalf("keys after delete = %s", got)
+	}
+
+	// スペースを移すと移動先で採番し直す。スペースが同じ更新では番号は変わらない
+	if err := repo.Update(1, domain.Todo{Title: "k1", Status: domain.StatusOpen, SpaceID: 2}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Update(1, domain.Todo{Title: "k1 改", Status: domain.StatusClosed, SpaceID: 2}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Update(2, domain.Todo{Title: "m1", Status: domain.StatusOpen}); err != nil {
+		t.Fatal(err)
+	}
+	if got := todoKeys(t, repo); got != "1:MON-2 2:TASK-2 4:TASK-1 5:KAN-3" {
+		t.Fatalf("keys after move = %s", got)
+	}
+
+	// 並び替えでは番号は変わらない
+	if err := repo.Move(5, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := todoKeys(t, repo); got != "5:KAN-3 1:MON-2 2:TASK-2 4:TASK-1" {
+		t.Fatalf("keys after Move = %s", got)
+	}
+}
+
+func TestSpaceMySQLRepository_Keys(t *testing.T) {
+	repo := NewSpaceMySQLRepository(openTestDB(t))
+	if err := repo.Create(domain.Space{Title: "Kanban", Key: "KAN"}); err != nil {
+		t.Fatal(err)
+	}
+	// キーなしは複数作れる（CSV からの取り込みなど。次の Migrate でキーが付く）
+	for i := 0; i < 2; i++ {
+		if err := repo.Create(domain.Space{Title: "no key"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 同じキーは DB の一意制約で弾く
+	if err := repo.Create(domain.Space{Title: "dup", Key: "KAN"}); err == nil {
+		t.Error("Create() with duplicate key error = nil")
+	}
+	spaces, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spaces) != 3 || spaces[0].Key != "KAN" || spaces[1].Key != "" || spaces[2].Key != "" {
+		t.Errorf("spaces = %+v", spaces)
+	}
+}
+
+// todoKeys は表示順のタスクを「ID:課題キー」の空白区切りで返す
+func todoKeys(t *testing.T, repo TodoRepository) string {
+	t.Helper()
+	todos, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := []string{}
+	for _, todo := range todos {
+		keys = append(keys, fmt.Sprintf("%d:%s", todo.ID, todo.Key))
+	}
+	return strings.Join(keys, " ")
 }

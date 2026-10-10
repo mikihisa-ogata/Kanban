@@ -57,6 +57,7 @@ func main() {
 	r.DELETE("/epics/:id", epicHandler.DeleteEpic)
 
 	r.GET("/spaces", spaceHandler.GetSpaces)
+	r.GET("/spaces/key-suggestion", spaceHandler.SuggestSpaceKey)
 	r.POST("/spaces", spaceHandler.CreateSpace)
 	r.DELETE("/spaces/:id", spaceHandler.DeleteSpace)
 

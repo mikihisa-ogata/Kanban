@@ -9,6 +9,11 @@
       ×
     </button>
 
+    <!-- 既存タスクの詳細では、左上に課題キーを出す -->
+    <p v-if="task && task.Key" class="absolute top-4 left-8 m-0 h-8 flex items-center font-mono text-sm font-semibold text-gray-500">
+      {{ task.Key }}
+    </p>
+
     <form @submit.prevent="handleSubmit">
       <div class="mb-4">
         <label for="title" class="block mb-2 text-sm font-semibold text-gray-700">

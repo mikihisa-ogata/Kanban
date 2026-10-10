@@ -279,10 +279,10 @@ const fetchSpaces = async () => {
 };
 
 // スペースを作成
-const handleCreateSpace = async (title) => {
+const handleCreateSpace = async ({ title, key }) => {
   try {
     error.value = '';
-    await spacesApi.create({ title });
+    await spacesApi.create({ title, key });
     await fetchSpaces();
   } catch (err) {
     error.value = 'スペースの作成に失敗しました: ' + err.message;

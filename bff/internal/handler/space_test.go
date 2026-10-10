@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ func setupSpaceRouter(t *testing.T) *gin.Engine {
 	r.POST("/epics", eh.CreateEpic)
 	r.PUT("/epics/:id", eh.UpdateEpic)
 	r.GET("/spaces", sh.GetSpaces)
+	r.GET("/spaces/key-suggestion", sh.SuggestSpaceKey)
 	r.POST("/spaces", sh.CreateSpace)
 	r.DELETE("/spaces/:id", sh.DeleteSpace)
 	return r
@@ -65,7 +67,7 @@ func TestSpace_CreateAssignAndValidate(t *testing.T) {
 	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"プロダクトB"}`, http.StatusCreated)
 	mustStatus(t, r, http.MethodPost, "/spaces", `{}`, http.StatusBadRequest)
 	spaces := getJSON[[]domain.Space](t, r, "/spaces")
-	if len(spaces) != 2 || spaces[0] != (domain.Space{ID: 1, Title: "プロダクトA"}) || spaces[1].ID != 2 {
+	if len(spaces) != 2 || spaces[0] != (domain.Space{ID: 1, Title: "プロダクトA", Key: "SP"}) || spaces[1].ID != 2 {
 		t.Fatalf("spaces = %+v", spaces)
 	}
 
@@ -160,4 +162,52 @@ func TestSpace_DeleteUnassignsEpicsAndTodos(t *testing.T) {
 	}
 	// 未割り当てに戻ったエピックとタスクの組み合わせはそのまま更新できる
 	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"a-child","status":"Closed","epicId":1}`, http.StatusOK)
+}
+
+func TestSpace_KeysAndIssueKeys(t *testing.T) {
+	r := setupSpaceRouter(t)
+
+	// キーの候補は名前と既存のキーから作る
+	if got := getJSON[map[string]string](t, r, "/spaces/key-suggestion?title=Kanban")["key"]; got != "KAN" {
+		t.Fatalf("suggestion = %q, want KAN", got)
+	}
+	// 小文字や前後の空白は直して保存する
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Kanban","key":" kan "}`, http.StatusCreated)
+	if got := getJSON[map[string]string](t, r, "/spaces/key-suggestion?title=Kanban")["key"]; got != "KAN2" {
+		t.Fatalf("suggestion = %q, want KAN2", got)
+	}
+	// 省略すると名前から作る
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"お金"}`, http.StatusCreated)
+
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"x","key":"KAN"}`, http.StatusConflict)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"x","key":"K"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"x","key":"1AB"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"x","key":"TASK"}`, http.StatusBadRequest)
+
+	spaces := getJSON[[]domain.Space](t, r, "/spaces")
+	if len(spaces) != 2 || spaces[0].Key != "KAN" || spaces[1].Key != "SP" {
+		t.Fatalf("spaces = %+v", spaces)
+	}
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a","spaceId":1}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"b","spaceId":2}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"d","spaceId":1}`, http.StatusCreated)
+	if got := keysOf(getTodos(t, r)); got != "KAN-1 SP-1 TASK-1 KAN-2" {
+		t.Fatalf("keys = %s", got)
+	}
+
+	// スペースを削除すると、属していたタスクは未割り当ての番号で振り直される
+	mustStatus(t, r, http.MethodDelete, "/spaces/1", ``, http.StatusOK)
+	if got := keysOf(getTodos(t, r)); got != "TASK-2 SP-1 TASK-1 TASK-3" {
+		t.Fatalf("keys after deleting space = %s", got)
+	}
+}
+
+func keysOf(todos []domain.Todo) string {
+	keys := []string{}
+	for _, todo := range todos {
+		keys = append(keys, todo.Key)
+	}
+	return strings.Join(keys, " ")
 }
