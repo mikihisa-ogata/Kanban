@@ -28,13 +28,12 @@
         <label for="description" class="block mb-2 text-sm font-semibold text-gray-700">
           説明
         </label>
-        <textarea
+        <MarkdownEditor
           id="description"
           v-model="formData.description"
-          rows="3"
-          placeholder="タスクの詳細を入力（任意）"
-          class="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white resize-y focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
-        ></textarea>
+          :rows="4"
+          placeholder="タスクの詳細を入力（任意。Markdown が使えます）"
+        />
       </div>
 
       <!-- 短い値の項目は、ラベルと値を横に並べて内容の幅に合わせる -->
@@ -158,6 +157,7 @@ import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import LabelInput from './LabelInput.vue';
+import MarkdownEditor from './MarkdownEditor.vue';
 import { parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, DEFAULT_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from '../utils/priorities';

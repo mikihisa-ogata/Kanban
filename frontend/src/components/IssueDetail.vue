@@ -56,17 +56,14 @@
 
         <h2 class="mt-6 mb-2 text-sm font-semibold text-gray-700">説明</h2>
         <div v-if="editing === 'description'">
-          <textarea
+          <MarkdownEditor
             ref="descriptionInput"
             v-model="draft"
-            rows="6"
+            :rows="8"
             aria-label="説明"
-            placeholder="説明を入力"
-            class="block w-full px-3 py-2.5 border-2 border-blue-500 rounded-lg text-sm text-gray-900 bg-white resize-y focus:outline-none"
-            @keydown.esc="handleEsc"
-            @keydown.enter.meta="handleDescriptionEnter"
-            @keydown.enter.ctrl="handleDescriptionEnter"
-          ></textarea>
+            placeholder="説明を入力（Markdown が使えます）"
+            @keydown="handleDescriptionKeydown"
+          />
           <div class="flex gap-2 mt-2">
             <button
               type="button"
@@ -84,14 +81,15 @@
             </button>
           </div>
         </div>
+        <!-- Markdown を整形して表示する。リンクやチェックボックスを押したときは編集に入らない -->
         <div
           v-else
-          class="-mx-2 px-2 py-1.5 rounded-md text-sm leading-relaxed whitespace-pre-wrap break-words cursor-text hover:bg-gray-100"
+          class="-mx-2 px-2 py-1.5 rounded-md cursor-text hover:bg-gray-100"
           title="クリックして編集"
-          @click="startEdit('description', task.Description)"
+          @click="handleDescriptionClick"
         >
-          <template v-if="task.Description">{{ task.Description }}</template>
-          <span v-else class="text-gray-400">説明を追加...</span>
+          <MarkdownView v-if="task.Description" :source="task.Description" />
+          <span v-else class="text-sm text-gray-400">説明を追加...</span>
         </div>
       </div>
 
@@ -263,6 +261,8 @@ import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import LabelInput from './LabelInput.vue';
+import MarkdownView from './MarkdownView.vue';
+import MarkdownEditor from './MarkdownEditor.vue';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
@@ -370,11 +370,20 @@ const handleTitleEnter = (event) => {
   saveTitle();
 };
 
-// 説明は改行できるよう、⌘+Enter / Ctrl+Enter で保存する
-const handleDescriptionEnter = (event) => {
-  if (isComposing(event)) return;
-  event.preventDefault();
-  saveDescription();
+// 説明は改行できるよう、⌘+Enter / Ctrl+Enter で保存し、Esc で取り消す
+const handleDescriptionKeydown = (event) => {
+  if (event.key === 'Escape') {
+    handleEsc(event);
+  } else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+    if (isComposing(event)) return;
+    event.preventDefault();
+    saveDescription();
+  }
+};
+
+const handleDescriptionClick = (event) => {
+  if (event.target.closest('a, input')) return;
+  startEdit('description', props.task.Description);
 };
 
 // 要約は空にできない。空や変更なしなら元に戻すだけ
