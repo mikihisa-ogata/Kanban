@@ -29,7 +29,17 @@
               ]"
             >
               <h3 class="m-0 text-xl font-bold tracking-wide">{{ column.title }}</h3>
-              <span class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ countByStatus(column.status) }}</span>
+              <div class="flex items-center gap-2">
+                <!-- 列のストーリーポイントの合計（ポイントの付いたタスクがあるときだけ） -->
+                <span
+                  v-if="hasStoryPoints(column.status)"
+                  class="bg-white/25 text-white px-2.5 py-1 rounded-full text-xs font-bold"
+                  title="ストーリーポイントの合計"
+                >
+                  {{ formatStoryPoints(storyPointsByStatus(column.status)) }} pt
+                </span>
+                <span class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ countByStatus(column.status) }}</span>
+              </div>
             </div>
           </div>
 
@@ -149,6 +159,7 @@ import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
 import { rememberLastBoard, issuePath } from '../utils/spaceRoutes';
+import { formatStoryPoints, sumStoryPoints } from '../utils/storyPoints';
 
 const props = defineProps({
   // 表示するスペースのキー（URL の /spaces/:key/board）。null の場合は全スペースを表示する
@@ -247,6 +258,10 @@ const lanes = computed(() => {
 
 // ステータスごとのタスク件数（選択中のスペース内）
 const countByStatus = (status) => visibleTodos.value.filter(todo => todo.Status === status).length;
+
+// ステータスごとのストーリーポイントの合計（選択中のスペース内。未設定のタスクは数えない）
+const storyPointsByStatus = (status) => sumStoryPoints(visibleTodos.value.filter(todo => todo.Status === status));
+const hasStoryPoints = (status) => visibleTodos.value.some(todo => todo.Status === status && todo.StoryPoints != null);
 
 // タスク作成フォームの初期スペース（エピックのレーンから開いたときはそのエピックのスペース）
 const modalInitialSpaceId = computed(() => {
@@ -436,6 +451,7 @@ const handleCreateTodo = async (formData) => {
       issueType: formData.issueType,
       priority: formData.priority,
       labels: formData.labels,
+      storyPoints: formData.storyPoints,
       epicId: formData.epicId,
       spaceId: formData.spaceId
     });

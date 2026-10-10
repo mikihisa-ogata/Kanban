@@ -22,7 +22,7 @@ func NewTodoMySQLRepository(db *sql.DB) TodoRepository {
 
 // selectTodos はタスクを読む SELECT。課題キーを作るためスペースのキーも読む（scanTodo と列を合わせる）
 const selectTodos = `SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_id, t.description, t.space_id,
-		        t.created_at, t.updated_at, t.number, s.space_key, t.issue_type, t.priority
+		        t.created_at, t.updated_at, t.number, s.space_key, t.issue_type, t.priority, t.story_points
 		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id`
 
 // FindAll は表示順（position）でタスクを返す。課題キーはスペースのキーと番号から作る
@@ -151,10 +151,14 @@ func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 	var status string
 	var spaceKey sql.NullString
 	var issueType, priority string
+	var storyPoints sql.NullFloat64
 	if err := row.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
 		&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt,
-		&todo.Number, &spaceKey, &issueType, &priority); err != nil {
+		&todo.Number, &spaceKey, &issueType, &priority, &storyPoints); err != nil {
 		return domain.Todo{}, err
+	}
+	if storyPoints.Valid {
+		todo.StoryPoints = &storyPoints.Float64
 	}
 	todo.IssueType = domain.IssueType(issueType)
 	todo.Priority = domain.Priority(priority)
@@ -186,9 +190,9 @@ func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 	}
 	now := currentTime()
 	result, err := tx.Exec(
-		`INSERT INTO todos (title, done, deadline, status, issue_type, priority, epic_id, description, space_id, number, position, created_at, updated_at)
-		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
-		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
+		`INSERT INTO todos (title, done, deadline, status, issue_type, priority, story_points, epic_id, description, space_id, number, position, created_at, updated_at)
+		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
+		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
 	if err != nil {
 		return 0, err
 	}
@@ -233,9 +237,9 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	}
 
 	_, err = tx.Exec(
-		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, issue_type = ?, priority = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
+		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, issue_type = ?, priority = ?, story_points = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
 		 WHERE id = ?`,
-		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
+		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
 	if err != nil {
 		return err
 	}

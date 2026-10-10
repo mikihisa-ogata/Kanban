@@ -94,6 +94,7 @@ GET /todos
     "IssueType": "Task",
     "Priority": "Medium",
     "Labels": ["backend", "ui"],
+    "StoryPoints": 3,
     "EpicID": 0,
     "Description": "タスクの説明（任意。改行を含められる）",
     "SpaceID": 0,
@@ -108,6 +109,8 @@ GET /todos
 `IssueType` は課題タイプで、`Task`（タスク）・`Bug`（バグ）・`Story`（ストーリー）のいずれかです。課題タイプの追加前に作られたタスクは `Task` になります。
 
 `Priority` は優先度で、`Highest`（最高）・`High`（高）・`Medium`（中）・`Low`（低）・`Lowest`（最低）のいずれかです。既定は `Medium` で、優先度の追加前に作られたタスクも `Medium` になります。
+
+`StoryPoints` はストーリーポイント（見積もり）で、0 以上 999999.99 以下の数値（小数は第 2 位まで）です。未設定は `null` で、`0` とは区別します。
 
 `Labels` はラベル（Jira の自由入力のタグ）の名前順の配列で、ラベルがなければ `[]` です。ラベル名は空白を含まない 255 文字以内で、前後の空白は除きます。大文字・小文字の違いだけのラベルは同じラベルとして扱い、最初に作られた名前を使います（例: `UI` を付けても、既に `ui` があれば `ui` になります）。
 
@@ -134,6 +137,7 @@ POST /todos
   "IssueType": "Bug（省略可。省略すると Task）",
   "Priority": "High（省略可。省略すると Medium）",
   "Labels": ["ui", "不具合"],
+  "StoryPoints": 0.5,
   "Description": "タスクの説明（省略可）",
   "EpicID": 0,
   "SpaceID": 0
@@ -165,6 +169,7 @@ PUT /todos/:id
   "IssueType": "Story（省略すると今の課題タイプのまま）",
   "Priority": "Low（省略すると今の優先度のまま）",
   "Labels": ["ui"],
+  "StoryPoints": null,
   "Description": "タスクの説明（省略すると空になる）",
   "EpicID": 0,
   "SpaceID": 0
@@ -225,7 +230,7 @@ POST /todos/:id/move
 
 タスクを `BeforeID` のタスクの直前へ移動します。`BeforeID` が 0 または省略の場合は末尾へ移動します。`GET /todos` はこの並び順（`todos.position`）で返します。
 
-`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
+`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。`StoryPoints` は、作成で省略または `null` にすると未設定、更新で省略すると今の値のまま、`null` を送ると未設定に戻します。範囲外や小数第 3 位以下を含む値は 400 を返します。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
 
 ### エピック
 
@@ -278,6 +283,7 @@ DELETE /spaces/:id
 - `Deadline` は `DATE` 型で、期限なし（空文字）は `NULL` として保存します。
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
+- ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。
 

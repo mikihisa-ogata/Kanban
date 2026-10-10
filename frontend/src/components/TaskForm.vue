@@ -90,6 +90,23 @@
           />
         </div>
 
+        <div class="flex items-center gap-4">
+          <label for="storyPoints" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+            ストーリーポイント
+          </label>
+          <div class="min-w-0">
+            <input
+              id="storyPoints"
+              v-model="formData.storyPoints"
+              type="text"
+              inputmode="decimal"
+              placeholder="未設定"
+              class="w-28 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+            />
+            <p v-if="storyPointsError" class="mt-1 mb-0 text-xs text-red-600">{{ storyPointsError }}</p>
+          </div>
+        </div>
+
         <div class="flex items-start gap-4">
           <label for="labels" class="w-24 shrink-0 pt-2.5 text-sm font-semibold text-gray-700">
             ラベル
@@ -141,6 +158,7 @@ import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import LabelInput from './LabelInput.vue';
+import { parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, DEFAULT_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from '../utils/priorities';
 
@@ -177,6 +195,7 @@ const formData = ref({
   issueType: DEFAULT_ISSUE_TYPE,
   priority: DEFAULT_PRIORITY,
   labels: [],
+  storyPoints: '',
   epicId: props.initialEpicId,
   spaceId: props.initialSpaceId
 });
@@ -215,12 +234,15 @@ watch(() => props.initialStatus, (newStatus) => {
 
 const isSubmitting = ref(false);
 
+// ストーリーポイントの入力エラー（空は未設定なのでエラーにしない）
+const storyPointsError = computed(() => parseStoryPoints(formData.value.storyPoints).error);
+
 const handleSubmit = async () => {
-  if (isSubmitting.value) return;
+  if (isSubmitting.value || storyPointsError.value) return;
   
   isSubmitting.value = true;
   try {
-    await emit('submit', { ...formData.value });
+    await emit('submit', { ...formData.value, storyPoints: parseStoryPoints(formData.value.storyPoints).value });
     // フォームをリセット
     formData.value = {
       title: '',
@@ -230,6 +252,7 @@ const handleSubmit = async () => {
       issueType: DEFAULT_ISSUE_TYPE,
       priority: DEFAULT_PRIORITY,
       labels: [],
+      storyPoints: '',
       epicId: props.initialEpicId,
       spaceId: props.initialSpaceId
     };

@@ -381,3 +381,36 @@ func TestTodoHandler_Labels(t *testing.T) {
 		t.Errorf("GET /labels = %q", labels)
 	}
 }
+
+// ストーリーポイントを設定・解除できる。作成で省略すると未設定、更新で省略すると今のまま、null で未設定。不正な値は 400
+func TestTodoHandler_StoryPoints(t *testing.T) {
+	r := setupTodoRouter(t)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"b","storyPoints":0.5}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c","storyPoints":-1}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c","storyPoints":1.234}`, http.StatusBadRequest)
+	todos := getTodos(t, r)
+	if len(todos) != 2 || todos[0].StoryPoints != nil || todos[1].StoryPoints == nil || *todos[1].StoryPoints != 0.5 {
+		t.Fatalf("todos = %+v", todos)
+	}
+	// 未設定は JSON で null になる
+	if w := doRequest(t, r, http.MethodGet, "/todos", ""); !strings.Contains(w.Body.String(), `"StoryPoints":null`) || !strings.Contains(w.Body.String(), `"StoryPoints":0.5`) {
+		t.Errorf("GET /todos body = %s", w.Body)
+	}
+
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"a","status":"Open","storyPoints":8}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"a","status":"Closed"}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Open","storyPoints":null}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Open","storyPoints":"3"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Open","storyPoints":1000000}`, http.StatusBadRequest)
+	todos = getTodos(t, r)
+	if todos[0].StoryPoints == nil || *todos[0].StoryPoints != 8 || todos[0].Status != domain.StatusClosed || todos[1].StoryPoints != nil {
+		t.Errorf("todos = %+v", todos)
+	}
+	// 0 は未設定と区別する
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Open","storyPoints":0}`, http.StatusOK)
+	if todo := getJSON[domain.Todo](t, r, "/issues/TASK-2"); todo.StoryPoints == nil || *todo.StoryPoints != 0 {
+		t.Errorf("TASK-2 StoryPoints = %v, want 0", todo.StoryPoints)
+	}
+}

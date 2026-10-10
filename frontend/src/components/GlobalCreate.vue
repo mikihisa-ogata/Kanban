@@ -92,6 +92,7 @@ const handleSubmit = async (formData) => {
       issueType: formData.issueType,
       priority: formData.priority,
       labels: formData.labels,
+      storyPoints: formData.storyPoints,
       epicId: formData.epicId,
       spaceId: formData.spaceId
     });

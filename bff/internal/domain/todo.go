@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 type Status string
 
@@ -45,6 +48,18 @@ func ValidPriority(p Priority) bool {
 	return false
 }
 
+// storyPointsMax はストーリーポイントの上限（DB の DECIMAL(8,2) に収まる値）
+const storyPointsMax = 999999.99
+
+// ValidStoryPoints はストーリーポイントとして使える値かを返す。0 以上、小数は第 2 位まで
+func ValidStoryPoints(points float64) bool {
+	if math.IsNaN(points) || points < 0 || points > storyPointsMax {
+		return false
+	}
+	scaled := points * 100
+	return math.Abs(scaled-math.Round(scaled)) < 1e-6
+}
+
 type Todo struct {
 	ID          int
 	Title       string
@@ -54,6 +69,7 @@ type Todo struct {
 	IssueType   IssueType // 課題タイプ。既存のタスクは Task
 	Priority    Priority  // 優先度。既定と既存のタスクは Medium
 	Labels      []string  // ラベル（名前順）。ラベルがなければ空の配列
+	StoryPoints *float64  // ストーリーポイント（見積もり）。nil は未設定
 	EpicID      int       // 0 の場合はエピック未割り当て
 	Description string    // 任意。空文字の場合は説明なし
 	SpaceID     int       // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース

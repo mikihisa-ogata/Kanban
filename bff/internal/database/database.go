@@ -101,6 +101,8 @@ func addedColumns() []column {
 		{"todos", "issue_type", "VARCHAR(20) NOT NULL DEFAULT 'Task'"},
 		// 優先度（Highest / High / Medium / Low / Lowest）。追加前のタスクは Medium になる
 		{"todos", "priority", "VARCHAR(20) NOT NULL DEFAULT 'Medium'"},
+		// ストーリーポイント。NULL は未設定
+		{"todos", "story_points", "DECIMAL(8,2) NULL"},
 	}
 }
 

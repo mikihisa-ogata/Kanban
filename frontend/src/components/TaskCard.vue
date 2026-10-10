@@ -21,11 +21,19 @@
         {{ label }}
       </span>
     </div>
-    <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下）。優先度は右下 -->
+    <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下）。ストーリーポイントと優先度は右下 -->
     <div class="mt-3 flex items-center gap-1.5">
       <IssueTypeIcon :type="task.IssueType" />
       <span v-if="task.Key" class="font-mono text-xs font-semibold text-gray-500">{{ task.Key }}</span>
-      <PriorityIcon :priority="task.Priority" class="ml-auto" />
+      <!-- ストーリーポイントは Jira と同じく丸いバッジ -->
+      <span
+        v-if="task.StoryPoints != null"
+        class="ml-auto min-w-6 h-6 px-1.5 rounded-full bg-gray-200 text-xs font-semibold text-gray-700 flex items-center justify-center"
+        :title="`ストーリーポイント: ${formatStoryPoints(task.StoryPoints)}`"
+      >
+        {{ formatStoryPoints(task.StoryPoints) }}
+      </span>
+      <PriorityIcon :priority="task.Priority" :class="task.StoryPoints != null ? '' : 'ml-auto'" />
     </div>
     <div v-if="task.Done" class="mt-3 pt-3 border-t border-gray-200 flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
       <span class="text-sm">✓</span>
@@ -38,6 +46,7 @@
 import { defineProps, defineEmits } from 'vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
+import { formatStoryPoints } from '../utils/storyPoints';
 
 const props = defineProps({
   task: {

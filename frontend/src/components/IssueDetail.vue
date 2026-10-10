@@ -132,6 +132,40 @@
               />
             </dd>
 
+            <dt class="text-gray-600 font-semibold"><label :for="fieldId('storyPoints')">ストーリーポイント</label></dt>
+            <dd class="m-0 min-w-0">
+              <template v-if="editing === 'storyPoints'">
+                <input
+                  :id="fieldId('storyPoints')"
+                  ref="storyPointsInput"
+                  v-model="draft"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="未設定"
+                  class="w-28 px-3 py-1.5 border-2 border-blue-500 rounded-lg text-sm text-gray-900 bg-white focus:outline-none"
+                  @keydown.enter="handleStoryPointsEnter"
+                  @keydown.esc="handleEsc"
+                  @blur="saveStoryPoints"
+                />
+                <p v-if="storyPointsError" class="mt-1 mb-0 text-xs text-red-600">{{ storyPointsError }}</p>
+              </template>
+              <button
+                v-else
+                type="button"
+                class="-mx-2 px-2 py-1.5 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-gray-100"
+                title="クリックして編集"
+                @click="startEdit('storyPoints', task.StoryPoints == null ? '' : formatStoryPoints(task.StoryPoints))"
+              >
+                <span
+                  v-if="task.StoryPoints != null"
+                  class="inline-flex min-w-6 h-6 px-1.5 rounded-full bg-gray-200 text-xs font-semibold text-gray-700 items-center justify-center"
+                >
+                  {{ formatStoryPoints(task.StoryPoints) }}
+                </span>
+                <span v-else class="text-sm text-gray-400">なし</span>
+              </button>
+            </dd>
+
             <dt class="self-start pt-2 text-gray-600 font-semibold"><label :for="fieldId('labels')">ラベル</label></dt>
             <dd class="m-0 min-w-0">
               <div v-if="editing === 'labels'">
@@ -229,6 +263,7 @@ import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import LabelInput from './LabelInput.vue';
+import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
 import { formatDateTime } from '../utils/datetime';
@@ -288,6 +323,7 @@ const save = (changes) => {
     issueType: props.task.IssueType,
     priority: props.task.Priority,
     labels: props.task.Labels || [],
+    storyPoints: props.task.StoryPoints ?? null,
     epicId: props.task.EpicID,
     spaceId: props.task.SpaceID,
     ...changes
@@ -299,17 +335,20 @@ const changeSpace = (spaceId) => {
   save({ spaceId, epicId: 0 });
 };
 
-// インライン編集中の項目（'title' | 'description' | 'labels' | null）と入力中の値
+// インライン編集中の項目（'title' | 'description' | 'storyPoints' | 'labels' | null）と入力中の値
 const editing = ref(null);
 const draft = ref('');
 const titleInput = ref(null);
 const descriptionInput = ref(null);
+const storyPointsInput = ref(null);
+const inputs = { title: titleInput, description: descriptionInput, storyPoints: storyPointsInput };
 
 const startEdit = async (field, value) => {
   editing.value = field;
   draft.value = value;
+  storyPointsError.value = '';
   await nextTick();
-  (field === 'title' ? titleInput : descriptionInput).value?.focus();
+  inputs[field]?.value?.focus();
 };
 
 const cancelEdit = () => {
@@ -363,6 +402,28 @@ const saveLabels = () => {
   if (labelsDraft.value.length !== current.length || labelsDraft.value.some(label => !current.includes(label))) {
     save({ labels: labelsDraft.value });
   }
+};
+
+// ストーリーポイントは空で未設定に戻す。不正な値なら編集を続けてエラーを出す
+const storyPointsError = ref('');
+
+const saveStoryPoints = () => {
+  if (editing.value !== 'storyPoints') return;
+  const { value, error } = parseStoryPoints(draft.value);
+  if (error) {
+    storyPointsError.value = error;
+    return;
+  }
+  editing.value = null;
+  if (value !== (props.task.StoryPoints ?? null)) {
+    save({ storyPoints: value });
+  }
+};
+
+const handleStoryPointsEnter = (event) => {
+  if (isComposing(event)) return;
+  event.preventDefault();
+  saveStoryPoints();
 };
 
 const saveDescription = () => {

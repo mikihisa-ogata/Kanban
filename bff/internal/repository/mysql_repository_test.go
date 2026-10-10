@@ -606,3 +606,32 @@ func TestTodoMySQLRepository_LabelsDistinguishKanaAndWidth(t *testing.T) {
 		t.Errorf("FindLabels() = %q, want %d distinct labels", got, len(names))
 	}
 }
+
+func TestTodoMySQLRepository_StoryPoints(t *testing.T) {
+	repo := NewTodoMySQLRepository(openTestDB(t))
+	points := 2.5
+	id1, err := repo.Create(domain.Todo{Title: "a", Status: domain.StatusOpen, StoryPoints: &points})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := repo.Create(domain.Todo{Title: "b", Status: domain.StatusOpen})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := repo.FindByID(id1)
+	if err != nil || a.StoryPoints == nil || *a.StoryPoints != 2.5 {
+		t.Errorf("FindByID(a) StoryPoints = %v, %v", a.StoryPoints, err)
+	}
+	b, err := repo.FindByID(id2)
+	if err != nil || b.StoryPoints != nil {
+		t.Errorf("FindByID(b) StoryPoints = %v, %v, want nil", b.StoryPoints, err)
+	}
+
+	// 更新で未設定に戻せる
+	if err := repo.Update(id1, domain.Todo{Title: "a", Status: domain.StatusOpen}); err != nil {
+		t.Fatal(err)
+	}
+	if a, err = repo.FindByID(id1); err != nil || a.StoryPoints != nil {
+		t.Errorf("after update StoryPoints = %v, %v, want nil", a.StoryPoints, err)
+	}
+}

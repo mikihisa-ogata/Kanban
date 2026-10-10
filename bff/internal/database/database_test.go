@@ -65,7 +65,7 @@ func TestMigrate(t *testing.T) {
 		"labels":         {"id", "name"},
 		"todo_labels":    {"todo_id", "label_id"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
-		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority"},
+		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points"},
 	}
 	for table, columns := range want {
 		rows, err := db.Query(
