@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"todo-api/internal/database/dbtest"
 	"todo-api/internal/domain"
@@ -36,7 +37,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 		t.Fatalf("todos = %+v, want %+v", todos, want)
 	}
 	for i := range want {
-		if todos[i] != want[i] {
+		if todoWithoutTimes(todos[i]) != want[i] {
 			t.Errorf("todos[%d] = %+v, want %+v", i, todos[i], want[i])
 		}
 	}
@@ -54,7 +55,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 	updated.ID = 1
-	if todos[0] != updated {
+	if todoWithoutTimes(todos[0]) != updated {
 		t.Errorf("todos[0] = %+v, want %+v", todos[0], updated)
 	}
 
@@ -155,7 +156,7 @@ func TestEpicMySQLRepository_CRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []domain.Epic{{ID: 1, Title: "e1改"}, {ID: 2, Title: "e2"}}
-	if len(epics) != 2 || epics[0] != want[0] || epics[1] != want[1] {
+	if len(epics) != 2 || epicWithoutTimes(epics[0]) != want[0] || epicWithoutTimes(epics[1]) != want[1] {
 		t.Fatalf("epics = %+v, want %+v", epics, want)
 	}
 
@@ -206,6 +207,18 @@ func TestSpaceMySQLRepository_CRUD(t *testing.T) {
 	}
 }
 
+// todoWithoutTimes は日時以外の内容を比べるため、作成日時・更新日時を空にしたタスクを返す
+func todoWithoutTimes(todo domain.Todo) domain.Todo {
+	todo.CreatedAt, todo.UpdatedAt = time.Time{}, time.Time{}
+	return todo
+}
+
+// epicWithoutTimes は日時以外の内容を比べるため、作成日時・更新日時を空にしたエピックを返す
+func epicWithoutTimes(epic domain.Epic) domain.Epic {
+	epic.CreatedAt, epic.UpdatedAt = time.Time{}, time.Time{}
+	return epic
+}
+
 func todoIDs(t *testing.T, repo TodoRepository) []int {
 	t.Helper()
 	todos, err := repo.FindAll()
@@ -217,4 +230,100 @@ func todoIDs(t *testing.T, repo TodoRepository) []int {
 		ids = append(ids, todo.ID)
 	}
 	return ids
+}
+
+func TestTodoMySQLRepository_Timestamps(t *testing.T) {
+	db := openTestDB(t)
+	repo := NewTodoMySQLRepository(db)
+
+	before := currentTime()
+	for _, title := range []string{"a", "b"} {
+		if err := repo.Create(domain.Todo{Title: title, Status: domain.StatusOpen}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	after := currentTime()
+	todo := findTodo(t, repo, 1)
+	if todo.CreatedAt.Before(before) || todo.CreatedAt.After(after) || !todo.UpdatedAt.Equal(todo.CreatedAt) {
+		t.Fatalf("created_at = %v, updated_at = %v, want both between %v and %v", todo.CreatedAt, todo.UpdatedAt, before, after)
+	}
+
+	// 日時を過去にずらし、更新・並び替えで変わるかを確かめる
+	old := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+	if _, err := db.Exec(`UPDATE todos SET created_at = ?, updated_at = ?`, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	// 並び替えでは更新日時は変わらない
+	if err := repo.Move(1, 0); err != nil {
+		t.Fatal(err)
+	}
+	if todo := findTodo(t, repo, 1); !todo.UpdatedAt.Equal(old) {
+		t.Errorf("updated_at after Move = %v, want %v", todo.UpdatedAt, old)
+	}
+
+	// 更新すると更新日時だけが現在日時になる
+	before = currentTime()
+	if err := repo.Update(1, domain.Todo{Title: "a2", Status: domain.StatusClosed}); err != nil {
+		t.Fatal(err)
+	}
+	todo = findTodo(t, repo, 1)
+	if !todo.CreatedAt.Equal(old) {
+		t.Errorf("created_at after Update = %v, want %v", todo.CreatedAt, old)
+	}
+	if todo.UpdatedAt.Before(before) {
+		t.Errorf("updated_at after Update = %v, want >= %v", todo.UpdatedAt, before)
+	}
+	if other := findTodo(t, repo, 2); !other.UpdatedAt.Equal(old) {
+		t.Errorf("updated_at of other todo = %v, want %v", other.UpdatedAt, old)
+	}
+}
+
+func TestEpicMySQLRepository_Timestamps(t *testing.T) {
+	db := openTestDB(t)
+	repo := NewEpicMySQLRepository(db)
+
+	before := currentTime()
+	if err := repo.Create(domain.Epic{Title: "e"}); err != nil {
+		t.Fatal(err)
+	}
+	after := currentTime()
+	epics, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if epics[0].CreatedAt.Before(before) || epics[0].CreatedAt.After(after) || !epics[0].UpdatedAt.Equal(epics[0].CreatedAt) {
+		t.Fatalf("created_at = %v, updated_at = %v, want both between %v and %v", epics[0].CreatedAt, epics[0].UpdatedAt, before, after)
+	}
+
+	old := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+	if _, err := db.Exec(`UPDATE epics SET created_at = ?, updated_at = ?`, old, old); err != nil {
+		t.Fatal(err)
+	}
+	before = currentTime()
+	if err := repo.Update(1, domain.Epic{Title: "e2"}); err != nil {
+		t.Fatal(err)
+	}
+	epics, err = repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !epics[0].CreatedAt.Equal(old) || epics[0].UpdatedAt.Before(before) {
+		t.Errorf("created_at = %v, updated_at = %v, want created_at %v and updated_at >= %v", epics[0].CreatedAt, epics[0].UpdatedAt, old, before)
+	}
+}
+
+func findTodo(t *testing.T, repo TodoRepository, id int) domain.Todo {
+	t.Helper()
+	todos, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, todo := range todos {
+		if todo.ID == id {
+			return todo
+		}
+	}
+	t.Fatalf("todo %d not found", id)
+	return domain.Todo{}
 }

@@ -47,7 +47,7 @@ func TestImportCSV(t *testing.T) {
 		t.Fatalf("todos = %+v, want %+v", todos, want)
 	}
 	for i := range want {
-		if todos[i] != want[i] {
+		if todoWithoutTimes(todos[i]) != want[i] {
 			t.Errorf("todos[%d] = %+v, want %+v", i, todos[i], want[i])
 		}
 	}
@@ -56,7 +56,7 @@ func TestImportCSV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(epics) != 1 || epics[0] != (domain.Epic{ID: 3, Title: "エピック", SpaceID: 2}) {
+	if len(epics) != 1 || epicWithoutTimes(epics[0]) != (domain.Epic{ID: 3, Title: "エピック", SpaceID: 2}) {
 		t.Errorf("epics = %+v", epics)
 	}
 	spaces, err := NewSpaceMySQLRepository(db).FindAll()
@@ -112,14 +112,14 @@ func TestImportCSV_LegacyAndMissingFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(todos) != 1 || todos[0] != (domain.Todo{ID: 1, Title: "old", Deadline: "2026-10-01", Status: domain.StatusOpen}) {
+	if len(todos) != 1 || todoWithoutTimes(todos[0]) != (domain.Todo{ID: 1, Title: "old", Deadline: "2026-10-01", Status: domain.StatusOpen}) {
 		t.Errorf("todos = %+v", todos)
 	}
 	epics, err := NewEpicMySQLRepository(db).FindAll()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(epics) != 1 || epics[0] != (domain.Epic{ID: 1, Title: "old epic"}) {
+	if len(epics) != 1 || epicWithoutTimes(epics[0]) != (domain.Epic{ID: 1, Title: "old epic"}) {
 		t.Errorf("epics = %+v", epics)
 	}
 }

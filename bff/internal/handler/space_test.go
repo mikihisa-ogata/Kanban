@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -33,6 +34,12 @@ func mustStatus(t *testing.T, r *gin.Engine, method, path, body string, want int
 	if w := doRequest(t, r, method, path, body); w.Code != want {
 		t.Fatalf("%s %s %s status = %d, want %d, body = %s", method, path, body, w.Code, want, w.Body)
 	}
+}
+
+// epicWithoutTimes は日時以外の内容を比べるため、作成日時・更新日時を空にしたエピックを返す
+func epicWithoutTimes(epic domain.Epic) domain.Epic {
+	epic.CreatedAt, epic.UpdatedAt = time.Time{}, time.Time{}
+	return epic
 }
 
 func getJSON[T any](t *testing.T, r *gin.Engine, path string) T {
@@ -111,7 +118,7 @@ func TestSpace_MoveEpicMovesChildTodos(t *testing.T) {
 	mustStatus(t, r, http.MethodPut, "/epics/1", `{"spaceId":1}`, http.StatusBadRequest)
 
 	epics := getJSON[[]domain.Epic](t, r, "/epics")
-	if len(epics) != 1 || epics[0] != (domain.Epic{ID: 1, Title: "E", SpaceID: 2}) {
+	if len(epics) != 1 || epicWithoutTimes(epics[0]) != (domain.Epic{ID: 1, Title: "E", SpaceID: 2}) {
 		t.Fatalf("epics = %+v", epics)
 	}
 	todos := getTodos(t, r)

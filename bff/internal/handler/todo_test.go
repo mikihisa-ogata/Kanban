@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -199,5 +200,29 @@ func TestTodoHandler_Move(t *testing.T) {
 	}
 	if w := doRequest(t, r, http.MethodPost, "/todos/99/move", `{}`); w.Code != http.StatusInternalServerError {
 		t.Errorf("unknown id status = %d, want 500", w.Code)
+	}
+}
+
+// GET /todos と GET /epics は作成日時・更新日時を RFC 3339 形式（UTC）で返す
+func TestTodoHandler_ReturnsTimestamps(t *testing.T) {
+	r := setupSpaceRouter(t)
+	mustStatus(t, r, http.MethodPost, "/epics", `{"title":"E"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"t"}`, http.StatusCreated)
+
+	for _, path := range []string{"/todos", "/epics"} {
+		w := doRequest(t, r, http.MethodGet, path, "")
+		var items []map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &items); err != nil {
+			t.Fatal(err)
+		}
+		if len(items) != 1 {
+			t.Fatalf("%s = %s", path, w.Body)
+		}
+		for _, key := range []string{"CreatedAt", "UpdatedAt"} {
+			value, _ := items[0][key].(string)
+			if _, err := time.Parse(time.RFC3339, value); err != nil || !strings.HasSuffix(value, "Z") {
+				t.Errorf("%s %s = %v, want RFC 3339 in UTC", path, key, items[0][key])
+			}
+		}
 	}
 }

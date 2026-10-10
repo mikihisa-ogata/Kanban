@@ -17,7 +17,7 @@ func TestEpic_RenameKeepsSpaceAndChildTodos(t *testing.T) {
 	// 名前だけを変える（スペースは今のまま送る）
 	mustStatus(t, r, http.MethodPut, "/epics/1", `{"title":"新しい名前, \"引用\"","spaceId":1}`, http.StatusOK)
 	epics := getJSON[[]domain.Epic](t, r, "/epics")
-	if len(epics) != 1 || epics[0] != (domain.Epic{ID: 1, Title: `新しい名前, "引用"`, SpaceID: 1}) {
+	if len(epics) != 1 || epicWithoutTimes(epics[0]) != (domain.Epic{ID: 1, Title: `新しい名前, "引用"`, SpaceID: 1}) {
 		t.Fatalf("epics = %+v", epics)
 	}
 	todos := getTodos(t, r)

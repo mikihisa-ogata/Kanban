@@ -22,7 +22,7 @@
       <h2
         v-else
         class="m-0 text-base font-bold truncate"
-        :title="epic ? 'ダブルクリックで名前を変更' : ''"
+        :title="titleTooltip"
         @dblclick="startEdit"
       >
         {{ epic ? epic.Title : 'エピックなし' }}
@@ -65,6 +65,7 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue';
 import KanbanColumn from './KanbanColumn.vue';
+import { formatDateTime } from '../utils/datetime';
 
 const props = defineProps({
   // null の場合は「エピックなし」のレーン
@@ -124,6 +125,15 @@ const handleEnter = (event) => {
 const cancelEdit = () => {
   editing.value = false;
 };
+
+// エピック名にホバーしたときの説明。作成日時と最終更新日時も出す
+const titleTooltip = computed(() => {
+  if (!props.epic) return '';
+  const lines = ['ダブルクリックで名前を変更'];
+  if (props.epic.CreatedAt) lines.push(`作成: ${formatDateTime(props.epic.CreatedAt)}`);
+  if (props.epic.UpdatedAt) lines.push(`更新: ${formatDateTime(props.epic.UpdatedAt)}`);
+  return lines.join('\n');
+});
 
 // 子タスクのうちクローズ済みの件数 / 全件数
 const progressLabel = computed(() => {

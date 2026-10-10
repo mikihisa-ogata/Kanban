@@ -93,10 +93,14 @@ GET /todos
     "Status": "Waiting",
     "EpicID": 0,
     "Description": "タスクの説明（任意。改行を含められる）",
-    "SpaceID": 0
+    "SpaceID": 0,
+    "CreatedAt": "2026-10-10T12:00:00Z",
+    "UpdatedAt": "2026-10-10T12:30:00Z"
   }
 ]
 ```
+
+`CreatedAt`（作成日時）と `UpdatedAt`（最終更新日時）は UTC の RFC 3339 形式で、サーバーが記録します（リクエストに含めても無視します）。`UpdatedAt` は `PUT` で変わり、並び替え（`move`）では変わりません。
 
 ### 新規TODOを作成
 
@@ -167,7 +171,7 @@ PUT /epics/:id     {"Title": "エピック名", "SpaceID": 2}
 DELETE /epics/:id
 ```
 
-レスポンスは `{"ID": 1, "Title": "エピック名", "SpaceID": 0}` の配列です。`PUT` でスペースを変えると、子タスクも同じスペースへ移動します。削除すると子タスクはエピック未割り当てになります。
+レスポンスは `{"ID": 1, "Title": "エピック名", "SpaceID": 0, "CreatedAt": "2026-10-10T12:00:00Z", "UpdatedAt": "2026-10-10T12:00:00Z"}` の配列です。作成日時・最終更新日時はタスクと同じ形式で、`PUT` で `UpdatedAt` が変わります。`PUT` でスペースを変えると、子タスクも同じスペースへ移動します。削除すると子タスクはエピック未割り当てになります。
 
 ### スペース
 
@@ -197,6 +201,7 @@ DELETE /spaces/:id
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
 - `Deadline` は `DATE` 型で、期限なし（空文字）は `NULL` として保存します。
+- `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。
 
 ### CSV からの移行
 

@@ -22,7 +22,7 @@ func NewTodoMySQLRepository(db *sql.DB) TodoRepository {
 // FindAll は表示順（position）でタスクを返す
 func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 	rows, err := r.db.Query(
-		`SELECT id, title, done, deadline, status, epic_id, description, space_id
+		`SELECT id, title, done, deadline, status, epic_id, description, space_id, created_at, updated_at
 		 FROM todos ORDER BY position, id`)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 		var deadline sql.NullTime
 		var status string
 		if err := rows.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
-			&todo.EpicID, &todo.Description, &todo.SpaceID); err != nil {
+			&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
 			return nil, err
 		}
 		todo.Status = domain.Status(status)
@@ -47,28 +47,30 @@ func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 	return todos, rows.Err()
 }
 
-// Create はタスクを末尾に追加する
+// Create はタスクを末尾に追加する。作成日時・更新日時は現在日時にする
 func (r *todoMySQLRepository) Create(todo domain.Todo) error {
 	deadline, err := toNullDeadline(todo.Deadline)
 	if err != nil {
 		return err
 	}
+	now := currentTime()
 	_, err = r.db.Exec(
-		`INSERT INTO todos (title, done, deadline, status, epic_id, description, space_id, position)
-		 SELECT ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1 FROM todos`,
-		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID)
+		`INSERT INTO todos (title, done, deadline, status, epic_id, description, space_id, position, created_at, updated_at)
+		 SELECT ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, now, now)
 	return err
 }
 
+// Update はタスクを更新し、更新日時を現在日時にする（作成日時は変えない）
 func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	deadline, err := toNullDeadline(todo.Deadline)
 	if err != nil {
 		return err
 	}
 	result, err := r.db.Exec(
-		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, epic_id = ?, description = ?, space_id = ?
+		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, epic_id = ?, description = ?, space_id = ?, updated_at = ?
 		 WHERE id = ?`,
-		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, id)
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.EpicID, todo.Description, todo.SpaceID, currentTime(), id)
 	if err != nil {
 		return err
 	}
@@ -83,7 +85,8 @@ func (r *todoMySQLRepository) Delete(id int) error {
 	return requireAffected(result, "todo", id)
 }
 
-// Move はタスクを beforeID のタスクの直前（0 なら末尾）へ移動し、全タスクの position を振り直す
+// Move はタスクを beforeID のタスクの直前（0 なら末尾）へ移動し、全タスクの position を振り直す。
+// 並び替えは内容の変更ではないため、更新日時は変えない
 func (r *todoMySQLRepository) Move(id int, beforeID int) error {
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -137,6 +140,11 @@ func (r *todoMySQLRepository) Move(id int, beforeID int) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// currentTime は作成日時・更新日時に記録する現在日時を返す。DB の DATETIME に合わせて秒単位の UTC にする
+func currentTime() time.Time {
+	return time.Now().UTC().Truncate(time.Second)
 }
 
 // toNullDeadline は期限の文字列を DB の値に変換する。空文字は NULL にする

@@ -57,10 +57,48 @@ func Migrate(db *sql.DB) error {
 			return fmt.Errorf("failed to migrate: %w", err)
 		}
 	}
+	for _, c := range addedColumns() {
+		if err := addColumnIfMissing(db, c.table, c.column, c.definition); err != nil {
+			return fmt.Errorf("failed to migrate: %w", err)
+		}
+	}
 	return nil
 }
 
-// schemaStatements はテーブル定義を返す。
+type column struct {
+	table      string
+	column     string
+	definition string
+}
+
+// addedColumns は既存のテーブルに後から追加した列を返す。
+// 追加前に作られたデータベースでも同じ列になるよう、なければ ALTER TABLE で追加する。
+// 既存の行の作成日時・更新日時は、列を追加した時点の日時になる
+func addedColumns() []column {
+	return []column{
+		{"epics", "created_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"},
+		{"epics", "updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"},
+		{"todos", "created_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"},
+		{"todos", "updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"},
+	}
+}
+
+func addColumnIfMissing(db *sql.DB, table, column, definition string) error {
+	var count int
+	err := db.QueryRow(
+		`SELECT COUNT(*) FROM information_schema.columns
+		 WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`, table, column).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err = db.Exec("ALTER TABLE `" + table + "` ADD COLUMN `" + column + "` " + definition)
+	return err
+}
+
+// schemaStatements はテーブル定義を返す。後から追加した列は addedColumns にある。
 // EpicID・SpaceID の 0 は「未割り当て」を表すため、外部キー制約は付けない
 func schemaStatements() []string {
 	return []string{

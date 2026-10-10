@@ -87,7 +87,18 @@
         </div>
       </div>
 
-      <div class="flex justify-end mt-6">
+      <div class="flex items-center justify-end gap-4 mt-6">
+        <!-- 既存タスクの詳細では、作成日時と最終更新日時を出す -->
+        <dl v-if="task && (task.CreatedAt || task.UpdatedAt)" class="mr-auto m-0 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+          <div v-if="task.CreatedAt" class="flex gap-1">
+            <dt>作成</dt>
+            <dd class="m-0">{{ formatDateTime(task.CreatedAt) }}</dd>
+          </div>
+          <div v-if="task.UpdatedAt" class="flex gap-1">
+            <dt>更新</dt>
+            <dd class="m-0">{{ formatDateTime(task.UpdatedAt) }}</dd>
+          </div>
+        </dl>
         <button 
           type="submit" 
           :disabled="isSubmitting"
@@ -104,6 +115,7 @@
 <script setup>
 import { ref, defineEmits, defineProps, watch, computed } from 'vue';
 import OptionSelect from './OptionSelect.vue';
+import { formatDateTime } from '../utils/datetime';
 
 const props = defineProps({
   initialStatus: {
