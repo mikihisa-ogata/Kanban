@@ -95,6 +95,7 @@ GET /todos
     "Priority": "Medium",
     "Labels": ["backend", "ui"],
     "StoryPoints": 3,
+    "ParentID": 0,
     "EpicID": 0,
     "Description": "タスクの説明（任意。改行を含められる）",
     "SpaceID": 0,
@@ -106,9 +107,11 @@ GET /todos
 ]
 ```
 
-`IssueType` は課題タイプで、`Task`（タスク）・`Bug`（バグ）・`Story`（ストーリー）のいずれかです。課題タイプの追加前に作られたタスクは `Task` になります。
+`IssueType` は課題タイプで、`Task`（タスク）・`Bug`（バグ）・`Story`（ストーリー）・`Subtask`（サブタスク）のいずれかです。課題タイプの追加前に作られたタスクは `Task` になります。
 
 `Priority` は優先度で、`Highest`（最高）・`High`（高）・`Medium`（中）・`Low`（低）・`Lowest`（最低）のいずれかです。既定は `Medium` で、優先度の追加前に作られたタスクも `Medium` になります。
+
+`ParentID` はサブタスクの親課題の ID で、サブタスクでなければ `0` です。サブタスク（`IssueType` が `Subtask`）は必ず親課題を持ち、親課題と同じスペース・エピックに置かれます。サブタスクの下にサブタスクは作れません。
 
 `StoryPoints` はストーリーポイント（見積もり）で、0 以上 999999.99 以下の数値（小数は第 2 位まで）です。未設定は `null` で、`0` とは区別します。
 
@@ -138,6 +141,7 @@ POST /todos
   "Priority": "High（省略可。省略すると Medium）",
   "Labels": ["ui", "不具合"],
   "StoryPoints": 0.5,
+  "ParentID": 0,
   "Description": "タスクの説明（省略可）",
   "EpicID": 0,
   "SpaceID": 0
@@ -152,6 +156,8 @@ POST /todos
   "todo": { "ID": 12, "Title": "新しいタスク", "Key": "KAN-12", "...": "..." }
 }
 ```
+
+`ParentID`（省略可）に課題の ID を指定すると、その課題のサブタスクを作ります。課題タイプは `Subtask` になり（`IssueType` は省略するか `Subtask` にする）、`SpaceID`・`EpicID` は送った値にかかわらず親課題と同じになります。親課題が存在しない、または親課題がサブタスクの場合は 400 を返します。`ParentID` なしで `IssueType` に `Subtask` を指定した場合も 400 です。
 
 ### TODOを更新
 
@@ -215,6 +221,8 @@ GET /labels
 DELETE /todos/:id
 ```
 
+サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。
+
 ### TODOを並び替え
 
 ```
@@ -230,7 +238,9 @@ POST /todos/:id/move
 
 タスクを `BeforeID` のタスクの直前へ移動します。`BeforeID` が 0 または省略の場合は末尾へ移動します。`GET /todos` はこの並び順（`todos.position`）で返します。
 
-`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。`StoryPoints` は、作成で省略または `null` にすると未設定、更新で省略すると今の値のまま、`null` を送ると未設定に戻します。範囲外や小数第 3 位以下を含む値は 400 を返します。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
+`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。`StoryPoints` は、作成で省略または `null` にすると未設定、更新で省略すると今の値のまま、`null` を送ると未設定に戻します。範囲外や小数第 3 位以下を含む値は 400 を返します。
+
+`PUT` では親課題（`ParentID`）は変えられません（リクエストに含めても無視します）。サブタスクの `SpaceID`・`EpicID` は親課題と同じままになり、サブタスクと他の課題タイプを相互に変えようとすると 400 を返します。親課題の `SpaceID`・`EpicID` を変えると、そのサブタスクも同じスペース・エピックに移ります（スペースが変わると課題キーも変わります）。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
 
 ### エピック
 
@@ -283,6 +293,7 @@ DELETE /spaces/:id
 - `Deadline` は `DATE` 型で、期限なし（空文字）は `NULL` として保存します。
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
+- サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。

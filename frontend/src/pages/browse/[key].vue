@@ -16,7 +16,16 @@
       </div>
 
       <div v-else class="max-w-6xl bg-white rounded-2xl px-8 py-6 shadow-xl">
-        <IssueDetail :task="issue" :epics="epics" :spaces="spaces" @update="handleUpdate" />
+        <IssueDetail
+          :task="issue"
+          :epics="epics"
+          :spaces="spaces"
+          :subtasks="subtasks"
+          :parent-task="parentTask"
+          @update="handleUpdate"
+          @subtasks-changed="fetchTodos"
+          @open="navigateTo(issuePath($event))"
+        />
       </div>
     </div>
 
@@ -48,6 +57,13 @@ const loadError = ref('');
 // 編集の保存に失敗したときのメッセージ
 const error = ref('');
 
+// 子課題と親課題を出すための全タスク
+const todos = ref([]);
+const subtasks = computed(() => (issue.value ? todos.value.filter(todo => todo.ParentID === issue.value.ID) : []));
+const parentTask = computed(() =>
+  issue.value && issue.value.ParentID ? todos.value.find(todo => todo.ID === issue.value.ParentID) || null : null
+);
+
 const space = computed(() => (issue.value ? spaces.value.find(s => s.ID === issue.value.SpaceID) || null : null));
 
 useHead(() => ({
@@ -73,6 +89,15 @@ const fetchIssue = async () => {
   }
 };
 
+const fetchTodos = async () => {
+  try {
+    todos.value = await todosApi.fetchAll();
+  } catch (err) {
+    error.value = '子課題の取得に失敗しました: ' + err.message;
+    console.error('Failed to fetch todos:', err);
+  }
+};
+
 const fetchSpacesAndEpics = async () => {
   try {
     [spaces.value, epics.value] = await Promise.all([spacesApi.fetchAll(), epicsApi.fetchAll()]);
@@ -90,6 +115,8 @@ const handleUpdate = async (payload) => {
     const result = await todosApi.update(id, payload);
     issue.value = result.todo;
     await replaceUrlWithKey(result.todo.Key);
+    // スペースを変えるとサブタスクの課題キーも変わるので取り直す
+    await fetchTodos();
   } catch (err) {
     error.value = '課題の更新に失敗しました: ' + err.message;
     console.error('Failed to update issue:', err);
@@ -104,7 +131,8 @@ const handleSpacesChanged = async () => {
   if (!issue.value) return;
   try {
     const id = issue.value.ID;
-    const todo = (await todosApi.fetchAll()).find(t => t.ID === id) || null;
+    todos.value = await todosApi.fetchAll();
+    const todo = todos.value.find(t => t.ID === id) || null;
     issue.value = todo;
     await replaceUrlWithKey(todo?.Key);
   } catch (err) {
@@ -117,12 +145,12 @@ const handleSpacesChanged = async () => {
 watch(issueKey, async (key) => {
   if (issue.value && issue.value.Key === key) return;
   loading.value = true;
-  await fetchIssue();
+  await Promise.all([fetchIssue(), fetchTodos()]);
   loading.value = false;
 });
 
 onMounted(async () => {
-  await Promise.all([fetchIssue(), fetchSpacesAndEpics()]);
+  await Promise.all([fetchIssue(), fetchSpacesAndEpics(), fetchTodos()]);
   loading.value = false;
 });
 </script>

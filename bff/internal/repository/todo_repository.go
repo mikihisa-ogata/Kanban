@@ -9,8 +9,9 @@ type TodoRepository interface {
 	FindByKey(prefix string, number int) (*domain.Todo, error)
 	// Create はタスクを作成し、その ID を返す。todo.Labels のラベルを付ける（なければ作る）
 	Create(todo domain.Todo) (int, error)
-	// Update はタスクを更新する。ラベルは todo.Labels に置き換える
+	// Update はタスクを更新する。ラベルは todo.Labels に置き換える。親課題（ParentID）は変えない
 	Update(id int, todo domain.Todo) error
+	// Delete はタスクと、そのサブタスクを削除する
 	Delete(id int) error
 	// FindLabels はいずれかのタスクに付いているラベルの名前を名前順に返す
 	FindLabels() ([]string, error)

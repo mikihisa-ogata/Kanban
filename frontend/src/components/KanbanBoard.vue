@@ -109,7 +109,11 @@
           :task="detailTask"
           :epics="epics"
           :spaces="spaces"
+          :subtasks="subtasksOf(detailTask)"
+          :parent-task="parentOf(detailTask)"
           @update="handleUpdateTodoFromModal"
+          @subtasks-changed="fetchTodos"
+          @open="openDetailByKey"
         >
           <template #actions>
             <NuxtLink
@@ -149,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, provide } from 'vue';
 import TaskForm from './TaskForm.vue';
 import IssueDetail from './IssueDetail.vue';
 import EpicLane from './EpicLane.vue';
@@ -228,12 +232,26 @@ const visibleEpics = computed(() =>
     : epics.value.filter(epic => epic.SpaceID === selectedSpaceId.value)
 );
 
-// 選択中のスペースに属するタスク
+// 選択中のスペースに属するタスク。サブタスクはカードにせず、親課題の詳細と件数で見せる
 const visibleTodos = computed(() =>
-  selectedSpaceId.value === null
-    ? todos.value
-    : todos.value.filter(todo => todo.SpaceID === selectedSpaceId.value)
+  todos.value.filter(todo => !todo.ParentID && (selectedSpaceId.value === null || todo.SpaceID === selectedSpaceId.value))
 );
+
+const subtasksOf = (task) => todos.value.filter(todo => todo.ParentID === task.ID);
+const parentOf = (task) => (task.ParentID ? todos.value.find(todo => todo.ID === task.ParentID) || null : null);
+
+// 親課題ごとのサブタスクの件数（完了＝クローズ / 全体）。カードに出す
+const subtaskProgress = computed(() => {
+  const progress = {};
+  for (const todo of todos.value) {
+    if (!todo.ParentID) continue;
+    const entry = progress[todo.ParentID] || (progress[todo.ParentID] = { done: 0, total: 0 });
+    entry.total++;
+    if (todo.Status === 'Closed') entry.done++;
+  }
+  return progress;
+});
+provide('subtaskProgress', subtaskProgress);
 
 // エピックごとのレーン。最後にエピック未割り当てのタスクのレーンを置く
 const lanes = computed(() => {
@@ -487,6 +505,11 @@ const openDetailModal = (task) => {
   navigateTo({ query: { ...route.query, selectedIssue: task.Key } });
 };
 
+// 詳細モーダルで別の課題（親課題・子課題）を開く
+const openDetailByKey = (key) => {
+  navigateTo({ query: { ...route.query, selectedIssue: key } });
+};
+
 // タスク詳細のモーダルを閉じる
 const closeDetailModal = () => {
   const { selectedIssue, ...query } = route.query;
@@ -566,9 +589,12 @@ const handleDrop = async ({ taskId, newStatus, epicId, beforeId }) => {
 // タスクを削除
 const handleDeleteTodo = async (taskId) => {
   const task = todos.value.find(t => t.ID === taskId);
+  // サブタスクも一緒に削除されることを、件数とあわせて伝える
+  const subtaskCount = todos.value.filter(t => t.ParentID === taskId).length;
   const confirmed = await askConfirm(
     'タスクを削除しますか？',
-    `「${task ? task.Title : ''}」を削除します。この操作は取り消せません。`
+    `「${task ? task.Title : ''}」を削除します。この操作は取り消せません。` +
+      (subtaskCount ? `\nサブタスク ${subtaskCount} 件も一緒に削除されます。` : '')
   );
   if (!confirmed) {
     return;

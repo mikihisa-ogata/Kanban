@@ -21,11 +21,13 @@ const (
 	IssueTypeTask  IssueType = "Task"
 	IssueTypeBug   IssueType = "Bug"
 	IssueTypeStory IssueType = "Story"
+	// IssueTypeSubtask はサブタスク。必ず親課題（ParentID）を持つ
+	IssueTypeSubtask IssueType = "Subtask"
 )
 
 // ValidIssueType は課題タイプとして使える値かを返す
 func ValidIssueType(t IssueType) bool {
-	return t == IssueTypeTask || t == IssueTypeBug || t == IssueTypeStory
+	return t == IssueTypeTask || t == IssueTypeBug || t == IssueTypeStory || t == IssueTypeSubtask
 }
 
 // Priority は優先度（Jira の Highest / High / Medium / Low / Lowest）
@@ -70,6 +72,7 @@ type Todo struct {
 	Priority    Priority  // 優先度。既定と既存のタスクは Medium
 	Labels      []string  // ラベル（名前順）。ラベルがなければ空の配列
 	StoryPoints *float64  // ストーリーポイント（見積もり）。nil は未設定
+	ParentID    int       // サブタスクの親課題の ID。0 はサブタスクではない
 	EpicID      int       // 0 の場合はエピック未割り当て
 	Description string    // 任意。空文字の場合は説明なし
 	SpaceID     int       // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース

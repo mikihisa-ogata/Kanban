@@ -73,6 +73,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		Priority    string   `json:"priority"`
 		Labels      []string `json:"labels"`
 		StoryPoints *float64 `json:"storyPoints"`
+		ParentID    int      `json:"parentId"`
 		EpicID      int      `json:"epicId"`
 		Description string   `json:"description"`
 		SpaceID     int      `json:"spaceId"`
@@ -85,7 +86,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, req.StoryPoints, req.EpicID, req.Description, req.SpaceID)
+	todo, err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, req.StoryPoints, req.ParentID, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -243,5 +244,8 @@ func isTodoValidationError(err error) bool {
 		errors.Is(err, service.ErrInvalidIssueType) ||
 		errors.Is(err, service.ErrInvalidPriority) ||
 		errors.Is(err, domain.ErrInvalidLabel) ||
-		errors.Is(err, service.ErrInvalidStoryPoints)
+		errors.Is(err, service.ErrInvalidStoryPoints) ||
+		errors.Is(err, service.ErrParentNotFound) ||
+		errors.Is(err, service.ErrSubtaskParent) ||
+		errors.Is(err, service.ErrSubtaskType)
 }

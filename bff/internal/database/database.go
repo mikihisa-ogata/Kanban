@@ -103,6 +103,8 @@ func addedColumns() []column {
 		{"todos", "priority", "VARCHAR(20) NOT NULL DEFAULT 'Medium'"},
 		// ストーリーポイント。NULL は未設定
 		{"todos", "story_points", "DECIMAL(8,2) NULL"},
+		// サブタスクの親課題の ID。0 はサブタスクではない
+		{"todos", "parent_id", "INT NOT NULL DEFAULT 0"},
 	}
 }
 
@@ -117,6 +119,7 @@ func addedIndexes() []index {
 	return []index{
 		{"spaces", "uq_spaces_space_key", "UNIQUE INDEX uq_spaces_space_key (space_key)"},
 		{"todos", "idx_todos_space_number", "INDEX idx_todos_space_number (space_id, number)"},
+		{"todos", "idx_todos_parent", "INDEX idx_todos_parent (parent_id)"},
 	}
 }
 

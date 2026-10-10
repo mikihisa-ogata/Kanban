@@ -6,6 +6,19 @@
       <nav class="flex items-center gap-1.5 min-w-0 text-sm text-gray-500">
         <span v-if="spaceTitle" class="truncate">{{ spaceTitle }}</span>
         <span v-if="spaceTitle" aria-hidden="true">/</span>
+        <!-- サブタスクは Jira と同じく親課題をパンくずに出す -->
+        <template v-if="parentTask">
+          <IssueTypeIcon :type="parentTask.IssueType" />
+          <button
+            type="button"
+            class="bg-transparent border-0 p-0 font-mono font-semibold text-gray-600 cursor-pointer hover:text-blue-600 hover:underline"
+            :title="`親課題 ${parentTask.Key}「${parentTask.Title}」を開く`"
+            @click="$emit('open', parentTask.Key)"
+          >
+            {{ parentTask.Key }}
+          </button>
+          <span aria-hidden="true">/</span>
+        </template>
         <IssueTypeIcon :type="task.IssueType" />
         <NuxtLink :to="issuePath(task.Key)" class="font-mono font-semibold text-gray-600 no-underline hover:text-blue-600 hover:underline">
           {{ task.Key }}
@@ -91,6 +104,16 @@
           <MarkdownView v-if="task.Description" :source="task.Description" />
           <span v-else class="text-sm text-gray-400">説明を追加...</span>
         </div>
+
+        <!-- サブタスクの下にはサブタスクを作れないので、子課題はサブタスク以外の課題にだけ出す -->
+        <SubtaskSection
+          v-if="!isSubtask"
+          class="mt-6"
+          :parent="task"
+          :subtasks="subtasks"
+          @changed="$emit('subtasks-changed')"
+          @open="$emit('open', $event)"
+        />
       </div>
 
       <!-- 右: 詳細欄 -->
@@ -101,7 +124,10 @@
             <dt class="text-gray-600 font-semibold"><label :for="fieldId('issueType')">課題タイプ</label></dt>
             <dd class="m-0 min-w-0 flex items-center gap-2">
               <IssueTypeIcon :type="task.IssueType" />
+              <!-- サブタスクは他の課題タイプに変えられない -->
+              <span v-if="isSubtask" :id="fieldId('issueType')" class="text-sm text-gray-800">サブタスク</span>
               <OptionSelect
+                v-else
                 :id="fieldId('issueType')"
                 :model-value="task.IssueType"
                 :options="ISSUE_TYPE_OPTIONS"
@@ -206,7 +232,10 @@
             <template v-if="spaces.length">
               <dt class="text-gray-600 font-semibold"><label :for="fieldId('space')">スペース</label></dt>
               <dd class="m-0 min-w-0">
+                <!-- サブタスクのスペース・エピックは親課題と同じ -->
+                <span v-if="isSubtask" :id="fieldId('space')" class="text-sm text-gray-800" title="親課題と同じ">{{ spaceTitle || 'なし' }}</span>
                 <OptionSelect
+                  v-else
                   :id="fieldId('space')"
                   :model-value="task.SpaceID"
                   :options="spaceOptions"
@@ -218,7 +247,9 @@
 
             <dt class="text-gray-600 font-semibold"><label :for="fieldId('epic')">エピック</label></dt>
             <dd class="m-0 min-w-0">
+              <span v-if="isSubtask" :id="fieldId('epic')" class="text-sm text-gray-800" title="親課題と同じ">{{ epicTitle || 'なし' }}</span>
               <OptionSelect
+                v-else
                 :id="fieldId('epic')"
                 :model-value="task.EpicID"
                 :options="epicOptions"
@@ -263,8 +294,9 @@ import PriorityIcon from './PriorityIcon.vue';
 import LabelInput from './LabelInput.vue';
 import MarkdownView from './MarkdownView.vue';
 import MarkdownEditor from './MarkdownEditor.vue';
+import SubtaskSection from './SubtaskSection.vue';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
-import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
+import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
 import { formatDateTime } from '../utils/datetime';
 import { issuePath } from '../utils/spaceRoutes';
@@ -281,11 +313,26 @@ const props = defineProps({
   spaces: {
     type: Array,
     default: () => []
+  },
+  // この課題のサブタスク
+  subtasks: {
+    type: Array,
+    default: () => []
+  },
+  // サブタスクの場合は親課題（パンくずに出す）
+  parentTask: {
+    type: Object,
+    default: null
   }
 });
 
 // update: 変更後の内容（PUT /todos/:id のリクエストの形）。保存は呼び出し側で行う
-const emit = defineEmits(['update']);
+// subtasks-changed: 子課題を追加・変更・削除した（呼び出し側でサブタスクを取り直す）
+// open: 別の課題（親課題・子課題）を開く（課題キー）
+const emit = defineEmits(['update', 'subtasks-changed', 'open']);
+
+const isSubtask = computed(() => props.task.IssueType === SUBTASK_ISSUE_TYPE);
+const epicTitle = computed(() => props.epics.find(epic => epic.ID === props.task.EpicID)?.Title ?? '');
 
 const statusOptions = [
   { value: 'Open', label: 'オープン' },

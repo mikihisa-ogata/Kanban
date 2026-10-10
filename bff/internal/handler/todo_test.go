@@ -414,3 +414,83 @@ func TestTodoHandler_StoryPoints(t *testing.T) {
 		t.Errorf("TASK-2 StoryPoints = %v, want 0", todo.StoryPoints)
 	}
 }
+
+// サブタスクは親課題を指定して作り、親と同じスペース・エピックに置かれる。サブタスクの下には作れない
+func TestTodoHandler_Subtasks(t *testing.T) {
+	r := setupSpaceRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Kanban","key":"KAN"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Other","key":"OTH"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/epics", `{"title":"e1","spaceId":1}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/epics", `{"title":"e2","spaceId":2}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"parent","spaceId":1,"epicId":1}`, http.StatusCreated)
+
+	// スペース・エピックを送らなくても親と同じになる
+	w := doRequest(t, r, http.MethodPost, "/todos", `{"title":"sub1","parentId":1}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST subtask status = %d, body = %s", w.Code, w.Body)
+	}
+	var created struct {
+		Todo domain.Todo `json:"todo"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	sub := created.Todo
+	if sub.ParentID != 1 || sub.IssueType != domain.IssueTypeSubtask || sub.SpaceID != 1 || sub.EpicID != 1 || sub.Key != "KAN-2" {
+		t.Errorf("subtask = %+v", sub)
+	}
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"sub2","parentId":1,"issueType":"Subtask"}`, http.StatusCreated)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"x","parentId":99}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"x","parentId":2}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"x","issueType":"Subtask"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"x","parentId":1,"issueType":"Bug"}`, http.StatusBadRequest)
+
+	// サブタスクのステータスを変えられる。スペース・エピックを送っても親と同じまま。タイプは変えられない
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"sub1","status":"Closed","spaceId":0,"epicId":0}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"sub1","status":"Closed","issueType":"Task"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"parent","status":"Open","spaceId":1,"epicId":1,"issueType":"Subtask"}`, http.StatusBadRequest)
+	got := getJSON[domain.Todo](t, r, "/issues/KAN-2")
+	if got.Status != domain.StatusClosed || got.SpaceID != 1 || got.EpicID != 1 || got.ParentID != 1 {
+		t.Errorf("subtask after update = %+v", got)
+	}
+
+	// 親を別のスペース・エピックへ移すと、サブタスクも移って課題キーが変わる
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"parent","status":"Open","spaceId":2,"epicId":2}`, http.StatusOK)
+	todos := getTodos(t, r)
+	for _, todo := range todos {
+		if todo.SpaceID != 2 || todo.EpicID != 2 {
+			t.Errorf("after moving parent: %s space = %d, epic = %d, want 2, 2", todo.Title, todo.SpaceID, todo.EpicID)
+		}
+	}
+	if keys := todos[0].Key + "," + todos[1].Key + "," + todos[2].Key; keys != "OTH-1,OTH-2,OTH-3" {
+		t.Errorf("keys = %s", keys)
+	}
+}
+
+// 親課題を削除すると、サブタスクも削除される。サブタスクだけを削除しても親は残る
+func TestTodoHandler_DeleteParentDeletesSubtasks(t *testing.T) {
+	repos := newTestRepos(t)
+	r := newTodoRouter(repos)
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space))
+	r.DELETE("/todos/:id", h.DeleteTodo)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"parent"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"sub1","parentId":1,"labels":["ui"]}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"sub2","parentId":1}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"other"}`, http.StatusCreated)
+
+	mustStatus(t, r, http.MethodDelete, "/todos/3", "", http.StatusOK)
+	if todos := getTodos(t, r); len(todos) != 3 {
+		t.Fatalf("after deleting a subtask: %d todos, want 3", len(todos))
+	}
+	mustStatus(t, r, http.MethodDelete, "/todos/1", "", http.StatusOK)
+	todos := getTodos(t, r)
+	if len(todos) != 1 || todos[0].Title != "other" {
+		t.Errorf("after deleting the parent: todos = %+v", todos)
+	}
+	// 消したサブタスクのラベルは候補に残らない
+	if labels := getJSON[[]string](t, r, "/labels"); len(labels) != 0 {
+		t.Errorf("GET /labels = %q, want empty", labels)
+	}
+}

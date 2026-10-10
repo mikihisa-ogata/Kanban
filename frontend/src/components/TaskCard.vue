@@ -25,6 +25,18 @@
     <div class="mt-3 flex items-center gap-1.5">
       <IssueTypeIcon :type="task.IssueType" />
       <span v-if="task.Key" class="font-mono text-xs font-semibold text-gray-500">{{ task.Key }}</span>
+      <!-- サブタスクの件数（完了 / 全体） -->
+      <span
+        v-if="subtasks"
+        :class="[
+          'flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold',
+          subtasks.done === subtasks.total ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
+        ]"
+        :title="`サブタスク ${subtasks.done}/${subtasks.total} 完了`"
+      >
+        <IssueTypeIcon type="Subtask" :size="12" />
+        {{ subtasks.done }}/{{ subtasks.total }}
+      </span>
       <!-- ストーリーポイントは Jira と同じく丸いバッジ -->
       <span
         v-if="task.StoryPoints != null"
@@ -43,7 +55,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, computed, inject } from 'vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import { formatStoryPoints } from '../utils/storyPoints';
@@ -56,6 +68,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['dragstart', 'delete', 'open']);
+
+// 親課題ごとのサブタスクの件数（ボードが provide する。サブタスクがなければ出さない）
+const subtaskProgress = inject('subtaskProgress', null);
+const subtasks = computed(() => subtaskProgress?.value?.[props.task.ID] ?? null);
 
 const handleDragStart = (event) => {
   event.dataTransfer.effectAllowed = 'move';
