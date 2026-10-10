@@ -63,7 +63,7 @@ func TestMigrate(t *testing.T) {
 		"spaces":         {"id", "title", "space_key"},
 		"issue_counters": {"space_id", "last_number"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
-		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number"},
+		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type"},
 	}
 	for table, columns := range want {
 		rows, err := db.Query(
@@ -127,6 +127,15 @@ func TestMigrate_AddsTimestampColumnsToExistingTables(t *testing.T) {
 		if err := Migrate(db); err != nil {
 			t.Fatalf("Migrate() #%d error = %v", i+1, err)
 		}
+	}
+
+	// 課題タイプの追加前のタスクは Task になる
+	var issueType string
+	if err := db.QueryRow(`SELECT issue_type FROM todos`).Scan(&issueType); err != nil {
+		t.Fatal(err)
+	}
+	if issueType != "Task" {
+		t.Errorf("issue_type = %q, want Task", issueType)
 	}
 
 	for _, table := range []string{"epics", "todos"} {

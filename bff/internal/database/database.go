@@ -97,6 +97,8 @@ func addedColumns() []column {
 		{"spaces", "space_key", "VARCHAR(10) NULL"},
 		// 0 は未採番。assignMissingIssueNumbers で埋める
 		{"todos", "number", "INT NOT NULL DEFAULT 0"},
+		// 課題タイプ（Task / Bug / Story）。追加前のタスクは Task になる
+		{"todos", "issue_type", "VARCHAR(20) NOT NULL DEFAULT 'Task'"},
 	}
 }
 

@@ -40,6 +40,20 @@
       <!-- 短い値の項目は、ラベルと値を横に並べて内容の幅に合わせる -->
       <div class="flex flex-col gap-3 mt-4">
         <div class="flex items-center gap-4">
+          <label for="issueType" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+            課題タイプ
+          </label>
+          <div class="flex items-center gap-2 min-w-0">
+            <IssueTypeIcon :type="formData.issueType" />
+            <OptionSelect
+              id="issueType"
+              v-model="formData.issueType"
+              :options="ISSUE_TYPE_OPTIONS"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
           <label for="deadline" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
             期限
           </label>
@@ -103,6 +117,8 @@
 <script setup>
 import { ref, defineEmits, defineProps, watch, computed } from 'vue';
 import OptionSelect from './OptionSelect.vue';
+import IssueTypeIcon from './IssueTypeIcon.vue';
+import { ISSUE_TYPE_OPTIONS, DEFAULT_ISSUE_TYPE } from '../utils/issueTypes';
 
 const props = defineProps({
   initialStatus: {
@@ -134,6 +150,7 @@ const formData = ref({
   description: '',
   deadline: '',
   status: props.initialStatus,
+  issueType: DEFAULT_ISSUE_TYPE,
   epicId: props.initialEpicId,
   spaceId: props.initialSpaceId
 });
@@ -184,6 +201,7 @@ const handleSubmit = async () => {
       description: '',
       deadline: '',
       status: props.initialStatus,
+      issueType: DEFAULT_ISSUE_TYPE,
       epicId: props.initialEpicId,
       spaceId: props.initialSpaceId
     };

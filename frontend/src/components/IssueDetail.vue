@@ -6,6 +6,7 @@
       <nav class="flex items-center gap-1.5 min-w-0 text-sm text-gray-500">
         <span v-if="spaceTitle" class="truncate">{{ spaceTitle }}</span>
         <span v-if="spaceTitle" aria-hidden="true">/</span>
+        <IssueTypeIcon :type="task.IssueType" />
         <NuxtLink :to="issuePath(task.Key)" class="font-mono font-semibold text-gray-600 no-underline hover:text-blue-600 hover:underline">
           {{ task.Key }}
         </NuxtLink>
@@ -99,6 +100,17 @@
         <section class="border border-gray-200 rounded-lg">
           <h2 class="m-0 px-4 py-3 border-b border-gray-200 text-sm font-semibold text-gray-700">詳細</h2>
           <dl class="m-0 px-4 py-3 grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-3 items-center text-sm">
+            <dt class="text-gray-600 font-semibold"><label :for="fieldId('issueType')">課題タイプ</label></dt>
+            <dd class="m-0 min-w-0 flex items-center gap-2">
+              <IssueTypeIcon :type="task.IssueType" />
+              <OptionSelect
+                :id="fieldId('issueType')"
+                :model-value="task.IssueType"
+                :options="ISSUE_TYPE_OPTIONS"
+                @update:model-value="save({ issueType: $event })"
+              />
+            </dd>
+
             <dt class="text-gray-600 font-semibold"><label :for="fieldId('status')">ステータス</label></dt>
             <dd class="m-0 min-w-0">
               <OptionSelect
@@ -164,6 +176,8 @@
 <script setup>
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import OptionSelect from './OptionSelect.vue';
+import IssueTypeIcon from './IssueTypeIcon.vue';
+import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
 import { formatDateTime } from '../utils/datetime';
 import { issuePath } from '../utils/spaceRoutes';
 
@@ -218,6 +232,7 @@ const save = (changes) => {
     done: props.task.Done,
     deadline: props.task.Deadline,
     status: props.task.Status,
+    issueType: props.task.IssueType,
     epicId: props.task.EpicID,
     spaceId: props.task.SpaceID,
     ...changes

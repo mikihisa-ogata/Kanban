@@ -91,6 +91,7 @@ GET /todos
     "Done": false,
     "Deadline": "2026-03-31（省略可。省略すると期限なし）",
     "Status": "Waiting",
+    "IssueType": "Task",
     "EpicID": 0,
     "Description": "タスクの説明（任意。改行を含められる）",
     "SpaceID": 0,
@@ -101,6 +102,8 @@ GET /todos
   }
 ]
 ```
+
+`IssueType` は課題タイプで、`Task`（タスク）・`Bug`（バグ）・`Story`（ストーリー）のいずれかです。課題タイプの追加前に作られたタスクは `Task` になります。
 
 `Key` は課題キー（`<スペースのキー>-<Number>`。例: `KAN-12`）です。`Number` はスペース内の連番で、サーバーが採番します（リクエストに含めても無視します）。
 
@@ -122,6 +125,7 @@ POST /todos
   "Title": "新しいタスク",
   "Deadline": "2026-03-31（省略可。省略すると期限なし）",
   "Status": "Open",
+  "IssueType": "Bug（省略可。省略すると Task）",
   "Description": "タスクの説明（省略可）",
   "EpicID": 0,
   "SpaceID": 0
@@ -150,6 +154,7 @@ PUT /todos/:id
   "Done": true,
   "Deadline": "2026-03-31（省略すると期限なしになる）",
   "Status": "InProgress",
+  "IssueType": "Story（省略すると今の課題タイプのまま）",
   "Description": "タスクの説明（省略すると空になる）",
   "EpicID": 0,
   "SpaceID": 0
@@ -198,7 +203,7 @@ POST /todos/:id/move
 
 タスクを `BeforeID` のタスクの直前へ移動します。`BeforeID` が 0 または省略の場合は末尾へ移動します。`GET /todos` はこの並び順（`todos.position`）で返します。
 
-`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
+`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外を指定すると 400 を返します。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
 
 ### エピック
 

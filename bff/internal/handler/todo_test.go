@@ -305,3 +305,25 @@ func TestTodoHandler_UpdateReturnsTodo(t *testing.T) {
 		t.Errorf("GET /issues/OTH-1 = %+v", todo)
 	}
 }
+
+// 課題タイプを指定して作成・変更できる。省略すると作成時は Task、更新時は今のタイプのまま。不正な値は 400
+func TestTodoHandler_IssueType(t *testing.T) {
+	r := setupTodoRouter(t)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"b","issueType":"Bug"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c","issueType":"Epic"}`, http.StatusBadRequest)
+	todos := getTodos(t, r)
+	if len(todos) != 2 || todos[0].IssueType != domain.IssueTypeTask || todos[1].IssueType != domain.IssueTypeBug {
+		t.Fatalf("todos = %+v", todos)
+	}
+
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"a","status":"Open","issueType":"Story"}`, http.StatusOK)
+	// ドラッグでの移動のように課題タイプを送らない更新では、タイプは変わらない
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Closed"}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Closed","issueType":"bug"}`, http.StatusBadRequest)
+	todos = getTodos(t, r)
+	if todos[0].IssueType != domain.IssueTypeStory || todos[1].IssueType != domain.IssueTypeBug || todos[1].Status != domain.StatusClosed {
+		t.Errorf("todos = %+v", todos)
+	}
+}

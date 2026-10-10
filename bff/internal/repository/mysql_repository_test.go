@@ -23,7 +23,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 	if _, err := repo.Create(domain.Todo{Title: "a", Deadline: "2026-10-01", Status: domain.StatusOpen, Description: description, EpicID: 2, SpaceID: 3}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := repo.Create(domain.Todo{Title: "b", Status: domain.StatusWaiting}); err != nil {
+	if _, err := repo.Create(domain.Todo{Title: "b", Status: domain.StatusWaiting, IssueType: domain.IssueTypeBug}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -31,10 +31,10 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// スペース 3 は spaces にないのでキーの接頭辞がなく、課題キーは空になる
+	// スペース 3 は spaces にないのでキーの接頭辞がなく、課題キーは空になる。課題タイプを省くと Task になる
 	want := []domain.Todo{
-		{ID: 1, Title: "a", Deadline: "2026-10-01", Status: domain.StatusOpen, Description: description, EpicID: 2, SpaceID: 3, Number: 1},
-		{ID: 2, Title: "b", Status: domain.StatusWaiting, Number: 1, Key: "TASK-1"},
+		{ID: 1, Title: "a", Deadline: "2026-10-01", Status: domain.StatusOpen, IssueType: domain.IssueTypeTask, Description: description, EpicID: 2, SpaceID: 3, Number: 1},
+		{ID: 2, Title: "b", Status: domain.StatusWaiting, IssueType: domain.IssueTypeBug, Number: 1, Key: "TASK-1"},
 	}
 	if len(todos) != len(want) {
 		t.Fatalf("todos = %+v, want %+v", todos, want)
@@ -45,7 +45,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 		}
 	}
 
-	updated := domain.Todo{Title: "a2", Done: true, Status: domain.StatusClosed, Description: "更新後"}
+	updated := domain.Todo{Title: "a2", Done: true, Status: domain.StatusClosed, IssueType: domain.IssueTypeStory, Description: "更新後"}
 	if err := repo.Update(1, updated); err != nil {
 		t.Fatal(err)
 	}

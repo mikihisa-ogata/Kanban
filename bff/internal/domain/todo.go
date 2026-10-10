@@ -11,12 +11,27 @@ const (
 	StatusClosed     Status = "Closed"
 )
 
+// IssueType は課題タイプ（Jira の Task / Bug / Story）
+type IssueType string
+
+const (
+	IssueTypeTask  IssueType = "Task"
+	IssueTypeBug   IssueType = "Bug"
+	IssueTypeStory IssueType = "Story"
+)
+
+// ValidIssueType は課題タイプとして使える値かを返す
+func ValidIssueType(t IssueType) bool {
+	return t == IssueTypeTask || t == IssueTypeBug || t == IssueTypeStory
+}
+
 type Todo struct {
 	ID          int
 	Title       string
 	Done        bool
 	Deadline    string
 	Status      Status
+	IssueType   IssueType // 課題タイプ。既存のタスクは Task
 	EpicID      int       // 0 の場合はエピック未割り当て
 	Description string    // 任意。空文字の場合は説明なし
 	SpaceID     int       // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース
