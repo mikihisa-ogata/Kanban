@@ -90,6 +90,13 @@
           />
         </div>
 
+        <div class="flex items-start gap-4">
+          <label for="labels" class="w-24 shrink-0 pt-2.5 text-sm font-semibold text-gray-700">
+            ラベル
+          </label>
+          <LabelInput id="labels" v-model="formData.labels" />
+        </div>
+
         <div v-if="spaces.length" class="flex items-center gap-4">
           <label for="space" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
             スペース
@@ -133,6 +140,7 @@ import { ref, defineEmits, defineProps, watch, computed } from 'vue';
 import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
+import LabelInput from './LabelInput.vue';
 import { ISSUE_TYPE_OPTIONS, DEFAULT_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from '../utils/priorities';
 
@@ -168,6 +176,7 @@ const formData = ref({
   status: props.initialStatus,
   issueType: DEFAULT_ISSUE_TYPE,
   priority: DEFAULT_PRIORITY,
+  labels: [],
   epicId: props.initialEpicId,
   spaceId: props.initialSpaceId
 });
@@ -220,6 +229,7 @@ const handleSubmit = async () => {
       status: props.initialStatus,
       issueType: DEFAULT_ISSUE_TYPE,
       priority: DEFAULT_PRIORITY,
+      labels: [],
       epicId: props.initialEpicId,
       spaceId: props.initialSpaceId
     };

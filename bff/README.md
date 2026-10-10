@@ -93,6 +93,7 @@ GET /todos
     "Status": "Waiting",
     "IssueType": "Task",
     "Priority": "Medium",
+    "Labels": ["backend", "ui"],
     "EpicID": 0,
     "Description": "タスクの説明（任意。改行を含められる）",
     "SpaceID": 0,
@@ -107,6 +108,8 @@ GET /todos
 `IssueType` は課題タイプで、`Task`（タスク）・`Bug`（バグ）・`Story`（ストーリー）のいずれかです。課題タイプの追加前に作られたタスクは `Task` になります。
 
 `Priority` は優先度で、`Highest`（最高）・`High`（高）・`Medium`（中）・`Low`（低）・`Lowest`（最低）のいずれかです。既定は `Medium` で、優先度の追加前に作られたタスクも `Medium` になります。
+
+`Labels` はラベル（Jira の自由入力のタグ）の名前順の配列で、ラベルがなければ `[]` です。ラベル名は空白を含まない 255 文字以内で、前後の空白は除きます。大文字・小文字の違いだけのラベルは同じラベルとして扱い、最初に作られた名前を使います（例: `UI` を付けても、既に `ui` があれば `ui` になります）。
 
 `Key` は課題キー（`<スペースのキー>-<Number>`。例: `KAN-12`）です。`Number` はスペース内の連番で、サーバーが採番します（リクエストに含めても無視します）。
 
@@ -130,6 +133,7 @@ POST /todos
   "Status": "Open",
   "IssueType": "Bug（省略可。省略すると Task）",
   "Priority": "High（省略可。省略すると Medium）",
+  "Labels": ["ui", "不具合"],
   "Description": "タスクの説明（省略可）",
   "EpicID": 0,
   "SpaceID": 0
@@ -160,6 +164,7 @@ PUT /todos/:id
   "Status": "InProgress",
   "IssueType": "Story（省略すると今の課題タイプのまま）",
   "Priority": "Low（省略すると今の優先度のまま）",
+  "Labels": ["ui"],
   "Description": "タスクの説明（省略すると空になる）",
   "EpicID": 0,
   "SpaceID": 0
@@ -187,6 +192,18 @@ GET /issues/:key
 { "error": "課題が見つかりません" }
 ```
 
+### ラベル一覧を取得
+
+```
+GET /labels
+```
+
+いずれかのタスクに付いているラベルの名前を、名前順の配列で返します（入力欄の補完候補に使います）。どのタスクにも付いていないラベルは返しません。
+
+```json
+["backend", "ui", "不具合"]
+```
+
 ### TODOを削除
 
 ```
@@ -208,7 +225,7 @@ POST /todos/:id/move
 
 タスクを `BeforeID` のタスクの直前へ移動します。`BeforeID` が 0 または省略の場合は末尾へ移動します。`GET /todos` はこの並び順（`todos.position`）で返します。
 
-`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外を指定すると 400 を返します。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
+`EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
 
 ### エピック
 
@@ -254,13 +271,14 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
 - `Deadline` は `DATE` 型で、期限なし（空文字）は `NULL` として保存します。
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
+- ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。
 
 ### CSV からの移行

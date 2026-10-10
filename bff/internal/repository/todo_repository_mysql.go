@@ -41,7 +41,73 @@ func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 		}
 		todos = append(todos, todo)
 	}
-	return todos, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	labels, err := r.labelsByTodo(`SELECT tl.todo_id, l.name FROM todo_labels tl JOIN labels l ON l.id = tl.label_id`)
+	if err != nil {
+		return nil, err
+	}
+	for i := range todos {
+		if names, ok := labels[todos[i].ID]; ok {
+			todos[i].Labels = names
+		}
+	}
+	return todos, nil
+}
+
+// labelsByTodo は (todo_id, ラベル名) を返す query を実行し、タスクごとのラベル名を名前順にまとめる
+func (r *todoMySQLRepository) labelsByTodo(query string, args ...any) (map[int][]string, error) {
+	rows, err := r.db.Query(query+` ORDER BY LOWER(l.name), l.name`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	labels := map[int][]string{}
+	for rows.Next() {
+		var todoID int
+		var name string
+		if err := rows.Scan(&todoID, &name); err != nil {
+			return nil, err
+		}
+		labels[todoID] = append(labels[todoID], name)
+	}
+	return labels, rows.Err()
+}
+
+// withLabels はタスクにラベルを読み込んで返す
+func (r *todoMySQLRepository) withLabels(todo domain.Todo) (domain.Todo, error) {
+	labels, err := r.labelsByTodo(
+		`SELECT tl.todo_id, l.name FROM todo_labels tl JOIN labels l ON l.id = tl.label_id WHERE tl.todo_id = ?`, todo.ID)
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	if names, ok := labels[todo.ID]; ok {
+		todo.Labels = names
+	}
+	return todo, nil
+}
+
+// FindLabels はいずれかのタスクに付いているラベルの名前を名前順に返す
+func (r *todoMySQLRepository) FindLabels() ([]string, error) {
+	rows, err := r.db.Query(
+		`SELECT l.name FROM labels l WHERE EXISTS (SELECT 1 FROM todo_labels tl WHERE tl.label_id = l.id) ORDER BY LOWER(l.name), l.name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	names := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
 }
 
 // FindByID は指定 ID のタスクを返す。存在しなければ not found のエラーを返す
@@ -50,7 +116,10 @@ func (r *todoMySQLRepository) FindByID(id int) (domain.Todo, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Todo{}, fmt.Errorf("todo with ID %d not found", id)
 	}
-	return todo, err
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	return r.withLabels(todo)
 }
 
 // FindByKey は課題キー（接頭辞と番号）のタスクを返す。domain.UnassignedKeyPrefix はスペース未割り当てのタスクを表す。
@@ -67,6 +136,9 @@ func (r *todoMySQLRepository) FindByKey(prefix string, number int) (*domain.Todo
 		return nil, nil
 	}
 	if err != nil {
+		return nil, err
+	}
+	if todo, err = r.withLabels(todo); err != nil {
 		return nil, err
 	}
 	return &todo, nil
@@ -86,6 +158,7 @@ func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 	}
 	todo.IssueType = domain.IssueType(issueType)
 	todo.Priority = domain.Priority(priority)
+	todo.Labels = []string{}
 	todo.Key = issueKey(todo.SpaceID, spaceKey.String, todo.Number)
 	todo.Status = domain.Status(status)
 	if deadline.Valid {
@@ -121,6 +194,9 @@ func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
+		return 0, err
+	}
+	if err := setLabels(tx, int(id), todo.Labels); err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -163,15 +239,66 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	if err != nil {
 		return err
 	}
+	if err := setLabels(tx, id, todo.Labels); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
+// Delete はタスクと、そのタスクへのラベルの付与を削除する（ラベル自体は残す）
 func (r *todoMySQLRepository) Delete(id int) error {
-	result, err := r.db.Exec(`DELETE FROM todos WHERE id = ?`, id)
+	tx, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
-	return requireAffected(result, "todo", id)
+	defer tx.Rollback()
+
+	result, err := tx.Exec(`DELETE FROM todos WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if err := requireAffected(result, "todo", id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM todo_labels WHERE todo_id = ?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// setLabels はタスクのラベルを names に置き換える。まだないラベルは作る。
+// 大文字・小文字の違いだけのラベルは同じラベルとして扱う（"Bug" と "bug" は、先に作った名前のラベルになる）
+func setLabels(tx *sql.Tx, todoID int, names []string) error {
+	if _, err := tx.Exec(`DELETE FROM todo_labels WHERE todo_id = ?`, todoID); err != nil {
+		return err
+	}
+	for _, name := range names {
+		labelID, err := findOrCreateLabel(tx, name)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT IGNORE INTO todo_labels (todo_id, label_id) VALUES (?, ?)`, todoID, labelID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// findOrCreateLabel は大文字・小文字を区別せずに名前が一致するラベルの ID を返す。なければ作る
+func findOrCreateLabel(tx *sql.Tx, name string) (int64, error) {
+	var id int64
+	err := tx.QueryRow(`SELECT id FROM labels WHERE LOWER(name) = LOWER(?) ORDER BY id LIMIT 1`, name).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
+	result, err := tx.Exec(`INSERT INTO labels (name) VALUES (?)`, name)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
 }
 
 // Move はタスクを beforeID のタスクの直前（0 なら末尾）へ移動し、全タスクの position を振り直す。

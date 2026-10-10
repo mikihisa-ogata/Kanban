@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"todo-api/internal/domain"
 	"todo-api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -49,16 +50,30 @@ func (h *TodoHandler) GetIssue(c *gin.Context) {
 	c.JSON(http.StatusOK, todo)
 }
 
+// GetLabels はいずれかのタスクに付いているラベルを名前順に返す
+func (h *TodoHandler) GetLabels(c *gin.Context) {
+	labels, err := h.service.GetLabels()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, labels)
+}
+
 func (h *TodoHandler) CreateTodo(c *gin.Context) {
 	var req struct {
-		Title       string `json:"title" binding:"required"`
-		Deadline    string `json:"deadline"`
-		Status      string `json:"status"`
-		IssueType   string `json:"issueType"`
-		Priority    string `json:"priority"`
-		EpicID      int    `json:"epicId"`
-		Description string `json:"description"`
-		SpaceID     int    `json:"spaceId"`
+		Title       string   `json:"title" binding:"required"`
+		Deadline    string   `json:"deadline"`
+		Status      string   `json:"status"`
+		IssueType   string   `json:"issueType"`
+		Priority    string   `json:"priority"`
+		Labels      []string `json:"labels"`
+		EpicID      int      `json:"epicId"`
+		Description string   `json:"description"`
+		SpaceID     int      `json:"spaceId"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -68,7 +83,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.IssueType, req.Priority, req.EpicID, req.Description, req.SpaceID)
+	todo, err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -99,15 +114,16 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 	}
 
 	var req struct {
-		Title       string `json:"title" binding:"required"`
-		Done        bool   `json:"done"`
-		Deadline    string `json:"deadline"`
-		Status      string `json:"status" binding:"required"`
-		IssueType   string `json:"issueType"`
-		Priority    string `json:"priority"`
-		EpicID      int    `json:"epicId"`
-		Description string `json:"description"`
-		SpaceID     int    `json:"spaceId"`
+		Title       string   `json:"title" binding:"required"`
+		Done        bool     `json:"done"`
+		Deadline    string   `json:"deadline"`
+		Status      string   `json:"status" binding:"required"`
+		IssueType   string   `json:"issueType"`
+		Priority    string   `json:"priority"`
+		Labels      []string `json:"labels"`
+		EpicID      int      `json:"epicId"`
+		Description string   `json:"description"`
+		SpaceID     int      `json:"spaceId"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -117,7 +133,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.IssueType, req.Priority, req.EpicID, req.Description, req.SpaceID)
+	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -201,5 +217,6 @@ func isTodoValidationError(err error) bool {
 		errors.Is(err, service.ErrSpaceNotFound) ||
 		errors.Is(err, service.ErrEpicSpaceMismatch) ||
 		errors.Is(err, service.ErrInvalidIssueType) ||
-		errors.Is(err, service.ErrInvalidPriority)
+		errors.Is(err, service.ErrInvalidPriority) ||
+		errors.Is(err, domain.ErrInvalidLabel)
 }

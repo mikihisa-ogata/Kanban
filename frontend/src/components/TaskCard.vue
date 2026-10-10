@@ -11,6 +11,16 @@
       <span class="text-sm">📅</span>
       <span>{{ formatDate(task.Deadline) }}</span>
     </div>
+    <!-- ラベル -->
+    <div v-if="task.Labels && task.Labels.length" class="flex flex-wrap gap-1 mb-1">
+      <span
+        v-for="label in task.Labels"
+        :key="label"
+        class="max-w-full truncate px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-xs text-gray-700"
+      >
+        {{ label }}
+      </span>
+    </div>
     <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下）。優先度は右下 -->
     <div class="mt-3 flex items-center gap-1.5">
       <IssueTypeIcon :type="task.IssueType" />

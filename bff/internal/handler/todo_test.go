@@ -48,6 +48,7 @@ func newTodoRouter(repos testRepos) *gin.Engine {
 	r.PUT("/todos/:id", h.UpdateTodo)
 	r.POST("/todos/:id/move", h.MoveTodo)
 	r.GET("/issues/:key", h.GetIssue)
+	r.GET("/labels", h.GetLabels)
 	return r
 }
 
@@ -347,5 +348,36 @@ func TestTodoHandler_Priority(t *testing.T) {
 	todos = getTodos(t, r)
 	if todos[0].Priority != domain.PriorityLowest || todos[1].Priority != domain.PriorityHighest || todos[1].IssueType != domain.IssueTypeBug {
 		t.Errorf("todos = %+v", todos)
+	}
+}
+
+// ラベルを付けて作成し、付け外しできる。省略した更新では変わらない。不正なラベルは 400。GET /labels は使われているラベルを返す
+func TestTodoHandler_Labels(t *testing.T) {
+	r := setupTodoRouter(t)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a","labels":["ui"," backend ","UI"]}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"b"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c","labels":["two words"]}`, http.StatusBadRequest)
+	todos := getTodos(t, r)
+	if len(todos) != 2 || strings.Join(todos[0].Labels, ",") != "backend,ui" || todos[1].Labels == nil || len(todos[1].Labels) != 0 {
+		t.Fatalf("todos = %+v", todos)
+	}
+	if labels := getJSON[[]string](t, r, "/labels"); strings.Join(labels, ",") != "backend,ui" {
+		t.Errorf("GET /labels = %q", labels)
+	}
+
+	// 他のタスクで使ったラベルを付ける
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Open","labels":["ui","不具合"]}`, http.StatusOK)
+	// ラベルを送らない更新では変わらない
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"b","status":"Closed"}`, http.StatusOK)
+	// 空の配列で外せる
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"a","status":"Open","labels":[]}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"a","status":"Open","labels":[""]}`, http.StatusBadRequest)
+	todos = getTodos(t, r)
+	if len(todos[0].Labels) != 0 || strings.Join(todos[1].Labels, ",") != "ui,不具合" || todos[1].Status != domain.StatusClosed {
+		t.Errorf("todos = %+v", todos)
+	}
+	if labels := getJSON[[]string](t, r, "/labels"); strings.Join(labels, ",") != "ui,不具合" {
+		t.Errorf("GET /labels = %q", labels)
 	}
 }

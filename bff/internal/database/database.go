@@ -239,6 +239,20 @@ func schemaStatements() []string {
 			space_id    INT PRIMARY KEY,
 			last_number INT NOT NULL
 		) DEFAULT CHARSET = utf8mb4`,
+		// ラベル（Jira の自由入力のタグ）。既定の照合順序はひらがなとカタカナ、全角と半角などを同じとみなすので、
+		// 名前は utf8mb4_bin で完全一致にする（大文字・小文字の違いだけのラベルは repository の setLabels でまとめる）
+		`CREATE TABLE IF NOT EXISTS labels (
+			id   INT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
+			UNIQUE INDEX uq_labels_name (name)
+		) DEFAULT CHARSET = utf8mb4`,
+		// タスクとラベルの多対多
+		`CREATE TABLE IF NOT EXISTS todo_labels (
+			todo_id  INT NOT NULL,
+			label_id INT NOT NULL,
+			PRIMARY KEY (todo_id, label_id),
+			INDEX idx_todo_labels_label (label_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

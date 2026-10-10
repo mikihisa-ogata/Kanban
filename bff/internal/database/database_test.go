@@ -62,6 +62,8 @@ func TestMigrate(t *testing.T) {
 	want := map[string][]string{
 		"spaces":         {"id", "title", "space_key"},
 		"issue_counters": {"space_id", "last_number"},
+		"labels":         {"id", "name"},
+		"todo_labels":    {"todo_id", "label_id"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
 		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority"},
 	}

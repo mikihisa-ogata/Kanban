@@ -132,6 +132,45 @@
               />
             </dd>
 
+            <dt class="self-start pt-2 text-gray-600 font-semibold"><label :for="fieldId('labels')">ラベル</label></dt>
+            <dd class="m-0 min-w-0">
+              <div v-if="editing === 'labels'">
+                <LabelInput :id="fieldId('labels')" v-model="labelsDraft" />
+                <div class="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    class="px-3 py-1 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700"
+                    @click="saveLabels"
+                  >
+                    保存
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-1 bg-transparent text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                    @click="cancelEdit"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+              <button
+                v-else
+                type="button"
+                class="w-full -mx-2 px-2 py-1.5 flex flex-wrap gap-1 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-gray-100"
+                title="クリックして編集"
+                @click="startEditLabels"
+              >
+                <span
+                  v-for="label in task.Labels"
+                  :key="label"
+                  class="max-w-full truncate px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs text-gray-800"
+                >
+                  {{ label }}
+                </span>
+                <span v-if="!task.Labels || !task.Labels.length" class="text-sm text-gray-400">なし</span>
+              </button>
+            </dd>
+
             <template v-if="spaces.length">
               <dt class="text-gray-600 font-semibold"><label :for="fieldId('space')">スペース</label></dt>
               <dd class="m-0 min-w-0">
@@ -189,6 +228,7 @@ import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
+import LabelInput from './LabelInput.vue';
 import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
 import { formatDateTime } from '../utils/datetime';
@@ -247,6 +287,7 @@ const save = (changes) => {
     status: props.task.Status,
     issueType: props.task.IssueType,
     priority: props.task.Priority,
+    labels: props.task.Labels || [],
     epicId: props.task.EpicID,
     spaceId: props.task.SpaceID,
     ...changes
@@ -258,7 +299,7 @@ const changeSpace = (spaceId) => {
   save({ spaceId, epicId: 0 });
 };
 
-// インライン編集中の項目（'title' | 'description' | null）と入力中の値
+// インライン編集中の項目（'title' | 'description' | 'labels' | null）と入力中の値
 const editing = ref(null);
 const draft = ref('');
 const titleInput = ref(null);
@@ -304,6 +345,23 @@ const saveTitle = () => {
   editing.value = null;
   if (title && title !== props.task.Title) {
     save({ title });
+  }
+};
+
+// ラベルは入力欄で付け外ししてから「保存」でまとめて保存する
+const labelsDraft = ref([]);
+
+const startEditLabels = () => {
+  labelsDraft.value = [...(props.task.Labels || [])];
+  editing.value = 'labels';
+};
+
+const saveLabels = () => {
+  if (editing.value !== 'labels') return;
+  editing.value = null;
+  const current = props.task.Labels || [];
+  if (labelsDraft.value.length !== current.length || labelsDraft.value.some(label => !current.includes(label))) {
+    save({ labels: labelsDraft.value });
   }
 };
 

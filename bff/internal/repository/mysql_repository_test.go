@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 		t.Fatalf("todos = %+v, want %+v", todos, want)
 	}
 	for i := range want {
-		if todoWithoutTimes(todos[i]) != want[i] {
+		if !reflect.DeepEqual(todoWithoutTimes(todos[i]), want[i]) {
 			t.Errorf("todos[%d] = %+v, want %+v", i, todos[i], want[i])
 		}
 	}
@@ -59,7 +60,7 @@ func TestTodoMySQLRepository_CRUD(t *testing.T) {
 	}
 	// 未割り当てへ移したので、未割り当ての続きの番号になる（2 回目の更新ではスペースが同じなので変わらない）
 	updated.ID, updated.Number, updated.Key = 1, 2, "TASK-2"
-	if todoWithoutTimes(todos[0]) != updated {
+	if !reflect.DeepEqual(todoWithoutTimes(todos[0]), updated) {
 		t.Errorf("todos[0] = %+v, want %+v", todos[0], updated)
 	}
 
@@ -214,6 +215,10 @@ func TestSpaceMySQLRepository_CRUD(t *testing.T) {
 // todoWithoutTimes は日時以外の内容を比べるため、作成日時・更新日時を空にしたタスクを返す
 func todoWithoutTimes(todo domain.Todo) domain.Todo {
 	todo.CreatedAt, todo.UpdatedAt = time.Time{}, time.Time{}
+	// ラベルのないタスクは空の配列で返るので、期待値（nil）と比べられるようにする
+	if len(todo.Labels) == 0 {
+		todo.Labels = nil
+	}
 	return todo
 }
 
@@ -515,5 +520,89 @@ func TestTodoMySQLRepository_FindByKey(t *testing.T) {
 		if todo == nil || todo.Title != tt.wantTitle || todo.Key != domain.IssueKey(tt.prefix, tt.number) {
 			t.Errorf("FindByKey(%s, %d) = %+v, want %s", tt.prefix, tt.number, todo, tt.wantTitle)
 		}
+	}
+}
+
+func TestTodoMySQLRepository_Labels(t *testing.T) {
+	repo := NewTodoMySQLRepository(openTestDB(t))
+
+	id1, err := repo.Create(domain.Todo{Title: "a", Status: domain.StatusOpen, Labels: []string{"ui", "backend"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 大文字・小文字だけ違うラベルは既存のラベルとして扱う
+	id2, err := repo.Create(domain.Todo{Title: "b", Status: domain.StatusOpen, Labels: []string{"UI"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id3, err := repo.Create(domain.Todo{Title: "c", Status: domain.StatusOpen})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	labelsOf := func(id int) []string {
+		t.Helper()
+		todo, err := repo.FindByID(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return todo.Labels
+	}
+	if got := labelsOf(id1); !reflect.DeepEqual(got, []string{"backend", "ui"}) {
+		t.Errorf("labels of a = %q", got)
+	}
+	if got := labelsOf(id2); !reflect.DeepEqual(got, []string{"ui"}) {
+		t.Errorf("labels of b = %q, want [ui]", got)
+	}
+	if got := labelsOf(id3); got == nil || len(got) != 0 {
+		t.Errorf("labels of c = %#v, want empty slice", got)
+	}
+	todos, err := repo.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(todos[0].Labels, []string{"backend", "ui"}) || !reflect.DeepEqual(todos[1].Labels, []string{"ui"}) || len(todos[2].Labels) != 0 {
+		t.Errorf("FindAll labels = %q, %q, %q", todos[0].Labels, todos[1].Labels, todos[2].Labels)
+	}
+	if todo, err := repo.FindByKey(domain.UnassignedKeyPrefix, 1); err != nil || !reflect.DeepEqual(todo.Labels, []string{"backend", "ui"}) {
+		t.Errorf("FindByKey labels = %+v, %v", todo, err)
+	}
+
+	// 更新ではラベルを置き換える
+	if err := repo.Update(id1, domain.Todo{Title: "a", Status: domain.StatusOpen, Labels: []string{"api"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := labelsOf(id1); !reflect.DeepEqual(got, []string{"api"}) {
+		t.Errorf("labels of a after update = %q", got)
+	}
+	// 補完候補はどれかのタスクに付いているラベルだけ（backend はもう使われていない）
+	if got, err := repo.FindLabels(); err != nil || !reflect.DeepEqual(got, []string{"api", "ui"}) {
+		t.Errorf("FindLabels() = %q, %v", got, err)
+	}
+
+	// 削除するとそのタスクへの付与も消える
+	if err := repo.Delete(id2); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := repo.FindLabels(); err != nil || !reflect.DeepEqual(got, []string{"api"}) {
+		t.Errorf("FindLabels() after delete = %q, %v", got, err)
+	}
+}
+
+// ひらがなとカタカナ、全角と半角、アクセントの有無は別のラベルとして扱う
+func TestTodoMySQLRepository_LabelsDistinguishKanaAndWidth(t *testing.T) {
+	repo := NewTodoMySQLRepository(openTestDB(t))
+	names := []string{"テスト", "てすと", "ＵＩ", "ui", "café", "cafe"}
+	for _, name := range names {
+		if _, err := repo.Create(domain.Todo{Title: name, Status: domain.StatusOpen, Labels: []string{name}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := repo.FindLabels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(names) {
+		t.Errorf("FindLabels() = %q, want %d distinct labels", got, len(names))
 	}
 }

@@ -3,6 +3,7 @@ package repository
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"todo-api/internal/domain"
@@ -47,7 +48,7 @@ func TestImportCSV(t *testing.T) {
 		t.Fatalf("todos = %+v, want %+v", todos, want)
 	}
 	for i := range want {
-		if todoWithoutTimes(todos[i]) != want[i] {
+		if !reflect.DeepEqual(todoWithoutTimes(todos[i]), want[i]) {
 			t.Errorf("todos[%d] = %+v, want %+v", i, todos[i], want[i])
 		}
 	}
@@ -112,7 +113,7 @@ func TestImportCSV_LegacyAndMissingFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(todos) != 1 || todoWithoutTimes(todos[0]) != (domain.Todo{ID: 1, Title: "old", Deadline: "2026-10-01", Status: domain.StatusOpen, IssueType: domain.IssueTypeTask, Priority: domain.PriorityMedium}) {
+	if len(todos) != 1 || !reflect.DeepEqual(todoWithoutTimes(todos[0]), (domain.Todo{ID: 1, Title: "old", Deadline: "2026-10-01", Status: domain.StatusOpen, IssueType: domain.IssueTypeTask, Priority: domain.PriorityMedium})) {
 		t.Errorf("todos = %+v", todos)
 	}
 	epics, err := NewEpicMySQLRepository(db).FindAll()
