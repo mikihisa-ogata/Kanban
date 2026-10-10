@@ -53,6 +53,25 @@ func (r *todoMySQLRepository) FindByID(id int) (domain.Todo, error) {
 	return todo, err
 }
 
+// FindByKey は課題キー（接頭辞と番号）のタスクを返す。domain.UnassignedKeyPrefix はスペース未割り当てのタスクを表す。
+// 存在しなければ nil を返す
+func (r *todoMySQLRepository) FindByKey(prefix string, number int) (*domain.Todo, error) {
+	var row *sql.Row
+	if prefix == domain.UnassignedKeyPrefix {
+		row = r.db.QueryRow(selectTodos+` WHERE t.space_id = 0 AND t.number = ?`, number)
+	} else {
+		row = r.db.QueryRow(selectTodos+` WHERE s.space_key = ? AND t.number = ?`, prefix, number)
+	}
+	todo, err := scanTodo(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &todo, nil
+}
+
 // scanTodo は selectTodos の 1 行をタスクにする
 func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 	var todo domain.Todo

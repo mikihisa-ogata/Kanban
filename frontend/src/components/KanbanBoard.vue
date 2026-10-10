@@ -88,19 +88,43 @@
       />
     </div>
 
-    <!-- タスク詳細のモーダル -->
+    <!-- タスク詳細のモーダル（全画面のページと同じ内容をその場で編集する） -->
     <div
       v-if="detailTask"
       class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
       @click.self="closeDetailModal"
     >
-      <TaskForm
-        :task="detailTask"
-        :epics="epics"
-        :spaces="spaces"
-        @submit="handleUpdateTodoFromModal"
-        @close="closeDetailModal"
-      />
+      <div class="bg-white rounded-2xl px-8 py-6 shadow-2xl mx-4 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        <IssueDetail
+          :task="detailTask"
+          :epics="epics"
+          :spaces="spaces"
+          @update="handleUpdateTodoFromModal"
+        >
+          <template #actions>
+            <NuxtLink
+              :to="issuePath(detailTask.Key)"
+              class="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              title="全画面で開く"
+            >
+              <svg class="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 3h6v6" />
+                <path d="M9 21H3v-6" />
+                <path d="M21 3l-7 7" />
+                <path d="M3 21l7-7" />
+              </svg>
+            </NuxtLink>
+            <button
+              type="button"
+              class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 hover:text-gray-600"
+              title="閉じる"
+              @click="closeDetailModal"
+            >
+              ×
+            </button>
+          </template>
+        </IssueDetail>
+      </div>
     </div>
 
     <!-- 削除の確認モーダル -->
@@ -117,13 +141,14 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import TaskForm from './TaskForm.vue';
+import IssueDetail from './IssueDetail.vue';
 import EpicLane from './EpicLane.vue';
 import SpaceShell from './SpaceShell.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
-import { rememberLastBoard } from '../utils/spaceRoutes';
+import { rememberLastBoard, issuePath } from '../utils/spaceRoutes';
 
 const props = defineProps({
   // 表示するスペースのキー（URL の /spaces/:key/board）。null の場合は全スペースを表示する
@@ -447,21 +472,17 @@ const closeDetailModal = () => {
   navigateTo({ query }, { replace: true });
 };
 
-// タスク詳細のモーダルから保存
-const handleUpdateTodoFromModal = async (formData) => {
+// タスク詳細のモーダルでインライン編集した内容を保存する（モーダルは開いたまま）
+const handleUpdateTodoFromModal = async (payload) => {
   const task = detailTask.value;
   try {
     error.value = '';
-    await todosApi.update(task.ID, {
-      title: formData.title,
-      description: formData.description,
-      done: task.Done,
-      deadline: formData.deadline,
-      status: formData.status,
-      epicId: formData.epicId,
-      spaceId: formData.spaceId
-    });
-    closeDetailModal();
+    const { todo } = await todosApi.update(task.ID, payload);
+    // スペースを変えると課題キーが変わるので、モーダルが閉じないよう先に一覧と URL を新しいキーにする
+    todos.value = todos.value.map(t => (t.ID === todo.ID ? todo : t));
+    if (todo.Key !== task.Key) {
+      await navigateTo({ query: { ...route.query, selectedIssue: todo.Key } }, { replace: true });
+    }
     await fetchTodos(); // リストを再取得
   } catch (err) {
     error.value = 'タスクの更新に失敗しました: ' + err.message;

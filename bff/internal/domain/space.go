@@ -38,6 +38,22 @@ func IssueKey(prefix string, number int) string {
 	return prefix + "-" + strconv.Itoa(number)
 }
 
+var issueKeyPattern = regexp.MustCompile(`^([A-Z][A-Z0-9]{1,9})-([1-9][0-9]{0,8})$`)
+
+// ParseIssueKey は課題キー（例: KAN-12）を接頭辞と番号に分ける。英小文字は大文字として扱う。
+// 形式が正しくない場合は ok が false になる
+func ParseIssueKey(key string) (prefix string, number int, ok bool) {
+	m := issueKeyPattern.FindStringSubmatch(strings.ToUpper(key))
+	if m == nil {
+		return "", 0, false
+	}
+	number, err := strconv.Atoi(m[2])
+	if err != nil {
+		return "", 0, false
+	}
+	return m[1], number, true
+}
+
 var asciiWordPattern = regexp.MustCompile(`[A-Za-z][A-Za-z0-9]*`)
 
 // SuggestSpaceKey はスペース名からキーの候補を作る。taken に含まれるキーとは重ならないよう、末尾に数字を付ける。

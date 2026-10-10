@@ -38,6 +38,37 @@ func TestIssueKey(t *testing.T) {
 	}
 }
 
+func TestParseIssueKey(t *testing.T) {
+	tests := []struct {
+		key        string
+		wantPrefix string
+		wantNumber int
+		wantOK     bool
+	}{
+		{"KAN-12", "KAN", 12, true},
+		{"kan-12", "KAN", 12, true},
+		{"TASK-3", "TASK", 3, true},
+		{"A1B-1", "A1B", 1, true},
+		{"KAN-0", "", 0, false},
+		{"KAN-012", "", 0, false},
+		{"KAN-+1", "", 0, false},
+		{"KAN12", "", 0, false},
+		{"KAN-", "", 0, false},
+		{"-12", "", 0, false},
+		{"1KAN-12", "", 0, false},
+		{"KAN-1-2", "", 0, false},
+		{"KAN-9999999999", "", 0, false},
+		{"", "", 0, false},
+	}
+	for _, tt := range tests {
+		prefix, number, ok := ParseIssueKey(tt.key)
+		if prefix != tt.wantPrefix || number != tt.wantNumber || ok != tt.wantOK {
+			t.Errorf("ParseIssueKey(%q) = (%q, %d, %v), want (%q, %d, %v)",
+				tt.key, prefix, number, ok, tt.wantPrefix, tt.wantNumber, tt.wantOK)
+		}
+	}
+}
+
 func TestSuggestSpaceKey(t *testing.T) {
 	tests := []struct {
 		name  string

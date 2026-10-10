@@ -1,11 +1,5 @@
 <template>
-  <!-- 課題キーを左上に出すときは、タイトルと重ならないよう上の余白を広げる -->
-  <div
-    :class="[
-      'bg-white rounded-2xl px-8 pb-6 shadow-2xl mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative',
-      task && task.Key ? 'pt-16' : 'pt-10'
-    ]"
-  >
+  <div class="bg-white rounded-2xl px-8 pt-10 pb-6 shadow-2xl mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
     <!-- 閉じるボタン -->
     <button 
       @click="$emit('close')"
@@ -14,11 +8,6 @@
     >
       ×
     </button>
-
-    <!-- 既存タスクの詳細では、左上に課題キーを出す -->
-    <p v-if="task && task.Key" class="absolute top-4 left-8 m-0 h-8 flex items-center font-mono text-sm font-semibold text-gray-500">
-      {{ task.Key }}
-    </p>
 
     <form @submit.prevent="handleSubmit">
       <div class="mb-4">
@@ -99,24 +88,12 @@
       </div>
 
       <div class="flex items-center justify-end gap-4 mt-6">
-        <!-- 既存タスクの詳細では、作成日時と最終更新日時を出す -->
-        <dl v-if="task && (task.CreatedAt || task.UpdatedAt)" class="mr-auto m-0 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-          <div v-if="task.CreatedAt" class="flex gap-1">
-            <dt>作成</dt>
-            <dd class="m-0">{{ formatDateTime(task.CreatedAt) }}</dd>
-          </div>
-          <div v-if="task.UpdatedAt" class="flex gap-1">
-            <dt>更新</dt>
-            <dd class="m-0">{{ formatDateTime(task.UpdatedAt) }}</dd>
-          </div>
-        </dl>
         <button 
           type="submit" 
           :disabled="isSubmitting"
           class="py-2.5 px-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 rounded-lg text-base font-semibold cursor-pointer transition-all duration-200 hover:enabled:-translate-y-0.5 hover:enabled:shadow-lg hover:enabled:shadow-blue-400 active:enabled:translate-y-0 active:enabled:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <template v-if="task">{{ isSubmitting ? '保存中...' : '保存' }}</template>
-          <template v-else>{{ isSubmitting ? '作成中...' : 'タスクを作成' }}</template>
+          {{ isSubmitting ? '作成中...' : 'タスクを作成' }}
         </button>
       </div>
     </form>
@@ -126,7 +103,6 @@
 <script setup>
 import { ref, defineEmits, defineProps, watch, computed } from 'vue';
 import OptionSelect from './OptionSelect.vue';
-import { formatDateTime } from '../utils/datetime';
 
 const props = defineProps({
   initialStatus: {
@@ -148,33 +124,19 @@ const props = defineProps({
   spaces: {
     type: Array,
     default: () => []
-  },
-  // 指定した場合は、そのタスクの詳細を表示・編集する
-  task: {
-    type: Object,
-    default: null
   }
 });
 
 const emit = defineEmits(['submit', 'close']);
 
-const formData = ref(props.task
-  ? {
-      title: props.task.Title,
-      description: props.task.Description,
-      deadline: props.task.Deadline,
-      status: props.task.Status,
-      epicId: props.task.EpicID,
-      spaceId: props.task.SpaceID
-    }
-  : {
-      title: '',
-      description: '',
-      deadline: '',
-      status: props.initialStatus,
-      epicId: props.initialEpicId,
-      spaceId: props.initialSpaceId
-    });
+const formData = ref({
+  title: '',
+  description: '',
+  deadline: '',
+  status: props.initialStatus,
+  epicId: props.initialEpicId,
+  spaceId: props.initialSpaceId
+});
 
 // 選択中のスペースに属するエピックだけを選べる
 const spaceEpics = computed(() => props.epics.filter(epic => epic.SpaceID === formData.value.spaceId));
@@ -216,7 +178,6 @@ const handleSubmit = async () => {
   isSubmitting.value = true;
   try {
     await emit('submit', { ...formData.value });
-    if (props.task) return;
     // フォームをリセット
     formData.value = {
       title: '',

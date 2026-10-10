@@ -4,6 +4,9 @@ export const boardPath = (space) => (space ? `/spaces/${encodeURIComponent(space
 
 export const settingsPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/settings`;
 
+// 課題の全画面ページ（Jira と同じく /browse/KAN-12）
+export const issuePath = (key) => `/browse/${encodeURIComponent(key)}`;
+
 // `/` を開いたときに戻る、最後に開いたボード（スペースのキー。「すべて」は空文字）
 const LAST_BOARD_STORAGE_KEY = 'kanban:lastBoard';
 

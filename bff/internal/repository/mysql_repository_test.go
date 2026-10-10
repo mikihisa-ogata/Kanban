@@ -472,3 +472,48 @@ func TestTodoMySQLRepository_CreateReturnsIDAndFindByID(t *testing.T) {
 		t.Error("FindByID(99) error = nil")
 	}
 }
+
+func TestTodoMySQLRepository_FindByKey(t *testing.T) {
+	db := openTestDB(t)
+	repo := NewTodoMySQLRepository(db)
+	if err := NewSpaceMySQLRepository(db).Create(domain.Space{Title: "Kanban", Key: "KAN"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, todo := range []domain.Todo{
+		{Title: "kan1", Status: domain.StatusOpen, SpaceID: 1},
+		{Title: "task1", Status: domain.StatusOpen},
+		{Title: "kan2", Status: domain.StatusOpen, SpaceID: 1},
+	} {
+		if _, err := repo.Create(todo); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		prefix    string
+		number    int
+		wantTitle string // 空文字は見つからないこと
+	}{
+		{"KAN", 1, "kan1"},
+		{"KAN", 2, "kan2"},
+		{domain.UnassignedKeyPrefix, 1, "task1"},
+		{domain.UnassignedKeyPrefix, 2, ""},
+		{"KAN", 3, ""},
+		{"OTH", 1, ""},
+	}
+	for _, tt := range tests {
+		todo, err := repo.FindByKey(tt.prefix, tt.number)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tt.wantTitle == "" {
+			if todo != nil {
+				t.Errorf("FindByKey(%s, %d) = %+v, want nil", tt.prefix, tt.number, todo)
+			}
+			continue
+		}
+		if todo == nil || todo.Title != tt.wantTitle || todo.Key != domain.IssueKey(tt.prefix, tt.number) {
+			t.Errorf("FindByKey(%s, %d) = %+v, want %s", tt.prefix, tt.number, todo, tt.wantTitle)
+		}
+	}
+}

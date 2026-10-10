@@ -30,6 +30,25 @@ func (h *TodoHandler) GetTodos(c *gin.Context) {
 	c.JSON(http.StatusOK, todos)
 }
 
+// GetIssue は課題キー（例: KAN-12）のタスクを返す。見つからなければ 404 を返す
+func (h *TodoHandler) GetIssue(c *gin.Context) {
+	todo, err := h.service.GetTodoByKey(c.Param("key"))
+	if errors.Is(err, service.ErrIssueNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, todo)
+}
+
 func (h *TodoHandler) CreateTodo(c *gin.Context) {
 	var req struct {
 		Title       string `json:"title" binding:"required"`
@@ -94,7 +113,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.EpicID, req.Description, req.SpaceID)
+	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -110,6 +129,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Todoの更新に成功しました",
+		"todo":    todo,
 	})
 }
 

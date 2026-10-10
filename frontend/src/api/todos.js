@@ -10,6 +10,18 @@ export const todosApi = {
     return response.json();
   },
   
+  // 課題キー（例: KAN-12）でタスクを取得。存在しない場合は null を返す
+  async fetchByKey(key) {
+    const response = await fetch(`${API_BASE_URL}/issues/${encodeURIComponent(key)}`);
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error('Failed to fetch todo');
+    }
+    return response.json();
+  },
+
   // タスク作成
   async create(todo) {
     const response = await fetch(`${API_BASE_URL}/todos`, {
@@ -23,7 +35,7 @@ export const todosApi = {
     return response.json();
   },
   
-  // タスク更新
+  // タスク更新（更新後のタスクを todo に入れて返す。スペースを変えると課題キーが変わる）
   async update(id, todo) {
     const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
       method: 'PUT',

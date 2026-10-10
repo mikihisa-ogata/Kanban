@@ -47,6 +47,7 @@ func newTodoRouter(repos testRepos) *gin.Engine {
 	r.POST("/todos", h.CreateTodo)
 	r.PUT("/todos/:id", h.UpdateTodo)
 	r.POST("/todos/:id/move", h.MoveTodo)
+	r.GET("/issues/:key", h.GetIssue)
 	return r
 }
 
@@ -246,5 +247,61 @@ func TestTodoHandler_CreateReturnsTodo(t *testing.T) {
 	}
 	if body.Todo.ID != 2 || body.Todo.Key != "KAN-2" || body.Todo.Title != "b" || body.Todo.Status != domain.StatusInProgress {
 		t.Errorf("todo = %+v", body.Todo)
+	}
+}
+
+// GET /issues/:key は課題キーのタスクを返し、存在しないキーや不正な形式には 404 を返す
+func TestTodoHandler_GetIssue(t *testing.T) {
+	r := setupSpaceRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Kanban","key":"KAN"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Other","key":"OTH"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"kan1","spaceId":1}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"oth1","spaceId":2}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"task1"}`, http.StatusCreated)
+
+	tests := []struct {
+		key       string
+		wantTitle string
+	}{
+		{"KAN-1", "kan1"},
+		{"OTH-1", "oth1"},
+		{"TASK-1", "task1"},
+		{"kan-1", "kan1"},
+	}
+	for _, tt := range tests {
+		todo := getJSON[domain.Todo](t, r, "/issues/"+tt.key)
+		if todo.Title != tt.wantTitle {
+			t.Errorf("GET /issues/%s Title = %q, want %q", tt.key, todo.Title, tt.wantTitle)
+		}
+	}
+
+	for _, key := range []string{"KAN-2", "XYZ-1", "TASK-2", "KAN-0", "KAN", "foo"} {
+		mustStatus(t, r, http.MethodGet, "/issues/"+key, "", http.StatusNotFound)
+	}
+}
+
+// PUT /todos/:id は更新後のタスクを返す。スペースを変えると新しい課題キーになる
+func TestTodoHandler_UpdateReturnsTodo(t *testing.T) {
+	r := setupSpaceRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Kanban","key":"KAN"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"title":"Other","key":"OTH"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a","spaceId":1}`, http.StatusCreated)
+
+	w := doRequest(t, r, http.MethodPut, "/todos/1", `{"title":"b","status":"Closed","spaceId":2}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	var body struct {
+		Todo domain.Todo `json:"todo"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Todo.ID != 1 || body.Todo.Title != "b" || body.Todo.Status != domain.StatusClosed || body.Todo.Key != "OTH-1" {
+		t.Errorf("todo = %+v", body.Todo)
+	}
+	mustStatus(t, r, http.MethodGet, "/issues/KAN-1", "", http.StatusNotFound)
+	if todo := getJSON[domain.Todo](t, r, "/issues/OTH-1"); todo.ID != 1 {
+		t.Errorf("GET /issues/OTH-1 = %+v", todo)
 	}
 }
