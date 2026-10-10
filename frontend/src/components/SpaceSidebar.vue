@@ -1,5 +1,5 @@
 <template>
-  <!-- 固定したヘッダーの下に張り付ける位置指定と開閉の動きは、呼び出し側（KanbanBoard）で行う -->
+  <!-- 固定したヘッダーの下に張り付ける位置指定と開閉の動きは、呼び出し側（SpaceShell）で行う -->
   <aside class="h-[calc(100vh-4.25rem)] overflow-y-auto w-64 bg-white bg-opacity-95 px-4 py-6 flex flex-col gap-2">
     <span class="px-1 text-sm font-bold text-gray-700">スペース</span>
 
@@ -22,9 +22,9 @@
     >
       <span class="flex-1 truncate">{{ space.Title }}</span>
       <span v-if="space.Key" class="font-mono text-xs opacity-75">{{ space.Key }}</span>
-      <span class="text-xs opacity-75">{{ progressLabel(space.ID) }}</span>
+      <span v-if="todos" class="text-xs opacity-75">{{ progressLabel(space.ID) }}</span>
       <NuxtLink
-        :to="`/spaces/${space.ID}/settings`"
+        :to="settingsPath(space)"
         class="leading-none text-current opacity-60 hover:opacity-100"
         title="スペースの設定"
         @click.stop
@@ -83,15 +83,17 @@
 import { ref, computed, watch } from 'vue';
 import { spacesApi } from '../api/spaces';
 import { normalizeSpaceKey, spaceKeyError } from '../utils/spaceKey';
+import { settingsPath } from '../utils/spaceRoutes';
 
 const props = defineProps({
   spaces: {
     type: Array,
     required: true
   },
+  // 各スペースの進み具合を出すためのタスク。null なら出さない（ボード以外のページ）
   todos: {
     type: Array,
-    required: true
+    default: null
   },
   selectedSpaceId: {
     type: Number,

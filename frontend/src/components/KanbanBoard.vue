@@ -1,29 +1,19 @@
 <template>
-  <div class="flex min-h-screen">
-    <!-- 開閉時は幅を広げながらサイドバーを画面左端からスライドさせ、ボードの位置もなめらかに動かす -->
-    <div
-      :class="[
-        'sticky top-17 self-start shrink-0 overflow-hidden transition-[width] duration-300 ease-out motion-reduce:transition-none',
-        sidebarOpen ? 'w-64' : 'w-0'
-      ]"
-      :inert="!sidebarOpen"
-    >
-      <SpaceSidebar
-        :class="[
-          'transition-transform duration-300 ease-out motion-reduce:transition-none',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        ]"
-        :spaces="spaces"
-        :todos="todos"
-        :selected-space-id="selectedSpaceId"
-        @select="selectSpace"
-        @create="handleCreateSpace"
-        @delete="handleDeleteSpace"
-        @move="handleMoveToSpace"
-      />
+  <SpaceShell
+    :spaces="spaces"
+    :todos="todos"
+    :current-space="currentSpace"
+    @changed="handleSpacesChanged"
+    @move="handleMoveToSpace"
+  >
+    <div v-if="spaceNotFound" class="px-8 py-8">
+      <div class="bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
+        スペース「{{ spaceKey }}」が見つかりません。
+        <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
+      </div>
     </div>
 
-    <div class="flex-1 min-w-0 py-8">
+    <div v-else class="py-8">
       <h2 class="m-0 px-8 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
 
       <!-- 画面が狭いときに画面端で見切れるよう、左右の余白は外側ではなくスクロール領域の内側に持たせる -->
@@ -121,27 +111,40 @@
       @confirm="closeConfirmDialog(true)"
       @cancel="closeConfirmDialog(false)"
     />
-  </div>
+  </SpaceShell>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import TaskForm from './TaskForm.vue';
 import EpicLane from './EpicLane.vue';
-import SpaceSidebar from './SpaceSidebar.vue';
+import SpaceShell from './SpaceShell.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
+import { rememberLastBoard } from '../utils/spaceRoutes';
+
+const props = defineProps({
+  // 表示するスペースのキー（URL の /spaces/:key/board）。null の場合は全スペースを表示する
+  spaceKey: {
+    type: String,
+    default: null
+  }
+});
 
 const todos = ref([]);
 const epics = ref([]);
 const spaces = ref([]);
-// null の場合は全スペースを表示
-// 設定ページから戻ってきても選択を保つよう、ページをまたいで共有する
-const selectedSpaceId = useState('selectedSpaceId', () => null);
-// サイドバー（スペース一覧）の開閉状態。ヘッダーのハンバーガーメニューで切り替える
-const sidebarOpen = useState('sidebarOpen', () => false);
+// スペース一覧を取得し終えたか（取得前に「見つかりません」を出さないため）
+const spacesLoaded = ref(false);
+
+// 表示中のスペース（null の場合は全スペース）
+const currentSpace = computed(() =>
+  props.spaceKey === null ? null : (spaces.value.find(s => s.Key === props.spaceKey) || null)
+);
+const selectedSpaceId = computed(() => (currentSpace.value ? currentSpace.value.ID : null));
+const spaceNotFound = computed(() => props.spaceKey !== null && spacesLoaded.value && !currentSpace.value);
 const newEpicTitle = ref('');
 const error = ref('');
 const showModalForm = ref(false);
@@ -232,11 +235,6 @@ const closeConfirmDialog = (confirmed) => {
   dialog.resolve(confirmed);
 };
 
-// スペースを切り替える
-const selectSpace = (spaceId) => {
-  selectedSpaceId.value = spaceId;
-};
-
 // タスク一覧を取得
 const fetchTodos = async () => {
   try {
@@ -273,47 +271,23 @@ const fetchSpaces = async () => {
   try {
     error.value = '';
     spaces.value = await spacesApi.fetchAll();
+    spacesLoaded.value = true;
   } catch (err) {
     error.value = 'スペースの取得に失敗しました: ' + err.message;
     console.error('Failed to fetch spaces:', err);
   }
 };
 
-// スペースを作成
-const handleCreateSpace = async ({ title, key }) => {
-  try {
-    error.value = '';
-    await spacesApi.create({ title, key });
-    await fetchSpaces();
-  } catch (err) {
-    error.value = 'スペースの作成に失敗しました: ' + err.message;
-    console.error('Failed to create space:', err);
-  }
+// サイドバーでスペースを作成・削除したら取り直す（削除すると属するエピック・タスクのスペースも変わる）
+const handleSpacesChanged = async () => {
+  await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos()]);
 };
 
-// スペースを削除（エピックとタスクは削除されず、スペース未割り当てになる）
-const handleDeleteSpace = async (spaceId) => {
-  const space = spaces.value.find(s => s.ID === spaceId);
-  const confirmed = await askConfirm(
-    'スペースを削除しますか？',
-    `「${space ? space.Title : ''}」を削除します。\nエピックとタスクは削除されず、スペース未割り当てになります。`
-  );
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-    error.value = '';
-    await spacesApi.delete(spaceId);
-    if (selectedSpaceId.value === spaceId) {
-      selectSpace(null);
-    }
-    await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos()]);
-  } catch (err) {
-    error.value = 'スペースの削除に失敗しました: ' + err.message;
-    console.error('Failed to delete space:', err);
-  }
-};
+// `/` を開いたときに戻れるよう、表示したボードを覚える（存在しないスペースは覚えない）
+watch([currentSpace, () => props.spaceKey, spacesLoaded], () => {
+  if (!spacesLoaded.value || spaceNotFound.value) return;
+  rememberLastBoard(currentSpace.value);
+});
 
 // タスクまたはエピックを別のスペースへ移動する
 const handleMoveToSpace = async ({ type, id, spaceId }) => {
