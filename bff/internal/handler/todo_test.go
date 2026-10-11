@@ -18,25 +18,31 @@ import (
 )
 
 type testRepos struct {
-	todo    repository.TodoRepository
-	epic    repository.EpicRepository
-	space   repository.SpaceRepository
-	link    repository.IssueLinkRepository
-	comment repository.CommentRepository
-	history repository.HistoryRepository
+	todo       repository.TodoRepository
+	epic       repository.EpicRepository
+	space      repository.SpaceRepository
+	link       repository.IssueLinkRepository
+	comment    repository.CommentRepository
+	history    repository.HistoryRepository
+	attachment repository.AttachmentRepository
+	// attachmentsDir は添付ファイルの保存先（テストごとの一時ディレクトリ）
+	attachmentsDir string
 }
 
 // newTestRepos は空のテスト用 MySQL を使うリポジトリを返す（TEST_DB_DSN が未設定ならスキップ）
 func newTestRepos(t *testing.T) testRepos {
 	t.Helper()
 	db := dbtest.Open(t, "handler")
+	dir := t.TempDir()
 	return testRepos{
-		todo:    repository.NewTodoMySQLRepository(db),
-		epic:    repository.NewEpicMySQLRepository(db),
-		space:   repository.NewSpaceMySQLRepository(db),
-		link:    repository.NewIssueLinkMySQLRepository(db),
-		comment: repository.NewCommentMySQLRepository(db),
-		history: repository.NewHistoryMySQLRepository(db),
+		todo:           repository.NewTodoMySQLRepository(db),
+		epic:           repository.NewEpicMySQLRepository(db),
+		space:          repository.NewSpaceMySQLRepository(db),
+		link:           repository.NewIssueLinkMySQLRepository(db),
+		comment:        repository.NewCommentMySQLRepository(db),
+		history:        repository.NewHistoryMySQLRepository(db),
+		attachment:     repository.NewAttachmentMySQLRepository(db, dir),
+		attachmentsDir: dir,
 	}
 }
 
@@ -47,7 +53,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 
 func newTodoRouter(repos testRepos) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history))
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)

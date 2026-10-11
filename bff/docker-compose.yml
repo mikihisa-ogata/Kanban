@@ -5,6 +5,9 @@ services:
       - "8080:8080"
     environment:
       DB_DSN: kanban:kanban@tcp(mysql:3306)/kanban
+      ATTACHMENTS_DIR: /app/attachments
+    volumes:
+      - attachments-data:/app/attachments
     depends_on:
       mysql:
         condition: service_healthy
@@ -30,3 +33,4 @@ services:
 
 volumes:
   mysql-data:
+  attachments-data:

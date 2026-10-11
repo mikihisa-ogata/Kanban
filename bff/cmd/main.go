@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -40,13 +41,16 @@ func main() {
 	spaceRepo := repository.NewSpaceMySQLRepository(db)
 	linkRepo := repository.NewIssueLinkMySQLRepository(db)
 	historyRepo := repository.NewHistoryMySQLRepository(db)
-	svc := service.NewTodoService(repo, epicRepo, spaceRepo, linkRepo, historyRepo)
+	attachmentRepo := repository.NewAttachmentMySQLRepository(db, attachmentsDir())
+	svc := service.NewTodoService(repo, epicRepo, spaceRepo, linkRepo, historyRepo, attachmentRepo)
 	h := handler.NewTodoHandler(svc)
 	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo, historyRepo)
 	epicHandler := handler.NewEpicHandler(epicSvc)
 	commentRepo := repository.NewCommentMySQLRepository(db)
 	commentSvc := service.NewCommentService(commentRepo, repo)
 	commentHandler := handler.NewCommentHandler(commentSvc)
+	attachmentSvc := service.NewAttachmentService(attachmentRepo, repo)
+	attachmentHandler := handler.NewAttachmentHandler(attachmentSvc)
 	spaceSvc := service.NewSpaceService(spaceRepo, epicRepo, repo, historyRepo)
 	spaceHandler := handler.NewSpaceHandler(spaceSvc)
 
@@ -66,6 +70,11 @@ func main() {
 	r.PUT("/comments/:id", commentHandler.UpdateComment)
 	r.DELETE("/comments/:id", commentHandler.DeleteComment)
 
+	r.GET("/todos/:id/attachments", attachmentHandler.GetAttachments)
+	r.POST("/todos/:id/attachments", attachmentHandler.AddAttachment)
+	r.GET("/attachments/:id/file", attachmentHandler.DownloadAttachment)
+	r.DELETE("/attachments/:id", attachmentHandler.DeleteAttachment)
+
 	r.GET("/epics", epicHandler.GetEpics)
 	r.POST("/epics", epicHandler.CreateEpic)
 	r.PUT("/epics/:id", epicHandler.UpdateEpic)
@@ -80,4 +89,13 @@ func main() {
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// attachmentsDir は添付ファイルの保存先のディレクトリを返す。環境変数 ATTACHMENTS_DIR が未設定なら、
+// カレントディレクトリ（bff/）の attachments（git 管理外）にする
+func attachmentsDir() string {
+	if dir := os.Getenv("ATTACHMENTS_DIR"); dir != "" {
+		return dir
+	}
+	return "attachments"
 }

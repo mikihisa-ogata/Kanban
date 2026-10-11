@@ -45,7 +45,7 @@
     </div>
 
     <div class="mt-4 flex flex-col md:flex-row gap-8">
-      <!-- 左: 要約・説明・子課題・リンク・アクティビティ（コメントと変更履歴） -->
+      <!-- 左: 要約・説明・添付ファイル・子課題・リンク・アクティビティ（コメントと変更履歴） -->
       <div class="flex-1 min-w-0">
         <input
           v-if="editing === 'title'"
@@ -104,6 +104,8 @@
           <MarkdownView v-if="task.Description" :source="task.Description" />
           <span v-else class="text-sm text-gray-400">説明を追加...</span>
         </div>
+
+        <AttachmentSection class="mt-6" :task="task" />
 
         <!-- サブタスクの下にはサブタスクを作れないので、子課題はサブタスク以外の課題にだけ出す -->
         <SubtaskSection
@@ -311,6 +313,7 @@ import MarkdownEditor from './MarkdownEditor.vue';
 import SubtaskSection from './SubtaskSection.vue';
 import LinkSection from './LinkSection.vue';
 import ActivitySection from './ActivitySection.vue';
+import AttachmentSection from './AttachmentSection.vue';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';

@@ -67,6 +67,7 @@ func TestMigrate(t *testing.T) {
 		"issue_links":    {"id", "link_type", "source_id", "target_id", "created_at"},
 		"comments":       {"id", "todo_id", "body", "created_at", "updated_at"},
 		"issue_history":  {"id", "todo_id", "field", "old_value", "new_value", "created_at"},
+		"attachments":    {"id", "todo_id", "file_name", "content_type", "size", "storage_name", "created_at"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
 		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id"},
 	}

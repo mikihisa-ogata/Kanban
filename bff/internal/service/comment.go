@@ -30,7 +30,7 @@ func NewCommentService(c repository.CommentRepository, t repository.TodoReposito
 }
 
 func (s *commentService) GetComments(todoID int) ([]domain.Comment, error) {
-	if err := s.requireTodo(todoID); err != nil {
+	if err := requireTodo(s.todoRepo, todoID); err != nil {
 		return nil, err
 	}
 	return s.commentRepo.FindByTodo(todoID)
@@ -40,7 +40,7 @@ func (s *commentService) CreateComment(todoID int, body string) (domain.Comment,
 	if err := domain.ValidateCommentBody(body); err != nil {
 		return domain.Comment{}, err
 	}
-	if err := s.requireTodo(todoID); err != nil {
+	if err := requireTodo(s.todoRepo, todoID); err != nil {
 		return domain.Comment{}, err
 	}
 	id, err := s.commentRepo.Create(domain.Comment{TodoID: todoID, Body: body})
@@ -80,18 +80,4 @@ func (s *commentService) findComment(id int) (domain.Comment, error) {
 		return domain.Comment{}, ErrCommentNotFound
 	}
 	return *comment, nil
-}
-
-// requireTodo は課題が存在することを確かめる。なければ ErrIssueNotFound を返す
-func (s *commentService) requireTodo(todoID int) error {
-	todos, err := s.todoRepo.FindAll()
-	if err != nil {
-		return err
-	}
-	for _, todo := range todos {
-		if todo.ID == todoID {
-			return nil
-		}
-	}
-	return ErrIssueNotFound
 }

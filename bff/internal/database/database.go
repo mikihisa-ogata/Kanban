@@ -288,6 +288,17 @@ func schemaStatements() []string {
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_issue_history_todo (todo_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// 課題の添付ファイルの情報。ファイル本体は添付ファイルのディレクトリに storage_name の名前で置く
+		`CREATE TABLE IF NOT EXISTS attachments (
+			id           INT AUTO_INCREMENT PRIMARY KEY,
+			todo_id      INT NOT NULL,
+			file_name    VARCHAR(255) NOT NULL,
+			content_type VARCHAR(255) NOT NULL,
+			size         BIGINT NOT NULL,
+			storage_name VARCHAR(64) NOT NULL,
+			created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_attachments_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

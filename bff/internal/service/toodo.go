@@ -55,7 +55,7 @@ type TodoService interface {
 	// 課題タイプ・優先度が空、ラベルが nil、ストーリーポイントの Set が false なら今の値のままにする。
 	// サブタスクのスペースとエピックは親と同じにする。親のスペースやエピックを変えると、サブタスクも同じものに移す
 	UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, epicID int, description string, spaceID int) (domain.Todo, error)
-	// DeleteTodo はタスクを削除する。サブタスクがあれば一緒に削除し、それらの課題リンクも削除する
+	// DeleteTodo はタスクを削除する。サブタスクがあれば一緒に削除し、それらの課題リンク・添付ファイルも削除する
 	DeleteTodo(id int) error
 	MoveTodo(id int, beforeID int) error
 	// AddLink は id の課題から targetID の課題へのリンクを作り、リンクを含む id の課題を返す。
@@ -68,15 +68,16 @@ type TodoService interface {
 }
 
 type todoService struct {
-	repo      repository.TodoRepository
-	epicRepo  repository.EpicRepository
-	spaceRepo repository.SpaceRepository
-	linkRepo  repository.IssueLinkRepository
-	history   historyRecorder
+	repo           repository.TodoRepository
+	epicRepo       repository.EpicRepository
+	spaceRepo      repository.SpaceRepository
+	linkRepo       repository.IssueLinkRepository
+	attachmentRepo repository.AttachmentRepository
+	history        historyRecorder
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, history: historyRecorder{history: h, epics: e, spaces: s}}
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a, history: historyRecorder{history: h, epics: e, spaces: s}}
 }
 
 func (s *todoService) GetHistory(id int) ([]domain.HistoryEntry, error) {
@@ -442,7 +443,26 @@ func (s *todoService) moveSubtasks(names domain.HistoryNames, parentID int, epic
 	return nil
 }
 
+// DeleteTodo は課題とサブタスクの添付ファイル（ファイル本体も）を消してから、課題を削除する
 func (s *todoService) DeleteTodo(id int) error {
+	todos, err := s.repo.FindAll()
+	if err != nil {
+		return err
+	}
+	for _, todo := range todos {
+		if todo.ID != id && todo.ParentID != id {
+			continue
+		}
+		attachments, err := s.attachmentRepo.FindByTodo(todo.ID)
+		if err != nil {
+			return err
+		}
+		for _, attachment := range attachments {
+			if err := s.attachmentRepo.Delete(attachment.ID); err != nil {
+				return fmt.Errorf("failed to delete attachment %d: %w", attachment.ID, err)
+			}
+		}
+	}
 	return s.repo.Delete(id)
 }
 

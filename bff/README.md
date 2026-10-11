@@ -42,7 +42,7 @@ bff/
 
 ### Dockerを使用した起動
 
-Dockerを使用することで、環境構築なしでサーバーを起動できます。`bff` と `mysql`（MySQL 8.4、ポート 3306）が起動し、データは名前付きボリューム `mysql-data` に保存されます。
+Dockerを使用することで、環境構築なしでサーバーを起動できます。`bff` と `mysql`（MySQL 8.4、ポート 3306）が起動し、データは名前付きボリューム `mysql-data` に、添付ファイルの本体は名前付きボリューム `attachments-data`（コンテナ内の `/app/attachments`）に保存されます。
 
 ```bash
 docker compose up -d
@@ -73,6 +73,8 @@ go run ./cmd/main.go
 ```
 
 接続先は環境変数 `DB_DSN` で指定します（未設定の場合は `kanban:kanban@tcp(localhost:3306)/kanban`）。起動時にテーブルがなければ作成します。
+
+添付ファイルの本体は、環境変数 `ATTACHMENTS_DIR` のディレクトリに保存します（未設定の場合は起動したディレクトリの `attachments/`。`bff/` で起動すれば `bff/attachments/`）。ディレクトリは最初の添付のときに作成します。`bff/attachments/` は `.gitignore` 済みです。データベースだけをバックアップ・移行すると添付ファイルの本体が欠けるので、このディレクトリも一緒に扱ってください。
 
 ## API エンドポイント
 
@@ -242,7 +244,7 @@ GET /labels
 DELETE /todos/:id
 ```
 
-サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンク・コメント・変更履歴も削除します。
+サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンク・コメント・変更履歴・添付ファイルも削除します。
 
 ### 課題リンクを作成
 
@@ -292,6 +294,36 @@ POST /todos/:id/move
 `EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。`StoryPoints` は、作成で省略または `null` にすると未設定、更新で省略すると今の値のまま、`null` を送ると未設定に戻します。範囲外や小数第 3 位以下を含む値は 400 を返します。
 
 `PUT` では親課題（`ParentID`）は変えられません（リクエストに含めても無視します）。サブタスクの `SpaceID`・`EpicID` は親課題と同じままになり、サブタスクと他の課題タイプを相互に変えようとすると 400 を返します。親課題の `SpaceID`・`EpicID` を変えると、そのサブタスクも同じスペース・エピックに移ります（スペースが変わると課題キーも変わります）。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
+
+### 添付ファイル
+
+```
+GET    /todos/:id/attachments
+POST   /todos/:id/attachments     multipart/form-data の file フィールドにファイル
+GET    /attachments/:id/file      ファイル本体（?inline=1 で画像をブラウザに表示）
+DELETE /attachments/:id
+```
+
+`GET /todos/:id/attachments` は課題の添付ファイルの情報を添付順（古い順）の配列で返します。
+
+```json
+[
+  {
+    "ID": 1,
+    "TodoID": 3,
+    "FileName": "画面.png",
+    "ContentType": "image/png",
+    "Size": 48213,
+    "CreatedAt": "2026-10-11T01:00:00Z"
+  }
+]
+```
+
+- 1 ファイルの上限は 10MB です。超えると 413、空のファイルは 400 を返します。
+- `POST` は 201 で添付したファイルの情報を `attachment` に入れて返します。ファイル名はディレクトリ部分を除いて保存します。
+- `ContentType` はアップロード時の申告ではなく、ファイルの中身から判定します。
+- `GET /attachments/:id/file` は通常ダウンロードさせます（`Content-Disposition: attachment`）。`?inline=1` を付けると、PNG・JPEG・GIF・WebP・BMP の画像に限りブラウザでそのまま表示します（サムネイル用）。SVG や HTML などは `inline=1` でもダウンロードになります。
+- 課題・添付ファイルが存在しなければ 404 を返します。課題を削除すると、その課題（とサブタスク）の添付ファイルも本体ごと削除します。
 
 ### 変更履歴
 
@@ -398,7 +430,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -406,6 +438,7 @@ DELETE /spaces/:id
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
 - サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
+- 添付ファイルは `attachments` に、課題 `todo_id`・ファイル名 `file_name`・種類 `content_type`・バイト数 `size`・保存名 `storage_name`・添付日時 `created_at` で保存します。本体は `ATTACHMENTS_DIR` に `storage_name`（推測できないランダムな名前）で置きます。読み書きは `internal/repository` の添付ファイルの Repository だけが行います。
 - 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
 - コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
 - 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。

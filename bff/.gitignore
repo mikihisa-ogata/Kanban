@@ -2,3 +2,6 @@
 todos.csv
 epics.csv
 spaces.csv
+
+# 添付ファイルの保存先（環境変数 ATTACHMENTS_DIR の既定）
+attachments/
