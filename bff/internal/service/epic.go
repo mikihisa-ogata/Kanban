@@ -21,10 +21,11 @@ type epicService struct {
 	epicRepo  repository.EpicRepository
 	todoRepo  repository.TodoRepository
 	spaceRepo repository.SpaceRepository
+	history   historyRecorder
 }
 
-func NewEpicService(e repository.EpicRepository, t repository.TodoRepository, s repository.SpaceRepository) EpicService {
-	return &epicService{epicRepo: e, todoRepo: t, spaceRepo: s}
+func NewEpicService(e repository.EpicRepository, t repository.TodoRepository, s repository.SpaceRepository, h repository.HistoryRepository) EpicService {
+	return &epicService{epicRepo: e, todoRepo: t, spaceRepo: s, history: historyRecorder{history: h, epics: e, spaces: s}}
 }
 
 func (s *epicService) GetEpics() ([]domain.Epic, error) {
@@ -59,6 +60,10 @@ func (s *epicService) UpdateEpic(id int, title string, spaceID int) error {
 		return nil
 	}
 
+	names, err := s.history.names()
+	if err != nil {
+		return err
+	}
 	todos, err := s.todoRepo.FindAll()
 	if err != nil {
 		return err
@@ -67,8 +72,9 @@ func (s *epicService) UpdateEpic(id int, title string, spaceID int) error {
 		if todo.EpicID != id {
 			continue
 		}
-		todo.SpaceID = spaceID
-		if err := s.todoRepo.Update(todo.ID, todo); err != nil {
+		moved := todo
+		moved.SpaceID = spaceID
+		if err := updateWithHistory(s.todoRepo, s.history, names, todo, moved); err != nil {
 			return fmt.Errorf("failed to move todo %d to space %d: %w", todo.ID, spaceID, err)
 		}
 	}
@@ -78,6 +84,11 @@ func (s *epicService) UpdateEpic(id int, title string, spaceID int) error {
 
 // DeleteEpic はエピックを削除し、紐づく子タスクはエピック未割り当てに戻す
 func (s *epicService) DeleteEpic(id int) error {
+	// 履歴に削除したエピックの名前を残すため、削除の前に読む
+	names, err := s.history.names()
+	if err != nil {
+		return err
+	}
 	if err := s.epicRepo.Delete(id); err != nil {
 		return err
 	}
@@ -91,8 +102,9 @@ func (s *epicService) DeleteEpic(id int) error {
 		if todo.EpicID != id {
 			continue
 		}
-		todo.EpicID = 0
-		if err := s.todoRepo.Update(todo.ID, todo); err != nil {
+		unlinked := todo
+		unlinked.EpicID = 0
+		if err := updateWithHistory(s.todoRepo, s.history, names, todo, unlinked); err != nil {
 			return fmt.Errorf("failed to unlink todo %d from epic %d: %w", todo.ID, id, err)
 		}
 	}

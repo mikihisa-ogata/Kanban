@@ -45,7 +45,7 @@
     </div>
 
     <div class="mt-4 flex flex-col md:flex-row gap-8">
-      <!-- 左: 要約と説明（子課題・リンク・コメント・履歴は以降のチケットでここに追加する） -->
+      <!-- 左: 要約・説明・子課題・リンク・アクティビティ（コメントと変更履歴） -->
       <div class="flex-1 min-w-0">
         <input
           v-if="editing === 'title'"
@@ -123,7 +123,7 @@
           @open="$emit('open', $event)"
         />
 
-        <CommentSection
+        <ActivitySection
           class="mt-8"
           :task="task"
           @changed="$emit('comments-changed')"
@@ -310,7 +310,7 @@ import MarkdownView from './MarkdownView.vue';
 import MarkdownEditor from './MarkdownEditor.vue';
 import SubtaskSection from './SubtaskSection.vue';
 import LinkSection from './LinkSection.vue';
-import CommentSection from './CommentSection.vue';
+import ActivitySection from './ActivitySection.vue';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';

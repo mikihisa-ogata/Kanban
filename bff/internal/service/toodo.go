@@ -63,6 +63,8 @@ type TodoService interface {
 	AddLink(id int, relation string, targetID int) (domain.Todo, error)
 	// DeleteLink は課題リンクを削除する。存在しなければ ErrLinkNotFound を返す
 	DeleteLink(linkID int) error
+	// GetHistory は課題の変更履歴を記録順（古い順）に返す。課題がなければ ErrIssueNotFound を返す
+	GetHistory(id int) ([]domain.HistoryEntry, error)
 }
 
 type todoService struct {
@@ -70,10 +72,24 @@ type todoService struct {
 	epicRepo  repository.EpicRepository
 	spaceRepo repository.SpaceRepository
 	linkRepo  repository.IssueLinkRepository
+	history   historyRecorder
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l}
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, history: historyRecorder{history: h, epics: e, spaces: s}}
+}
+
+func (s *todoService) GetHistory(id int) ([]domain.HistoryEntry, error) {
+	todos, err := s.repo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, todo := range todos {
+		if todo.ID == id {
+			return s.history.history.FindByTodo(id)
+		}
+	}
+	return nil, ErrIssueNotFound
 }
 
 func (s *todoService) GetTodos() ([]domain.Todo, error) {
@@ -295,6 +311,9 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, i
 	if err != nil {
 		return domain.Todo{}, err
 	}
+	if err := s.history.recordCreated(id); err != nil {
+		return domain.Todo{}, err
+	}
 	return s.findWithLinks(id)
 }
 
@@ -349,6 +368,11 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 		return domain.Todo{}, ErrInvalidStoryPoints
 	}
 
+	names, err := s.history.names()
+	if err != nil {
+		return domain.Todo{}, err
+	}
+
 	todo := domain.Todo{
 		Title:       title,
 		Done:        done,
@@ -365,12 +389,19 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 	if err := s.repo.Update(id, todo); err != nil {
 		return domain.Todo{}, err
 	}
+	updated, err := s.findWithLinks(id)
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	if err := s.history.recordChanges(names, current, updated); err != nil {
+		return domain.Todo{}, err
+	}
 	if current.SpaceID != spaceID || current.EpicID != epicID {
-		if err := s.moveSubtasks(id, epicID, spaceID); err != nil {
+		if err := s.moveSubtasks(names, id, epicID, spaceID); err != nil {
 			return domain.Todo{}, err
 		}
 	}
-	return s.findWithLinks(id)
+	return updated, nil
 }
 
 // findParent は親課題にできる課題を返す。存在しなければ ErrParentNotFound、サブタスクなら ErrSubtaskParent を返す
@@ -391,8 +422,9 @@ func (s *todoService) findParent(id int) (domain.Todo, error) {
 	return domain.Todo{}, ErrParentNotFound
 }
 
-// moveSubtasks は親課題のサブタスクを、親と同じスペース・エピックに移す（スペースが変わると課題キーも変わる）
-func (s *todoService) moveSubtasks(parentID int, epicID int, spaceID int) error {
+// moveSubtasks は親課題のサブタスクを、親と同じスペース・エピックに移す（スペースが変わると課題キーも変わる）。
+// 移したサブタスクの変更も履歴に記録する
+func (s *todoService) moveSubtasks(names domain.HistoryNames, parentID int, epicID int, spaceID int) error {
 	todos, err := s.repo.FindAll()
 	if err != nil {
 		return err
@@ -401,8 +433,9 @@ func (s *todoService) moveSubtasks(parentID int, epicID int, spaceID int) error 
 		if todo.ParentID != parentID {
 			continue
 		}
-		todo.EpicID, todo.SpaceID = epicID, spaceID
-		if err := s.repo.Update(todo.ID, todo); err != nil {
+		moved := todo
+		moved.EpicID, moved.SpaceID = epicID, spaceID
+		if err := updateWithHistory(s.repo, s.history, names, todo, moved); err != nil {
 			return fmt.Errorf("failed to move subtask %d: %w", todo.ID, err)
 		}
 	}

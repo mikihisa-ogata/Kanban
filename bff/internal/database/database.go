@@ -278,6 +278,16 @@ func schemaStatements() []string {
 			updated_at DATETIME NULL,
 			INDEX idx_comments_todo (todo_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// 課題の変更履歴。field は項目名（作成は created）、old_value・new_value は変更前・変更後（NULL はなし）
+		`CREATE TABLE IF NOT EXISTS issue_history (
+			id         INT AUTO_INCREMENT PRIMARY KEY,
+			todo_id    INT NOT NULL,
+			field      VARCHAR(40) NOT NULL,
+			old_value  TEXT NULL,
+			new_value  TEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_issue_history_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

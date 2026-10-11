@@ -61,6 +61,15 @@ export const todosApi = {
     return response.json();
   },
   
+  // 課題の変更履歴取得（記録順＝古い順）
+  async fetchHistory(id) {
+    const response = await fetch(`${API_BASE_URL}/todos/${id}/history`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch history');
+    }
+    return response.json();
+  },
+
   // 課題リンクを作成（relation は id の課題から見た名前。例: 'is blocked by'）。
   // 失敗したときは bff のメッセージ（同じリンクが既にある、など）をエラーにする
   async addLink(id, relation, targetId) {

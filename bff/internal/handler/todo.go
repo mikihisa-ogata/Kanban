@@ -307,6 +307,29 @@ func (h *TodoHandler) DeleteLink(c *gin.Context) {
 	})
 }
 
+// GetHistory は課題（:id）の変更履歴を記録順（古い順）に返す。課題がなければ 404 を返す
+func (h *TodoHandler) GetHistory(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	entries, err := h.service.GetHistory(id)
+	if errors.Is(err, service.ErrIssueNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, entries)
+}
+
 // parseStoryPointsUpdate は更新リクエストの storyPoints を読む。省略は今のまま、null は未設定、数値はその値
 func parseStoryPointsUpdate(raw json.RawMessage) (service.StoryPointsUpdate, error) {
 	if len(raw) == 0 {

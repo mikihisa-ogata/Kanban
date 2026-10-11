@@ -23,6 +23,7 @@ type testRepos struct {
 	space   repository.SpaceRepository
 	link    repository.IssueLinkRepository
 	comment repository.CommentRepository
+	history repository.HistoryRepository
 }
 
 // newTestRepos は空のテスト用 MySQL を使うリポジトリを返す（TEST_DB_DSN が未設定ならスキップ）
@@ -35,6 +36,7 @@ func newTestRepos(t *testing.T) testRepos {
 		space:   repository.NewSpaceMySQLRepository(db),
 		link:    repository.NewIssueLinkMySQLRepository(db),
 		comment: repository.NewCommentMySQLRepository(db),
+		history: repository.NewHistoryMySQLRepository(db),
 	}
 }
 
@@ -45,7 +47,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 
 func newTodoRouter(repos testRepos) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link))
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)
@@ -57,6 +59,7 @@ func newTodoRouter(repos testRepos) *gin.Engine {
 	r.DELETE("/todos/:id", h.DeleteTodo)
 	r.POST("/todos/:id/links", h.AddLink)
 	r.DELETE("/links/:id", h.DeleteLink)
+	r.GET("/todos/:id/history", h.GetHistory)
 	return r
 }
 

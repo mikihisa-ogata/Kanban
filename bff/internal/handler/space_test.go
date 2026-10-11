@@ -18,8 +18,8 @@ func setupSpaceRouter(t *testing.T) *gin.Engine {
 	repos := newTestRepos(t)
 	r := newTodoRouter(repos)
 
-	eh := NewEpicHandler(service.NewEpicService(repos.epic, repos.todo, repos.space))
-	sh := NewSpaceHandler(service.NewSpaceService(repos.space, repos.epic, repos.todo))
+	eh := NewEpicHandler(service.NewEpicService(repos.epic, repos.todo, repos.space, repos.history))
+	sh := NewSpaceHandler(service.NewSpaceService(repos.space, repos.epic, repos.todo, repos.history))
 
 	r.GET("/epics", eh.GetEpics)
 	r.POST("/epics", eh.CreateEpic)

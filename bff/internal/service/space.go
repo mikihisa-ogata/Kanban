@@ -30,10 +30,11 @@ type spaceService struct {
 	spaceRepo repository.SpaceRepository
 	epicRepo  repository.EpicRepository
 	todoRepo  repository.TodoRepository
+	history   historyRecorder
 }
 
-func NewSpaceService(s repository.SpaceRepository, e repository.EpicRepository, t repository.TodoRepository) SpaceService {
-	return &spaceService{spaceRepo: s, epicRepo: e, todoRepo: t}
+func NewSpaceService(s repository.SpaceRepository, e repository.EpicRepository, t repository.TodoRepository, h repository.HistoryRepository) SpaceService {
+	return &spaceService{spaceRepo: s, epicRepo: e, todoRepo: t, history: historyRecorder{history: h, epics: e, spaces: s}}
 }
 
 func (s *spaceService) GetSpaces() ([]domain.Space, error) {
@@ -109,6 +110,15 @@ func (s *spaceService) takenSpaceKeys(excludeID int) (map[string]bool, error) {
 // DeleteSpace はスペースを削除し、属するエピックとタスクはスペース未割り当てに戻す
 // （エピックとタスクの紐付けは残る）
 func (s *spaceService) DeleteSpace(id int) error {
+	// 履歴に削除したスペースの名前と、課題の今の課題キーを残すため、削除の前に読む
+	names, err := s.history.names()
+	if err != nil {
+		return err
+	}
+	todos, err := s.todoRepo.FindAll()
+	if err != nil {
+		return err
+	}
 	if err := s.spaceRepo.Delete(id); err != nil {
 		return err
 	}
@@ -127,16 +137,13 @@ func (s *spaceService) DeleteSpace(id int) error {
 		}
 	}
 
-	todos, err := s.todoRepo.FindAll()
-	if err != nil {
-		return err
-	}
 	for _, todo := range todos {
 		if todo.SpaceID != id {
 			continue
 		}
-		todo.SpaceID = 0
-		if err := s.todoRepo.Update(todo.ID, todo); err != nil {
+		unlinked := todo
+		unlinked.SpaceID = 0
+		if err := updateWithHistory(s.todoRepo, s.history, names, todo, unlinked); err != nil {
 			return fmt.Errorf("failed to unlink todo %d from space %d: %w", todo.ID, id, err)
 		}
 	}

@@ -242,7 +242,7 @@ GET /labels
 DELETE /todos/:id
 ```
 
-サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンクとコメントも削除します。
+サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンク・コメント・変更履歴も削除します。
 
 ### 課題リンクを作成
 
@@ -292,6 +292,38 @@ POST /todos/:id/move
 `EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。`StoryPoints` は、作成で省略または `null` にすると未設定、更新で省略すると今の値のまま、`null` を送ると未設定に戻します。範囲外や小数第 3 位以下を含む値は 400 を返します。
 
 `PUT` では親課題（`ParentID`）は変えられません（リクエストに含めても無視します）。サブタスクの `SpaceID`・`EpicID` は親課題と同じままになり、サブタスクと他の課題タイプを相互に変えようとすると 400 を返します。親課題の `SpaceID`・`EpicID` を変えると、そのサブタスクも同じスペース・エピックに移ります（スペースが変わると課題キーも変わります）。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
+
+### 変更履歴
+
+```
+GET /todos/:id/history
+```
+
+課題（`:id`）の変更履歴を記録順（古い順）の配列で返します。課題が存在しなければ 404 を返します。
+
+```json
+[
+  { "ID": 1, "TodoID": 3, "Field": "created", "OldValue": null, "NewValue": null, "CreatedAt": "2026-10-11T01:00:00Z" },
+  { "ID": 2, "TodoID": 3, "Field": "status", "OldValue": "Open", "NewValue": "InProgress", "CreatedAt": "2026-10-11T01:05:00Z" },
+  { "ID": 3, "TodoID": 3, "Field": "storyPoints", "OldValue": "3", "NewValue": "5", "CreatedAt": "2026-10-11T01:05:00Z" }
+]
+```
+
+課題の作成（`Field` が `created`）と、項目の変更を 1 項目 1 件で記録します。値は変更時点の文字列で、`null` は「なし」です。同じ内容のままの更新は記録しません。
+
+| Field | 値 |
+|---|---|
+| `title` / `description` | 要約・説明 |
+| `status` | `Open`・`InProgress`・`Waiting`・`Closed` |
+| `done` | `true`・`false` |
+| `issueType` / `priority` | `IssueType`・`Priority` の値 |
+| `labels` | ラベル名を `, ` でつないだもの |
+| `storyPoints` | 数値（例: `0.5`） |
+| `deadline` | `2026-03-31` 形式 |
+| `epic` / `space` | 変更時点のエピック・スペースの名前 |
+| `key` | 課題キー（スペースの変更で変わる） |
+
+`PUT /todos/:id` のほか、エピックのスペース変更・エピックやスペースの削除・親課題の移動で課題が変わった場合も記録します。ステータスとストーリーポイントは値と日時を残すので、ある時点のステータスとポイントを後から再計算できます。
 
 ### コメント
 
@@ -366,7 +398,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -374,6 +406,7 @@ DELETE /spaces/:id
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
 - サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
+- 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
 - コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
 - 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
