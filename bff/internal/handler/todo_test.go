@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ type testRepos struct {
 	todo  repository.TodoRepository
 	epic  repository.EpicRepository
 	space repository.SpaceRepository
+	link  repository.IssueLinkRepository
 }
 
 // newTestRepos は空のテスト用 MySQL を使うリポジトリを返す（TEST_DB_DSN が未設定ならスキップ）
@@ -30,6 +32,7 @@ func newTestRepos(t *testing.T) testRepos {
 		todo:  repository.NewTodoMySQLRepository(db),
 		epic:  repository.NewEpicMySQLRepository(db),
 		space: repository.NewSpaceMySQLRepository(db),
+		link:  repository.NewIssueLinkMySQLRepository(db),
 	}
 }
 
@@ -40,7 +43,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 
 func newTodoRouter(repos testRepos) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space))
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)
@@ -49,6 +52,9 @@ func newTodoRouter(repos testRepos) *gin.Engine {
 	r.POST("/todos/:id/move", h.MoveTodo)
 	r.GET("/issues/:key", h.GetIssue)
 	r.GET("/labels", h.GetLabels)
+	r.DELETE("/todos/:id", h.DeleteTodo)
+	r.POST("/todos/:id/links", h.AddLink)
+	r.DELETE("/links/:id", h.DeleteLink)
 	return r
 }
 
@@ -470,10 +476,7 @@ func TestTodoHandler_Subtasks(t *testing.T) {
 
 // 親課題を削除すると、サブタスクも削除される。サブタスクだけを削除しても親は残る
 func TestTodoHandler_DeleteParentDeletesSubtasks(t *testing.T) {
-	repos := newTestRepos(t)
-	r := newTodoRouter(repos)
-	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space))
-	r.DELETE("/todos/:id", h.DeleteTodo)
+	r := setupTodoRouter(t)
 
 	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"parent"}`, http.StatusCreated)
 	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"sub1","parentId":1,"labels":["ui"]}`, http.StatusCreated)
@@ -492,5 +495,105 @@ func TestTodoHandler_DeleteParentDeletesSubtasks(t *testing.T) {
 	// 消したサブタスクのラベルは候補に残らない
 	if labels := getJSON[[]string](t, r, "/labels"); len(labels) != 0 {
 		t.Errorf("GET /labels = %q, want empty", labels)
+	}
+}
+
+// リンクを追加すると両方の課題に、それぞれから見た名前で表示される
+func TestTodoHandler_Links(t *testing.T) {
+	r := setupTodoRouter(t)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"b"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c"}`, http.StatusCreated)
+
+	// a is blocked by b（保存は b blocks a）
+	w := doRequest(t, r, http.MethodPost, "/todos/1/links", `{"relation":"is blocked by","targetId":2}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST links status = %d, body = %s", w.Code, w.Body)
+	}
+	var created struct{ Todo domain.Todo }
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Todo.Links) != 1 || created.Todo.Links[0].Relation != "is blocked by" || created.Todo.Links[0].Issue.Key != "TASK-2" {
+		t.Errorf("created todo links = %+v", created.Todo.Links)
+	}
+	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"relates to","targetId":3}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"duplicates","targetId":3}`, http.StatusCreated)
+
+	todos := getTodos(t, r)
+	relations := func(todo domain.Todo) string {
+		s := []string{}
+		for _, link := range todo.Links {
+			s = append(s, link.Relation+":"+link.Issue.Title)
+		}
+		return strings.Join(s, ",")
+	}
+	// 種類の順（is blocked by → relates to → duplicates）に並ぶ
+	if got := relations(todos[0]); got != "is blocked by:b,relates to:c,duplicates:c" {
+		t.Errorf("a links = %s", got)
+	}
+	if got := relations(todos[1]); got != "blocks:a" {
+		t.Errorf("b links = %s", got)
+	}
+	if got := relations(todos[2]); got != "relates to:a,is duplicated by:a" {
+		t.Errorf("c links = %s", got)
+	}
+	// GET /issues/:key でもリンクが返る
+	if issue := getJSON[domain.Todo](t, r, "/issues/TASK-2"); relations(issue) != "blocks:a" {
+		t.Errorf("GET /issues/TASK-2 links = %s", relations(issue))
+	}
+
+	// 同じリンクは作れない。relates to は向きを区別しない
+	mustStatus(t, r, http.MethodPost, "/todos/2/links", `{"relation":"blocks","targetId":1}`, http.StatusConflict)
+	mustStatus(t, r, http.MethodPost, "/todos/3/links", `{"relation":"relates to","targetId":1}`, http.StatusConflict)
+	// 逆向きの blocks は別のリンク
+	mustStatus(t, r, http.MethodPost, "/todos/2/links", `{"relation":"is blocked by","targetId":1}`, http.StatusCreated)
+
+	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"fixes","targetId":2}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"blocks","targetId":1}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"blocks","targetId":99}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPost, "/todos/99/links", `{"relation":"blocks","targetId":1}`, http.StatusNotFound)
+
+	// リンクを削除すると両方から消える
+	linkID := todos[1].Links[0].ID
+	mustStatus(t, r, http.MethodDelete, "/links/"+strconv.Itoa(linkID), "", http.StatusOK)
+	mustStatus(t, r, http.MethodDelete, "/links/"+strconv.Itoa(linkID), "", http.StatusNotFound)
+	todos = getTodos(t, r)
+	if got := relations(todos[0]); got != "blocks:b,relates to:c,duplicates:c" {
+		t.Errorf("a links after delete = %s", got)
+	}
+}
+
+// 課題を削除すると、その課題（とサブタスク）のリンクも消える
+func TestTodoHandler_DeleteTodoDeletesLinks(t *testing.T) {
+	repos := newTestRepos(t)
+	r := newTodoRouter(repos)
+
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"b"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"sub","parentId":2}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"c"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"blocks","targetId":2}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos/3/links", `{"relation":"clones","targetId":4}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"relates to","targetId":4}`, http.StatusCreated)
+
+	mustStatus(t, r, http.MethodDelete, "/todos/2", "", http.StatusOK)
+	todos := getTodos(t, r)
+	if len(todos) != 2 {
+		t.Fatalf("todos = %+v", todos)
+	}
+	for _, todo := range todos {
+		if len(todo.Links) != 1 || todo.Links[0].Relation != "relates to" {
+			t.Errorf("%s links = %+v", todo.Title, todo.Links)
+		}
+	}
+	// 削除した課題のリンクはテーブルにも残らない
+	links, err := repos.link.FindAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) != 1 || links[0].SourceID != 1 || links[0].TargetID != 4 {
+		t.Errorf("stored links = %+v", links)
 	}
 }

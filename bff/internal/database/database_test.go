@@ -64,6 +64,7 @@ func TestMigrate(t *testing.T) {
 		"issue_counters": {"space_id", "last_number"},
 		"labels":         {"id", "name"},
 		"todo_labels":    {"todo_id", "label_id"},
+		"issue_links":    {"id", "link_type", "source_id", "target_id", "created_at"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
 		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id"},
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"todo-api/internal/domain"
 	"todo-api/internal/repository"
@@ -24,6 +25,16 @@ var ErrSubtaskParent = errors.New("サブタスクの下にはサブタスクを
 
 var ErrSubtaskType = errors.New("サブタスクは親課題を指定して作成し、他の課題タイプとは相互に変更できません")
 
+var ErrInvalidLinkRelation = errors.New("リンクの種類は blocks・is blocked by・relates to・duplicates・is duplicated by・clones・is cloned by のいずれかにしてください")
+
+var ErrLinkTargetNotFound = errors.New("リンク先の課題が存在しません")
+
+var ErrSelfLink = errors.New("課題を自分自身にはリンクできません")
+
+var ErrLinkDuplicate = errors.New("同じリンクが既にあります")
+
+var ErrLinkNotFound = errors.New("課題リンクが見つかりません")
+
 // StoryPointsUpdate は更新でのストーリーポイントの指定。Set が false なら今の値のまま、Value が nil なら未設定にする
 type StoryPointsUpdate struct {
 	Set   bool
@@ -44,23 +55,161 @@ type TodoService interface {
 	// 課題タイプ・優先度が空、ラベルが nil、ストーリーポイントの Set が false なら今の値のままにする。
 	// サブタスクのスペースとエピックは親と同じにする。親のスペースやエピックを変えると、サブタスクも同じものに移す
 	UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, epicID int, description string, spaceID int) (domain.Todo, error)
-	// DeleteTodo はタスクを削除する。サブタスクがあれば一緒に削除する
+	// DeleteTodo はタスクを削除する。サブタスクがあれば一緒に削除し、それらの課題リンクも削除する
 	DeleteTodo(id int) error
 	MoveTodo(id int, beforeID int) error
+	// AddLink は id の課題から targetID の課題へのリンクを作り、リンクを含む id の課題を返す。
+	// relation は id の課題から見た名前（例: "is blocked by"）。id の課題がなければ ErrIssueNotFound を返す
+	AddLink(id int, relation string, targetID int) (domain.Todo, error)
+	// DeleteLink は課題リンクを削除する。存在しなければ ErrLinkNotFound を返す
+	DeleteLink(linkID int) error
 }
 
 type todoService struct {
 	repo      repository.TodoRepository
 	epicRepo  repository.EpicRepository
 	spaceRepo repository.SpaceRepository
+	linkRepo  repository.IssueLinkRepository
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e, spaceRepo: s}
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l}
 }
 
 func (s *todoService) GetTodos() ([]domain.Todo, error) {
-	return s.repo.FindAll()
+	todos, err := s.repo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.attachLinks(todos, todos); err != nil {
+		return nil, err
+	}
+	return todos, nil
+}
+
+// findWithLinks は課題リンクを含めて id の課題を返す
+func (s *todoService) findWithLinks(id int) (domain.Todo, error) {
+	todo, err := s.repo.FindByID(id)
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	return s.withLinks(todo)
+}
+
+// withLinks は課題に課題リンクを読み込んで返す
+func (s *todoService) withLinks(todo domain.Todo) (domain.Todo, error) {
+	all, err := s.repo.FindAll()
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	targets := []domain.Todo{todo}
+	if err := s.attachLinks(targets, all); err != nil {
+		return domain.Todo{}, err
+	}
+	return targets[0], nil
+}
+
+// attachLinks は targets の各課題に、その課題から見た課題リンクを設定する。リンク相手の概要は all から引く。
+// 並びはリンクの種類の順（blocks, is blocked by, relates to, ...）で、同じ種類は作成順
+func (s *todoService) attachLinks(targets []domain.Todo, all []domain.Todo) error {
+	links, err := s.linkRepo.FindAll()
+	if err != nil {
+		return err
+	}
+	byID := map[int]domain.Todo{}
+	for _, todo := range all {
+		byID[todo.ID] = todo
+	}
+	for i := range targets {
+		id := targets[i].ID
+		issueLinks := []domain.IssueLink{}
+		for _, link := range links {
+			if link.SourceID != id && link.TargetID != id {
+				continue
+			}
+			otherID := link.TargetID
+			if link.SourceID != id {
+				otherID = link.SourceID
+			}
+			other, ok := byID[otherID]
+			if !ok {
+				continue
+			}
+			issueLinks = append(issueLinks, domain.IssueLink{
+				ID:       link.ID,
+				Relation: link.RelationFrom(id),
+				Issue: domain.LinkedIssue{
+					ID:        other.ID,
+					Key:       other.Key,
+					Title:     other.Title,
+					Status:    other.Status,
+					IssueType: other.IssueType,
+					Priority:  other.Priority,
+				},
+			})
+		}
+		sort.SliceStable(issueLinks, func(a, b int) bool {
+			return domain.RelationOrder(issueLinks[a].Relation) < domain.RelationOrder(issueLinks[b].Relation)
+		})
+		targets[i].Links = issueLinks
+	}
+	return nil
+}
+
+func (s *todoService) AddLink(id int, relation string, targetID int) (domain.Todo, error) {
+	linkType, outward, ok := domain.ParseRelation(relation)
+	if !ok {
+		return domain.Todo{}, ErrInvalidLinkRelation
+	}
+	if id == targetID {
+		return domain.Todo{}, ErrSelfLink
+	}
+	todos, err := s.repo.FindAll()
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	var sourceFound, targetFound bool
+	for _, todo := range todos {
+		sourceFound = sourceFound || todo.ID == id
+		targetFound = targetFound || todo.ID == targetID
+	}
+	if !sourceFound {
+		return domain.Todo{}, ErrIssueNotFound
+	}
+	if !targetFound {
+		return domain.Todo{}, ErrLinkTargetNotFound
+	}
+
+	link := domain.Link{Type: linkType, SourceID: id, TargetID: targetID}
+	if !outward {
+		link.SourceID, link.TargetID = targetID, id
+	}
+	links, err := s.linkRepo.FindAll()
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	for _, existing := range links {
+		if existing.SameAs(link) {
+			return domain.Todo{}, ErrLinkDuplicate
+		}
+	}
+	if _, err := s.linkRepo.Create(link); err != nil {
+		return domain.Todo{}, err
+	}
+	return s.findWithLinks(id)
+}
+
+func (s *todoService) DeleteLink(linkID int) error {
+	links, err := s.linkRepo.FindAll()
+	if err != nil {
+		return err
+	}
+	for _, link := range links {
+		if link.ID == linkID {
+			return s.linkRepo.Delete(linkID)
+		}
+	}
+	return ErrLinkNotFound
 }
 
 func (s *todoService) GetLabels() ([]string, error) {
@@ -79,7 +228,7 @@ func (s *todoService) GetTodoByKey(key string) (domain.Todo, error) {
 	if todo == nil {
 		return domain.Todo{}, ErrIssueNotFound
 	}
-	return *todo, nil
+	return s.withLinks(*todo)
 }
 
 func (s *todoService) CreateTodo(title string, deadline string, status string, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error) {
@@ -146,7 +295,7 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, i
 	if err != nil {
 		return domain.Todo{}, err
 	}
-	return s.repo.FindByID(id)
+	return s.findWithLinks(id)
 }
 
 func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, epicID int, description string, spaceID int) (domain.Todo, error) {
@@ -221,7 +370,7 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 			return domain.Todo{}, err
 		}
 	}
-	return s.repo.FindByID(id)
+	return s.findWithLinks(id)
 }
 
 // findParent は親課題にできる課題を返す。存在しなければ ErrParentNotFound、サブタスクなら ErrSubtaskParent を返す

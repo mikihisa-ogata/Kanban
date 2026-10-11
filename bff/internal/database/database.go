@@ -258,6 +258,16 @@ func schemaStatements() []string {
 			PRIMARY KEY (todo_id, label_id),
 			INDEX idx_todo_labels_label (label_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// 課題リンク。source_id の課題が target_id の課題を link_type する（例: source blocks target）
+		`CREATE TABLE IF NOT EXISTS issue_links (
+			id         INT AUTO_INCREMENT PRIMARY KEY,
+			link_type  VARCHAR(20) NOT NULL,
+			source_id  INT NOT NULL,
+			target_id  INT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE INDEX uq_issue_links (link_type, source_id, target_id),
+			INDEX idx_issue_links_target (target_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

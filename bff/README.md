@@ -101,6 +101,13 @@ GET /todos
     "SpaceID": 0,
     "Number": 3,
     "Key": "TASK-3",
+    "Links": [
+      {
+        "ID": 7,
+        "Relation": "is blocked by",
+        "Issue": { "ID": 4, "Key": "KAN-4", "Title": "先に終わらせるタスク", "Status": "InProgress", "IssueType": "Task", "Priority": "High" }
+      }
+    ],
     "CreatedAt": "2026-10-10T12:00:00Z",
     "UpdatedAt": "2026-10-10T12:30:00Z"
   }
@@ -122,6 +129,17 @@ GET /todos
 - 番号はスペースごとに 1 から振ります。タスクを削除しても、その番号は再利用しません。
 - スペース未割り当てのタスクは、接頭辞 `TASK` の番号を共有します（例: `TASK-3`）。`TASK` はスペースのキーには使えません。
 - `PUT` でスペースを変えると、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースの次の番号になります（キーが変わります）。エピックのスペース変更やスペースの削除で子タスクのスペースが変わった場合も同じです。古いキーは残りません。
+
+`Links` は課題リンクの配列で、リンクがなければ `[]` です。`Relation` はこの課題から見たリンクの名前、`Issue` はリンク相手の課題の概要です。リンクは片方の課題に作ると、相手の課題にも逆向きの名前で返ります。
+
+| 種類 | リンク元から見た名前 | リンク先から見た名前 |
+|---|---|---|
+| ブロック | `blocks` | `is blocked by` |
+| 関連 | `relates to` | `relates to` |
+| 重複 | `duplicates` | `is duplicated by` |
+| 複製 | `clones` | `is cloned by` |
+
+並びは上の表の順（`blocks` → `is blocked by` → `relates to` → …）で、同じ名前のリンクは作成順です。`POST`・`PUT` のレスポンスの `todo` と `GET /issues/:key` にも含まれます。
 
 `CreatedAt`（作成日時）と `UpdatedAt`（最終更新日時）は UTC の RFC 3339 形式で、サーバーが記録します（リクエストに含めても無視します）。`UpdatedAt` は `PUT` で変わり、並び替え（`move`）では変わりません。
 
@@ -221,7 +239,37 @@ GET /labels
 DELETE /todos/:id
 ```
 
-サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。
+サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンクも削除します。
+
+### 課題リンクを作成
+
+```
+POST /todos/:id/links
+```
+
+**リクエスト:**
+```json
+{
+  "relation": "is blocked by",
+  "targetId": 4
+}
+```
+
+`:id` の課題から `targetId` の課題へのリンクを作ります。`relation` は `:id` の課題から見た名前（`GET /todos` の `Links` の表のいずれか）です。上の例は「4 の課題が `:id` の課題をブロックする」リンクになり、4 の課題からは `blocks` として見えます。
+
+**レスポンス（201）:** リンクを含む `:id` の課題を `todo` に入れて返します（形式は `GET /todos` の要素と同じ）。
+
+- `:id` の課題が存在しなければ 404 を返します。
+- `relation` が表にない名前、`targetId` の課題が存在しない、`targetId` が `:id` と同じ場合は 400 を返します。
+- 同じリンクが既にあれば 409 を返します。`relates to` は向きを区別しません（A relates to B があれば、B relates to A は作れません）。`blocks` などは向きが違えば別のリンクです。
+
+### 課題リンクを削除
+
+```
+DELETE /links/:id
+```
+
+`:id` は `Links` の `ID` です。リンクは両方の課題から消えます。存在しなければ 404 を返します。
 
 ### TODOを並び替え
 
@@ -286,7 +334,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -294,6 +342,7 @@ DELETE /spaces/:id
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
 - サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
+- 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。

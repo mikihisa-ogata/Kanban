@@ -224,6 +224,89 @@ func (h *TodoHandler) MoveTodo(c *gin.Context) {
 	})
 }
 
+// AddLink は課題リンクを作成する。relation は :id の課題から見たリンクの名前、targetId はリンク相手の課題の ID
+func (h *TodoHandler) AddLink(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "不正なIDです",
+		})
+		return
+	}
+
+	var req struct {
+		Relation string `json:"relation" binding:"required"`
+		TargetID int    `json:"targetId" binding:"required"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	todo, err := h.service.AddLink(id, req.Relation, req.TargetID)
+	switch {
+	case errors.Is(err, service.ErrIssueNotFound):
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	case errors.Is(err, service.ErrLinkDuplicate):
+		c.JSON(http.StatusConflict, gin.H{
+			"error": err.Error(),
+		})
+		return
+	case errors.Is(err, service.ErrInvalidLinkRelation),
+		errors.Is(err, service.ErrLinkTargetNotFound),
+		errors.Is(err, service.ErrSelfLink):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	case err != nil:
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "課題リンクの作成に成功しました",
+		"todo":    todo,
+	})
+}
+
+// DeleteLink は課題リンクを削除する。見つからなければ 404 を返す
+func (h *TodoHandler) DeleteLink(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "不正なIDです",
+		})
+		return
+	}
+
+	err = h.service.DeleteLink(id)
+	if errors.Is(err, service.ErrLinkNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "課題リンクの削除に成功しました",
+	})
+}
+
 // parseStoryPointsUpdate は更新リクエストの storyPoints を読む。省略は今のまま、null は未設定、数値はその値
 func parseStoryPointsUpdate(raw json.RawMessage) (service.StoryPointsUpdate, error) {
 	if len(raw) == 0 {

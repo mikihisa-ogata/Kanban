@@ -114,6 +114,14 @@
           @changed="$emit('subtasks-changed')"
           @open="$emit('open', $event)"
         />
+
+        <LinkSection
+          class="mt-6"
+          :task="task"
+          :todos="allTodos"
+          @changed="$emit('links-changed')"
+          @open="$emit('open', $event)"
+        />
       </div>
 
       <!-- 右: 詳細欄 -->
@@ -295,6 +303,7 @@ import LabelInput from './LabelInput.vue';
 import MarkdownView from './MarkdownView.vue';
 import MarkdownEditor from './MarkdownEditor.vue';
 import SubtaskSection from './SubtaskSection.vue';
+import LinkSection from './LinkSection.vue';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
@@ -323,13 +332,19 @@ const props = defineProps({
   parentTask: {
     type: Object,
     default: null
+  },
+  // 全課題（リンクする課題の検索に使う）
+  allTodos: {
+    type: Array,
+    default: () => []
   }
 });
 
 // update: 変更後の内容（PUT /todos/:id のリクエストの形）。保存は呼び出し側で行う
 // subtasks-changed: 子課題を追加・変更・削除した（呼び出し側でサブタスクを取り直す）
-// open: 別の課題（親課題・子課題）を開く（課題キー）
-const emit = defineEmits(['update', 'subtasks-changed', 'open']);
+// links-changed: 課題リンクを追加・削除した（呼び出し側でこの課題とリンク相手を取り直す）
+// open: 別の課題（親課題・子課題・リンク相手）を開く（課題キー）
+const emit = defineEmits(['update', 'subtasks-changed', 'links-changed', 'open']);
 
 const isSubtask = computed(() => props.task.IssueType === SUBTASK_ISSUE_TYPE);
 const epicTitle = computed(() => props.epics.find(epic => epic.ID === props.task.EpicID)?.Title ?? '');

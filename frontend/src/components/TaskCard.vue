@@ -25,6 +25,19 @@
     <div class="mt-3 flex items-center gap-1.5">
       <IssueTypeIcon :type="task.IssueType" />
       <span v-if="task.Key" class="font-mono text-xs font-semibold text-gray-500">{{ task.Key }}</span>
+      <!-- 完了していない課題にブロックされている -->
+      <span
+        v-if="blockers.length"
+        class="flex items-center text-red-600"
+        :title="`ブロックされています: ${blockers.map(issue => issue.Key).join(', ')}`"
+        role="img"
+        :aria-label="`ブロックされています: ${blockers.map(issue => issue.Key).join(', ')}`"
+      >
+        <svg class="w-4 h-4 block" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="6" />
+          <path d="M3.8 12.2l8.4-8.4" />
+        </svg>
+      </span>
       <!-- サブタスクの件数（完了 / 全体） -->
       <span
         v-if="subtasks"
@@ -59,6 +72,7 @@ import { defineProps, defineEmits, computed, inject } from 'vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import { formatStoryPoints } from '../utils/storyPoints';
+import { openBlockers } from '../utils/issueLinks';
 
 const props = defineProps({
   task: {
@@ -72,6 +86,8 @@ const emit = defineEmits(['dragstart', 'delete', 'open']);
 // 親課題ごとのサブタスクの件数（ボードが provide する。サブタスクがなければ出さない）
 const subtaskProgress = inject('subtaskProgress', null);
 const subtasks = computed(() => subtaskProgress?.value?.[props.task.ID] ?? null);
+
+const blockers = computed(() => openBlockers(props.task));
 
 const handleDragStart = (event) => {
   event.dataTransfer.effectAllowed = 'move';

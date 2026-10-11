@@ -61,6 +61,32 @@ export const todosApi = {
     return response.json();
   },
   
+  // 課題リンクを作成（relation は id の課題から見た名前。例: 'is blocked by'）。
+  // 失敗したときは bff のメッセージ（同じリンクが既にある、など）をエラーにする
+  async addLink(id, relation, targetId) {
+    const response = await fetch(`${API_BASE_URL}/todos/${id}/links`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ relation, targetId })
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || 'Failed to add link');
+    }
+    return response.json();
+  },
+
+  // 課題リンクを削除（両方の課題から消える）
+  async deleteLink(linkId) {
+    const response = await fetch(`${API_BASE_URL}/links/${linkId}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete link');
+    }
+    return response.json();
+  },
+
   // タスク削除
   async delete(id) {
     const response = await fetch(`${API_BASE_URL}/todos/${id}`, {

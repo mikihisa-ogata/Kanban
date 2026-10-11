@@ -22,8 +22,10 @@
           :spaces="spaces"
           :subtasks="subtasks"
           :parent-task="parentTask"
+          :all-todos="todos"
           @update="handleUpdate"
           @subtasks-changed="fetchTodos"
+          @links-changed="handleLinksChanged"
           @open="navigateTo(issuePath($event))"
         />
       </div>
@@ -57,7 +59,7 @@ const loadError = ref('');
 // 編集の保存に失敗したときのメッセージ
 const error = ref('');
 
-// 子課題と親課題を出すための全タスク
+// 子課題・親課題とリンクする課題の候補を出すための全タスク
 const todos = ref([]);
 const subtasks = computed(() => (issue.value ? todos.value.filter(todo => todo.ParentID === issue.value.ID) : []));
 const parentTask = computed(() =>
@@ -122,6 +124,11 @@ const handleUpdate = async (payload) => {
     console.error('Failed to update issue:', err);
     await fetchIssue();
   }
+};
+
+// リンクを追加・削除したら、この課題のリンクと候補の一覧を取り直す
+const handleLinksChanged = async () => {
+  await Promise.all([fetchIssue(), fetchTodos()]);
 };
 
 // サイドバーでスペースを作成・削除したら取り直す。

@@ -111,8 +111,10 @@
           :spaces="spaces"
           :subtasks="subtasksOf(detailTask)"
           :parent-task="parentOf(detailTask)"
+          :all-todos="todos"
           @update="handleUpdateTodoFromModal"
           @subtasks-changed="fetchTodos"
+          @links-changed="fetchTodos"
           @open="openDetailByKey"
         >
           <template #actions>

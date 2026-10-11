@@ -249,7 +249,7 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	return tx.Commit()
 }
 
-// Delete はタスクとそのサブタスク、それらへのラベルの付与を削除する（ラベル自体は残す）。
+// Delete はタスクとそのサブタスク、それらへのラベルの付与と課題リンクを削除する（ラベル自体は残す）。
 // サブタスクは親なしでは存在できないので、親と同じトランザクションで消す
 func (r *todoMySQLRepository) Delete(id int) error {
 	tx, err := r.db.Begin()
@@ -258,6 +258,13 @@ func (r *todoMySQLRepository) Delete(id int) error {
 	}
 	defer tx.Rollback()
 
+	if _, err := tx.Exec(
+		`DELETE FROM issue_links
+		 WHERE source_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)
+		    OR target_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)`,
+		id, id, id, id); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(
 		`DELETE FROM todo_labels WHERE todo_id IN (SELECT id FROM (SELECT id FROM todos WHERE parent_id = ?) AS subtasks)`, id); err != nil {
 		return err

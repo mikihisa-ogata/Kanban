@@ -38,7 +38,8 @@ func main() {
 	repo := repository.NewTodoMySQLRepository(db)
 	epicRepo := repository.NewEpicMySQLRepository(db)
 	spaceRepo := repository.NewSpaceMySQLRepository(db)
-	svc := service.NewTodoService(repo, epicRepo, spaceRepo)
+	linkRepo := repository.NewIssueLinkMySQLRepository(db)
+	svc := service.NewTodoService(repo, epicRepo, spaceRepo, linkRepo)
 	h := handler.NewTodoHandler(svc)
 	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo)
 	epicHandler := handler.NewEpicHandler(epicSvc)
@@ -52,6 +53,8 @@ func main() {
 	r.POST("/todos/:id/move", h.MoveTodo)
 	r.GET("/issues/:key", h.GetIssue)
 	r.GET("/labels", h.GetLabels)
+	r.POST("/todos/:id/links", h.AddLink)
+	r.DELETE("/links/:id", h.DeleteLink)
 
 	r.GET("/epics", epicHandler.GetEpics)
 	r.POST("/epics", epicHandler.CreateEpic)
