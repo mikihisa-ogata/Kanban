@@ -129,6 +129,7 @@
           class="mt-8"
           :task="task"
           @changed="$emit('comments-changed')"
+          @worklogs-changed="$emit('worklogs-changed')"
         />
       </div>
 
@@ -287,6 +288,13 @@
           </dl>
         </section>
 
+        <TimeTrackingSection
+          class="mt-3"
+          :task="task"
+          @update="save"
+          @worklogs-changed="$emit('worklogs-changed')"
+        />
+
         <dl class="mt-3 mb-0 px-1 flex flex-col gap-1 text-xs text-gray-500">
           <div v-if="task.CreatedAt" class="flex gap-1">
             <dt>作成</dt>
@@ -314,6 +322,7 @@ import SubtaskSection from './SubtaskSection.vue';
 import LinkSection from './LinkSection.vue';
 import ActivitySection from './ActivitySection.vue';
 import AttachmentSection from './AttachmentSection.vue';
+import TimeTrackingSection from './TimeTrackingSection.vue';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
@@ -354,8 +363,9 @@ const props = defineProps({
 // subtasks-changed: 子課題を追加・変更・削除した（呼び出し側でサブタスクを取り直す）
 // links-changed: 課題リンクを追加・削除した（呼び出し側でこの課題とリンク相手を取り直す）
 // comments-changed: コメントを投稿・削除した（呼び出し側でコメント数を取り直す）
+// worklogs-changed: 作業ログを記録・編集・削除した（呼び出し側で記録済み・残り時間を取り直す）
 // open: 別の課題（親課題・子課題・リンク相手）を開く（課題キー）
-const emit = defineEmits(['update', 'subtasks-changed', 'links-changed', 'comments-changed', 'open']);
+const emit = defineEmits(['update', 'subtasks-changed', 'links-changed', 'comments-changed', 'worklogs-changed', 'open']);
 
 const isSubtask = computed(() => props.task.IssueType === SUBTASK_ISSUE_TYPE);
 const epicTitle = computed(() => props.epics.find(epic => epic.ID === props.task.EpicID)?.Title ?? '');

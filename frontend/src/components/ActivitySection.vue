@@ -1,6 +1,6 @@
 <template>
   <!-- アクティビティのセクション。課題の詳細（ページとモーダル）の下部に置く。
-       「すべて / コメント / 履歴」のタブで、コメントと変更履歴を時系列に表示する。コメントは Markdown で投稿・編集・削除できる -->
+       「すべて / コメント / 作業ログ / 履歴」のタブで、コメント・作業ログ・変更履歴を時系列に表示する。コメントは Markdown で投稿・編集・削除できる -->
   <section>
     <div class="flex items-center gap-2 mb-2">
       <h2 class="m-0 text-sm font-semibold text-gray-700">アクティビティ</h2>
@@ -34,7 +34,7 @@
     </div>
 
     <!-- コメントの入力欄（すべて・コメントのタブ）。押すと Markdown の入力欄が開く -->
-    <template v-if="tab !== 'history'">
+    <template v-if="tab === 'all' || tab === 'comments'">
       <div v-if="composing">
         <MarkdownEditor
           ref="newInput"
@@ -134,6 +134,36 @@
           </template>
         </template>
 
+        <!-- 作業ログ -->
+        <template v-else-if="item.kind === 'worklog'">
+          <div class="flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+            <span class="font-semibold text-gray-600">作業を記録しました</span>
+            <time :datetime="item.worklog.CreatedAt" :title="formatDateTime(item.worklog.CreatedAt)">{{ formatRelativeTime(item.worklog.CreatedAt, now) }}</time>
+            <span v-if="item.worklog.UpdatedAt" :title="`編集: ${formatDateTime(item.worklog.UpdatedAt)}`">・編集済み</span>
+          </div>
+          <p class="mt-1 mb-0 text-sm text-gray-900">
+            <span class="font-semibold">{{ formatDuration(item.worklog.Minutes) }}</span>
+            <span class="ml-2 text-xs text-gray-500">開始 {{ formatDateTime(item.worklog.StartedAt) }}</span>
+          </p>
+          <p v-if="item.worklog.Note" class="mt-1 mb-0 text-sm text-gray-700 whitespace-pre-wrap break-words">{{ item.worklog.Note }}</p>
+          <div class="mt-1 flex gap-3">
+            <button
+              type="button"
+              class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-500 cursor-pointer hover:text-blue-600 hover:underline"
+              @click="editingWorklog = item.worklog"
+            >
+              編集
+            </button>
+            <button
+              type="button"
+              class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-500 cursor-pointer hover:text-red-600 hover:underline"
+              @click="confirmingWorklogDelete = item.worklog"
+            >
+              削除
+            </button>
+          </div>
+        </template>
+
         <!-- 変更履歴（同じ操作で変わった項目はまとめて出す） -->
         <template v-else>
           <div class="flex items-center gap-2 text-xs text-gray-500">
@@ -156,7 +186,7 @@
       </li>
     </ul>
     <p v-else class="mt-3 mb-0 text-sm text-gray-400">
-      {{ { all: 'アクティビティはありません', comments: 'コメントはありません', history: '変更履歴はありません' }[tab] }}
+      {{ { all: 'アクティビティはありません', comments: 'コメントはありません', worklogs: '作業ログはありません', history: '変更履歴はありません' }[tab] }}
     </p>
 
     <ConfirmDialog
@@ -166,6 +196,20 @@
       @confirm="deleteComment"
       @cancel="confirmingDelete = null"
     />
+    <ConfirmDialog
+      v-if="confirmingWorklogDelete"
+      title="作業ログを削除しますか？"
+      :message="`${formatDuration(confirmingWorklogDelete.Minutes)} の作業ログを削除します。残り時間はその分だけ戻ります。`"
+      @confirm="deleteWorklog"
+      @cancel="confirmingWorklogDelete = null"
+    />
+    <WorklogDialog
+      v-if="editingWorklog"
+      :task="task"
+      :worklog="editingWorklog"
+      @saved="handleWorklogSaved"
+      @cancel="editingWorklog = null"
+    />
   </section>
 </template>
 
@@ -174,7 +218,10 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import MarkdownEditor from './MarkdownEditor.vue';
 import MarkdownView from './MarkdownView.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
+import WorklogDialog from './WorklogDialog.vue';
 import { commentsApi } from '../api/comments';
+import { worklogsApi } from '../api/worklogs';
+import { formatDuration } from '../utils/duration';
 import { todosApi } from '../api/todos';
 import { formatDateTime, formatRelativeTime } from '../utils/datetime';
 import { historyFieldLabel, formatHistoryValue } from '../utils/history';
@@ -188,7 +235,8 @@ const props = defineProps({
 });
 
 // changed: コメントを投稿・削除した（呼び出し側でカードのコメント数を取り直す）
-const emit = defineEmits(['changed']);
+// worklogs-changed: 作業ログを編集・削除した（呼び出し側で残り時間などを取り直す）
+const emit = defineEmits(['changed', 'worklogs-changed']);
 
 // 並び順は閲覧者ごとの好みとしてブラウザに覚えておく（保存できなくても動く）
 const ORDER_STORAGE_KEY = 'kanban.commentOrder';
@@ -202,6 +250,7 @@ const readOrder = () => {
 
 const comments = ref([]);
 const history = ref([]);
+const worklogs = ref([]);
 const loading = ref(false);
 const busy = ref(false);
 const error = ref('');
@@ -211,6 +260,7 @@ const tab = ref('all');
 const tabs = computed(() => [
   { value: 'all', label: 'すべて' },
   { value: 'comments', label: 'コメント', count: comments.value.length },
+  { value: 'worklogs', label: '作業ログ', count: worklogs.value.length },
   { value: 'history', label: '履歴' }
 ]);
 
@@ -233,9 +283,14 @@ const commentItems = computed(() =>
   comments.value.map(comment => ({ kind: 'comment', key: `comment-${comment.ID}`, time: comment.CreatedAt, id: comment.ID, comment }))
 );
 
+// 作業ログは記録した日時で並べる（開始日時は本文に出す）
+const worklogItems = computed(() =>
+  worklogs.value.map(worklog => ({ kind: 'worklog', key: `worklog-${worklog.ID}`, time: worklog.CreatedAt, id: worklog.ID, worklog }))
+);
+
 // 古い順に並べた全件。同じ日時なら変更履歴を先にする
 const items = computed(() =>
-  [...historyItems.value, ...commentItems.value].sort((a, b) => {
+  [...historyItems.value, ...commentItems.value, ...worklogItems.value].sort((a, b) => {
     const diff = new Date(a.time) - new Date(b.time);
     if (diff !== 0) return diff;
     if (a.kind !== b.kind) return a.kind === 'history' ? -1 : 1;
@@ -245,7 +300,7 @@ const items = computed(() =>
 
 const visibleItems = computed(() => {
   const filtered = items.value.filter(item =>
-    tab.value === 'all' || (tab.value === 'comments' ? item.kind === 'comment' : item.kind === 'history')
+    tab.value === 'all' || item.kind === { comments: 'comment', worklogs: 'worklog', history: 'history' }[tab.value]
   );
   return newestFirst.value ? filtered.reverse() : filtered;
 });
@@ -424,21 +479,61 @@ const deleteComment = async () => {
   }
 };
 
+const fetchWorklogs = async () => {
+  const todoId = props.task.ID;
+  try {
+    const result = await worklogsApi.fetchByTodo(todoId);
+    if (todoId === props.task.ID) {
+      worklogs.value = result;
+    }
+  } catch (err) {
+    error.value = '作業ログの取得に失敗しました: ' + err.message;
+    console.error('Failed to fetch worklogs:', err);
+  }
+};
+
+// 作業ログの編集・削除。残り時間が変わるので、呼び出し側に課題を取り直してもらう
+const editingWorklog = ref(null);
+const confirmingWorklogDelete = ref(null);
+
+const handleWorklogSaved = () => {
+  editingWorklog.value = null;
+  emit('worklogs-changed');
+};
+
+const deleteWorklog = async () => {
+  const worklog = confirmingWorklogDelete.value;
+  confirmingWorklogDelete.value = null;
+  try {
+    error.value = '';
+    await worklogsApi.delete(worklog.ID);
+    worklogs.value = worklogs.value.filter(w => w.ID !== worklog.ID);
+    emit('worklogs-changed');
+  } catch (err) {
+    error.value = '作業ログの削除に失敗しました: ' + err.message;
+    console.error('Failed to delete worklog:', err);
+    await fetchWorklogs();
+  }
+};
+
 // 別の課題に切り替わったら、入力中の内容を捨てて読み直す。
-// 同じ課題の内容が変わった（保存した）ときは、変更履歴だけを読み直す
+// 同じ課題の内容が変わった（保存した・作業を記録した）ときは、変更履歴と作業ログを読み直す
 watch(() => props.task, async (task, previous) => {
   if (previous && previous.ID === task.ID) {
-    await fetchHistory();
+    await Promise.all([fetchHistory(), fetchWorklogs()]);
     return;
   }
   composing.value = false;
   newBody.value = '';
   editingId.value = null;
   confirmingDelete.value = null;
+  editingWorklog.value = null;
+  confirmingWorklogDelete.value = null;
   comments.value = [];
   history.value = [];
+  worklogs.value = [];
   loading.value = true;
-  await Promise.all([fetchComments(), fetchHistory()]);
+  await Promise.all([fetchComments(), fetchHistory(), fetchWorklogs()]);
   loading.value = false;
 }, { immediate: true });
 </script>

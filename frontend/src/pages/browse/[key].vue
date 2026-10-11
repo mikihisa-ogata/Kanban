@@ -26,6 +26,7 @@
           @update="handleUpdate"
           @subtasks-changed="fetchTodos"
           @links-changed="handleLinksChanged"
+          @worklogs-changed="fetchIssue"
           @open="navigateTo(issuePath($event))"
         />
       </div>

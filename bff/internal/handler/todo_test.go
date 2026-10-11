@@ -25,6 +25,7 @@ type testRepos struct {
 	comment    repository.CommentRepository
 	history    repository.HistoryRepository
 	attachment repository.AttachmentRepository
+	worklog    repository.WorklogRepository
 	// attachmentsDir は添付ファイルの保存先（テストごとの一時ディレクトリ）
 	attachmentsDir string
 }
@@ -42,6 +43,7 @@ func newTestRepos(t *testing.T) testRepos {
 		comment:        repository.NewCommentMySQLRepository(db),
 		history:        repository.NewHistoryMySQLRepository(db),
 		attachment:     repository.NewAttachmentMySQLRepository(db, dir),
+		worklog:        repository.NewWorklogMySQLRepository(db),
 		attachmentsDir: dir,
 	}
 }

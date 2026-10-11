@@ -126,9 +126,12 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		Labels    []string `json:"labels"`
 		// 省略は「今のまま」、null は「未設定にする」なので、受け取った JSON のまま読む
 		StoryPoints json.RawMessage `json:"storyPoints"`
-		EpicID      int             `json:"epicId"`
-		Description string          `json:"description"`
-		SpaceID     int             `json:"spaceId"`
+		// 初期見積もり・残り時間は「1w 2d 3h 30m」形式。省略は今のまま、null か空文字は未設定にする
+		OriginalEstimate  json.RawMessage `json:"originalEstimate"`
+		RemainingEstimate json.RawMessage `json:"remainingEstimate"`
+		EpicID            int             `json:"epicId"`
+		Description       string          `json:"description"`
+		SpaceID           int             `json:"spaceId"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -146,7 +149,23 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, storyPoints, req.EpicID, req.Description, req.SpaceID)
+	original, err := parseDurationUpdate(req.OriginalEstimate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	remaining, err := parseDurationUpdate(req.RemainingEstimate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, storyPoints,
+		service.EstimatesUpdate{Original: original, Remaining: remaining}, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -330,6 +349,21 @@ func (h *TodoHandler) GetHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, entries)
 }
 
+// parseDurationUpdate は更新リクエストの時間（初期見積もり・残り時間）を読む。省略は今のまま、null は未設定、文字列はその値
+func parseDurationUpdate(raw json.RawMessage) (service.DurationUpdate, error) {
+	if len(raw) == 0 {
+		return service.DurationUpdate{}, nil
+	}
+	var value *string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return service.DurationUpdate{}, domain.ErrInvalidDuration
+	}
+	if value == nil {
+		return service.DurationUpdate{Set: true}, nil
+	}
+	return service.DurationUpdate{Set: true, Value: *value}, nil
+}
+
 // parseStoryPointsUpdate は更新リクエストの storyPoints を読む。省略は今のまま、null は未設定、数値はその値
 func parseStoryPointsUpdate(raw json.RawMessage) (service.StoryPointsUpdate, error) {
 	if len(raw) == 0 {
@@ -353,5 +387,6 @@ func isTodoValidationError(err error) bool {
 		errors.Is(err, service.ErrInvalidStoryPoints) ||
 		errors.Is(err, service.ErrParentNotFound) ||
 		errors.Is(err, service.ErrSubtaskParent) ||
-		errors.Is(err, service.ErrSubtaskType)
+		errors.Is(err, service.ErrSubtaskType) ||
+		errors.Is(err, domain.ErrInvalidDuration)
 }

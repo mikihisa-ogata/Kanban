@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"todo-api/internal/domain"
 	"todo-api/internal/repository"
@@ -35,6 +36,31 @@ var ErrLinkDuplicate = errors.New("同じリンクが既にあります")
 
 var ErrLinkNotFound = errors.New("課題リンクが見つかりません")
 
+// DurationUpdate は更新での時間（初期見積もり・残り時間）の指定。
+// Set が false なら今の値のまま、Value が空文字なら未設定にし、それ以外は「1w 2d 3h 30m」形式として読む
+type DurationUpdate struct {
+	Set   bool
+	Value string
+}
+
+// EstimatesUpdate は更新での初期見積もりと残り時間の指定
+type EstimatesUpdate struct {
+	Original  DurationUpdate
+	Remaining DurationUpdate
+}
+
+// parse は指定された時間を分にする。空文字は nil（未設定）
+func (u DurationUpdate) parse() (*int, error) {
+	if strings.TrimSpace(u.Value) == "" {
+		return nil, nil
+	}
+	minutes, err := domain.ParseDuration(u.Value)
+	if err != nil {
+		return nil, err
+	}
+	return &minutes, nil
+}
+
 // StoryPointsUpdate は更新でのストーリーポイントの指定。Set が false なら今の値のまま、Value が nil なら未設定にする
 type StoryPointsUpdate struct {
 	Set   bool
@@ -53,8 +79,9 @@ type TodoService interface {
 	CreateTodo(title string, deadline string, status string, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error)
 	// UpdateTodo はタスクを更新し、更新後のタスクを返す（スペースを変えると課題キーが変わる）。
 	// 課題タイプ・優先度が空、ラベルが nil、ストーリーポイントの Set が false なら今の値のままにする。
-	// サブタスクのスペースとエピックは親と同じにする。親のスペースやエピックを変えると、サブタスクも同じものに移す
-	UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, epicID int, description string, spaceID int) (domain.Todo, error)
+	// サブタスクのスペースとエピックは親と同じにする。親のスペースやエピックを変えると、サブタスクも同じものに移す。
+	// 残り時間が未設定のまま初期見積もりを設定すると、残り時間は「初期見積もり − 記録済みの作業時間」にする
+	UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error)
 	// DeleteTodo はタスクを削除する。サブタスクがあれば一緒に削除し、それらの課題リンク・添付ファイルも削除する
 	DeleteTodo(id int) error
 	MoveTodo(id int, beforeID int) error
@@ -318,7 +345,7 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, i
 	return s.findWithLinks(id)
 }
 
-func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, epicID int, description string, spaceID int) (domain.Todo, error) {
+func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error) {
 	current, err := s.repo.FindByID(id)
 	if err != nil {
 		return domain.Todo{}, err
@@ -368,6 +395,20 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 	if todoPoints != nil && !domain.ValidStoryPoints(*todoPoints) {
 		return domain.Todo{}, ErrInvalidStoryPoints
 	}
+	original, remaining := current.OriginalEstimate, current.RemainingEstimate
+	if estimates.Original.Set {
+		if original, err = estimates.Original.parse(); err != nil {
+			return domain.Todo{}, err
+		}
+	}
+	if estimates.Remaining.Set {
+		if remaining, err = estimates.Remaining.parse(); err != nil {
+			return domain.Todo{}, err
+		}
+	} else if estimates.Original.Set && remaining == nil && original != nil {
+		left := max(*original-current.TimeSpent, 0)
+		remaining = &left
+	}
 
 	names, err := s.history.names()
 	if err != nil {
@@ -386,6 +427,9 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 		EpicID:      epicID,
 		Description: description,
 		SpaceID:     spaceID,
+		// 見積もりは指定がなければ今の値のまま
+		OriginalEstimate:  original,
+		RemainingEstimate: remaining,
 	}
 	if err := s.repo.Update(id, todo); err != nil {
 		return domain.Todo{}, err

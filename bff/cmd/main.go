@@ -51,6 +51,9 @@ func main() {
 	commentHandler := handler.NewCommentHandler(commentSvc)
 	attachmentSvc := service.NewAttachmentService(attachmentRepo, repo)
 	attachmentHandler := handler.NewAttachmentHandler(attachmentSvc)
+	worklogRepo := repository.NewWorklogMySQLRepository(db)
+	worklogSvc := service.NewWorklogService(worklogRepo, repo, epicRepo, spaceRepo, historyRepo)
+	worklogHandler := handler.NewWorklogHandler(worklogSvc)
 	spaceSvc := service.NewSpaceService(spaceRepo, epicRepo, repo, historyRepo)
 	spaceHandler := handler.NewSpaceHandler(spaceSvc)
 
@@ -74,6 +77,11 @@ func main() {
 	r.POST("/todos/:id/attachments", attachmentHandler.AddAttachment)
 	r.GET("/attachments/:id/file", attachmentHandler.DownloadAttachment)
 	r.DELETE("/attachments/:id", attachmentHandler.DeleteAttachment)
+
+	r.GET("/todos/:id/worklogs", worklogHandler.GetWorklogs)
+	r.POST("/todos/:id/worklogs", worklogHandler.AddWorklog)
+	r.PUT("/worklogs/:id", worklogHandler.UpdateWorklog)
+	r.DELETE("/worklogs/:id", worklogHandler.DeleteWorklog)
 
 	r.GET("/epics", epicHandler.GetEpics)
 	r.POST("/epics", epicHandler.CreateEpic)

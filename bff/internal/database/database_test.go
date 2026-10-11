@@ -68,8 +68,9 @@ func TestMigrate(t *testing.T) {
 		"comments":       {"id", "todo_id", "body", "created_at", "updated_at"},
 		"issue_history":  {"id", "todo_id", "field", "old_value", "new_value", "created_at"},
 		"attachments":    {"id", "todo_id", "file_name", "content_type", "size", "storage_name", "created_at"},
+		"worklogs":       {"id", "todo_id", "minutes", "started_at", "note", "created_at", "updated_at"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
-		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id"},
+		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate"},
 	}
 	for table, columns := range want {
 		rows, err := db.Query(

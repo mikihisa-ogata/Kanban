@@ -63,16 +63,22 @@ func ValidStoryPoints(points float64) bool {
 }
 
 type Todo struct {
-	ID           int
-	Title        string
-	Done         bool
-	Deadline     string
-	Status       Status
-	IssueType    IssueType   // 課題タイプ。既存のタスクは Task
-	Priority     Priority    // 優先度。既定と既存のタスクは Medium
-	Labels       []string    // ラベル（名前順）。ラベルがなければ空の配列
-	StoryPoints  *float64    // ストーリーポイント（見積もり）。nil は未設定
-	ParentID     int         // サブタスクの親課題の ID。0 はサブタスクではない
+	ID          int
+	Title       string
+	Done        bool
+	Deadline    string
+	Status      Status
+	IssueType   IssueType // 課題タイプ。既存のタスクは Task
+	Priority    Priority  // 優先度。既定と既存のタスクは Medium
+	Labels      []string  // ラベル（名前順）。ラベルがなければ空の配列
+	StoryPoints *float64  // ストーリーポイント（見積もり）。nil は未設定
+	ParentID    int       // サブタスクの親課題の ID。0 はサブタスクではない
+	// OriginalEstimate は初期見積もり（分）。nil は未設定
+	OriginalEstimate *int
+	// RemainingEstimate は残り時間（分）。nil は未設定。作業ログを記録すると減る
+	RemainingEstimate *int
+	// TimeSpent は作業ログの合計（分）。API の出力専用
+	TimeSpent    int
 	EpicID       int         // 0 の場合はエピック未割り当て
 	Description  string      // 任意。空文字の場合は説明なし
 	SpaceID      int         // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース

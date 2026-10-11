@@ -105,6 +105,9 @@ func addedColumns() []column {
 		{"todos", "story_points", "DECIMAL(8,2) NULL"},
 		// サブタスクの親課題の ID。0 はサブタスクではない
 		{"todos", "parent_id", "INT NOT NULL DEFAULT 0"},
+		// 初期見積もり・残り時間（分）。NULL は未設定
+		{"todos", "original_estimate", "INT NULL"},
+		{"todos", "remaining_estimate", "INT NULL"},
 	}
 }
 
@@ -298,6 +301,17 @@ func schemaStatements() []string {
 			storage_name VARCHAR(64) NOT NULL,
 			created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_attachments_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// 作業ログ。minutes は作業時間（分）、started_at は作業の開始日時（UTC）、updated_at は最後に編集した日時（NULL は未編集）
+		`CREATE TABLE IF NOT EXISTS worklogs (
+			id         INT AUTO_INCREMENT PRIMARY KEY,
+			todo_id    INT NOT NULL,
+			minutes    INT NOT NULL,
+			started_at DATETIME NOT NULL,
+			note       TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NULL,
+			INDEX idx_worklogs_todo (todo_id)
 		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,

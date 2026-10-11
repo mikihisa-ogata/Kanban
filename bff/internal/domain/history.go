@@ -9,19 +9,21 @@ import (
 
 // 履歴の項目名。API の課題の項目（PUT /todos/:id のリクエスト）に合わせる
 const (
-	HistoryFieldCreated     = "created" // 課題の作成。変更前・変更後は持たない
-	HistoryFieldTitle       = "title"
-	HistoryFieldDescription = "description"
-	HistoryFieldStatus      = "status"
-	HistoryFieldDone        = "done"
-	HistoryFieldIssueType   = "issueType"
-	HistoryFieldPriority    = "priority"
-	HistoryFieldLabels      = "labels"
-	HistoryFieldStoryPoints = "storyPoints"
-	HistoryFieldDeadline    = "deadline"
-	HistoryFieldEpic        = "epic"
-	HistoryFieldSpace       = "space"
-	HistoryFieldKey         = "key"
+	HistoryFieldCreated           = "created" // 課題の作成。変更前・変更後は持たない
+	HistoryFieldTitle             = "title"
+	HistoryFieldDescription       = "description"
+	HistoryFieldStatus            = "status"
+	HistoryFieldDone              = "done"
+	HistoryFieldIssueType         = "issueType"
+	HistoryFieldPriority          = "priority"
+	HistoryFieldLabels            = "labels"
+	HistoryFieldStoryPoints       = "storyPoints"
+	HistoryFieldOriginalEstimate  = "originalEstimate"  // 値は分
+	HistoryFieldRemainingEstimate = "remainingEstimate" // 値は分
+	HistoryFieldDeadline          = "deadline"
+	HistoryFieldEpic              = "epic"
+	HistoryFieldSpace             = "space"
+	HistoryFieldKey               = "key"
 )
 
 // HistoryEntry は課題の変更履歴の 1 件。値は変更時点の表示用の文字列で、nil は「なし」。
@@ -59,6 +61,8 @@ func DiffTodo(before, after Todo, names HistoryNames) []HistoryEntry {
 	add(HistoryFieldPriority, text(string(before.Priority)), text(string(after.Priority)))
 	add(HistoryFieldLabels, text(strings.Join(before.Labels, ", ")), text(strings.Join(after.Labels, ", ")))
 	add(HistoryFieldStoryPoints, pointsText(before.StoryPoints), pointsText(after.StoryPoints))
+	add(HistoryFieldOriginalEstimate, minutesText(before.OriginalEstimate), minutesText(after.OriginalEstimate))
+	add(HistoryFieldRemainingEstimate, minutesText(before.RemainingEstimate), minutesText(after.RemainingEstimate))
 	add(HistoryFieldDeadline, text(before.Deadline), text(after.Deadline))
 	add(HistoryFieldEpic, nameText(names.Epics, before.EpicID), nameText(names.Epics, after.EpicID))
 	add(HistoryFieldSpace, nameText(names.Spaces, before.SpaceID), nameText(names.Spaces, after.SpaceID))
@@ -84,6 +88,14 @@ func pointsText(points *float64) *string {
 		return nil
 	}
 	s := strconv.FormatFloat(*points, 'f', -1, 64)
+	return &s
+}
+
+func minutesText(minutes *int) *string {
+	if minutes == nil {
+		return nil
+	}
+	s := strconv.Itoa(*minutes)
 	return &s
 }
 

@@ -1,6 +1,7 @@
 import { issueTypeLabel } from './issueTypes';
 import { priorityLabel } from './priorities';
 import { formatStoryPoints } from './storyPoints';
+import { formatDuration } from './duration';
 
 // 変更履歴の項目名（bff の domain.HistoryField* と同じ値）の表示名
 const FIELD_LABELS = {
@@ -12,6 +13,8 @@ const FIELD_LABELS = {
   priority: '優先度',
   labels: 'ラベル',
   storyPoints: 'ストーリーポイント',
+  originalEstimate: '初期見積もり',
+  remainingEstimate: '残り時間',
   deadline: '期限',
   epic: 'エピック',
   space: 'スペース',
@@ -41,6 +44,9 @@ export const formatHistoryValue = (field, value) => {
       return priorityLabel(value);
     case 'storyPoints':
       return formatStoryPoints(Number(value));
+    case 'originalEstimate':
+    case 'remainingEstimate':
+      return formatDuration(Number(value));
     default:
       return value;
   }

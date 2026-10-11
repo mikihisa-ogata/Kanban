@@ -97,6 +97,9 @@ GET /todos
     "Priority": "Medium",
     "Labels": ["backend", "ui"],
     "StoryPoints": 3,
+    "OriginalEstimate": 960,
+    "RemainingEstimate": 600,
+    "TimeSpent": 360,
     "ParentID": 0,
     "EpicID": 0,
     "Description": "タスクの説明（任意。改行を含められる）",
@@ -132,6 +135,8 @@ GET /todos
 - 番号はスペースごとに 1 から振ります。タスクを削除しても、その番号は再利用しません。
 - スペース未割り当てのタスクは、接頭辞 `TASK` の番号を共有します（例: `TASK-3`）。`TASK` はスペースのキーには使えません。
 - `PUT` でスペースを変えると、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースの次の番号になります（キーが変わります）。エピックのスペース変更やスペースの削除で子タスクのスペースが変わった場合も同じです。古いキーは残りません。
+
+`OriginalEstimate`（初期見積もり）と `RemainingEstimate`（残り時間）は分の整数で、未設定は `null` です。`TimeSpent` は作業ログの合計（分）です（リクエストに含めても無視します）。
 
 `CommentCount` はその課題のコメント数です（リクエストに含めても無視します）。
 
@@ -244,7 +249,7 @@ GET /labels
 DELETE /todos/:id
 ```
 
-サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンク・コメント・変更履歴・添付ファイルも削除します。
+サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンク・コメント・変更履歴・添付ファイル・作業ログも削除します。
 
 ### 課題リンクを作成
 
@@ -293,7 +298,39 @@ POST /todos/:id/move
 
 `EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。`StoryPoints` は、作成で省略または `null` にすると未設定、更新で省略すると今の値のまま、`null` を送ると未設定に戻します。範囲外や小数第 3 位以下を含む値は 400 を返します。
 
+`PUT` の `originalEstimate`・`remainingEstimate` は「`1w 2d 3h 30m`」形式の文字列で指定します（w=週・d=日・h=時間・m=分。1d=8h、1w=5d。順番・空白の有無は問わず、`1.5h` のような小数も使えます）。省略すると今の値のまま、`null` か空文字で未設定に戻します。単位のない数値など読めない値は 400 を返します。残り時間が未設定のまま初期見積もりを設定すると、残り時間は「初期見積もり − 記録済みの作業時間」になります。
+
 `PUT` では親課題（`ParentID`）は変えられません（リクエストに含めても無視します）。サブタスクの `SpaceID`・`EpicID` は親課題と同じままになり、サブタスクと他の課題タイプを相互に変えようとすると 400 を返します。親課題の `SpaceID`・`EpicID` を変えると、そのサブタスクも同じスペース・エピックに移ります（スペースが変わると課題キーも変わります）。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
+
+### 作業ログ
+
+```
+GET    /todos/:id/worklogs
+POST   /todos/:id/worklogs   {"timeSpent": "2h 30m", "startedAt": "2026-10-11T10:00:00+09:00", "note": "調査"}
+PUT    /worklogs/:id         （POST と同じ形）
+DELETE /worklogs/:id
+```
+
+`GET` は課題（`:id`）の作業ログを開始日時の順（古い順）の配列で返します。
+
+```json
+[
+  {
+    "ID": 1,
+    "TodoID": 3,
+    "Minutes": 150,
+    "StartedAt": "2026-10-11T01:00:00Z",
+    "Note": "調査",
+    "CreatedAt": "2026-10-11T02:30:00Z",
+    "UpdatedAt": null
+  }
+]
+```
+
+- `timeSpent` は「`1w 2d 3h 30m`」形式で 1 分以上、`startedAt` は RFC 3339 形式で必須、`note` は任意（10000 文字まで）です。不正な値は 400 を返します。
+- 残り時間は自動で調整します。記録すると作業時間の分だけ減らし（0 未満にはしません）、作業時間を直すと増減の分だけ、削除するとその分だけ戻します。残り時間が未設定で初期見積もりがあれば「初期見積もり − 記録済み」にし、どちらも未設定なら変えません。
+- `POST`・`PUT` に `remainingEstimate`（`1w 2d` 形式。`null` か空文字は未設定）を付けると、自動の調整の代わりにその値にします。
+- 残り時間の変化は変更履歴（`remainingEstimate`）に残ります。課題を削除すると作業ログも削除します。課題・作業ログが存在しなければ 404 を返します。
 
 ### 添付ファイル
 
@@ -351,6 +388,7 @@ GET /todos/:id/history
 | `issueType` / `priority` | `IssueType`・`Priority` の値 |
 | `labels` | ラベル名を `, ` でつないだもの |
 | `storyPoints` | 数値（例: `0.5`） |
+| `originalEstimate` / `remainingEstimate` | 分の整数（例: `90`） |
 | `deadline` | `2026-03-31` 形式 |
 | `epic` / `space` | 変更時点のエピック・スペースの名前 |
 | `key` | 課題キー（スペースの変更で変わる） |
@@ -430,7 +468,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -438,6 +476,7 @@ DELETE /spaces/:id
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
 - サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
+- 初期見積もり・残り時間は `todos.original_estimate`・`todos.remaining_estimate`（分、`NULL` は未設定）、作業ログは `worklogs` に課題 `todo_id`・作業時間 `minutes`（分）・開始日時 `started_at`・メモ `note`・記録日時 `created_at`・編集日時 `updated_at` で保存します。
 - 添付ファイルは `attachments` に、課題 `todo_id`・ファイル名 `file_name`・種類 `content_type`・バイト数 `size`・保存名 `storage_name`・添付日時 `created_at` で保存します。本体は `ATTACHMENTS_DIR` に `storage_name`（推測できないランダムな名前）で置きます。読み書きは `internal/repository` の添付ファイルの Repository だけが行います。
 - 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
 - コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
