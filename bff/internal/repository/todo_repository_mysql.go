@@ -22,7 +22,8 @@ func NewTodoMySQLRepository(db *sql.DB) TodoRepository {
 
 // selectTodos はタスクを読む SELECT。課題キーを作るためスペースのキーも読む（scanTodo と列を合わせる）
 const selectTodos = `SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_id, t.description, t.space_id,
-		        t.created_at, t.updated_at, t.number, s.space_key, t.issue_type, t.priority, t.story_points, t.parent_id
+		        t.created_at, t.updated_at, t.number, s.space_key, t.issue_type, t.priority, t.story_points, t.parent_id,
+		        (SELECT COUNT(*) FROM comments c WHERE c.todo_id = t.id)
 		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id`
 
 // FindAll は表示順（position）でタスクを返す。課題キーはスペースのキーと番号から作る
@@ -154,7 +155,7 @@ func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 	var storyPoints sql.NullFloat64
 	if err := row.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
 		&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt,
-		&todo.Number, &spaceKey, &issueType, &priority, &storyPoints, &todo.ParentID); err != nil {
+		&todo.Number, &spaceKey, &issueType, &priority, &storyPoints, &todo.ParentID, &todo.CommentCount); err != nil {
 		return domain.Todo{}, err
 	}
 	if storyPoints.Valid {
@@ -249,7 +250,7 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	return tx.Commit()
 }
 
-// Delete はタスクとそのサブタスク、それらへのラベルの付与と課題リンクを削除する（ラベル自体は残す）。
+// Delete はタスクとそのサブタスク、それらへのラベルの付与・課題リンク・コメントを削除する（ラベル自体は残す）。
 // サブタスクは親なしでは存在できないので、親と同じトランザクションで消す
 func (r *todoMySQLRepository) Delete(id int) error {
 	tx, err := r.db.Begin()
@@ -263,6 +264,11 @@ func (r *todoMySQLRepository) Delete(id int) error {
 		 WHERE source_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)
 		    OR target_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)`,
 		id, id, id, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(
+		`DELETE FROM comments WHERE todo_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)`,
+		id, id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(

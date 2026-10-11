@@ -268,6 +268,16 @@ func schemaStatements() []string {
 			UNIQUE INDEX uq_issue_links (link_type, source_id, target_id),
 			INDEX idx_issue_links_target (target_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// 課題へのコメント。updated_at は最後に編集した日時（NULL は未編集）。
+		// 投稿者はユーザー機能の追加後に列を足す
+		`CREATE TABLE IF NOT EXISTS comments (
+			id         INT AUTO_INCREMENT PRIMARY KEY,
+			todo_id    INT NOT NULL,
+			body       TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NULL,
+			INDEX idx_comments_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

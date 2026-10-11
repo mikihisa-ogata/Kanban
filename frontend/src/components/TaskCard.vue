@@ -50,6 +50,17 @@
         <IssueTypeIcon type="Subtask" :size="12" />
         {{ subtasks.done }}/{{ subtasks.total }}
       </span>
+      <!-- コメント数 -->
+      <span
+        v-if="task.CommentCount"
+        class="flex items-center gap-0.5 text-xs font-semibold text-gray-500"
+        :title="`コメント ${task.CommentCount} 件`"
+      >
+        <svg class="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        {{ task.CommentCount }}
+      </span>
       <!-- ストーリーポイントは Jira と同じく丸いバッジ -->
       <span
         v-if="task.StoryPoints != null"

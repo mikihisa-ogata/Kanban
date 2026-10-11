@@ -101,6 +101,7 @@ GET /todos
     "SpaceID": 0,
     "Number": 3,
     "Key": "TASK-3",
+    "CommentCount": 2,
     "Links": [
       {
         "ID": 7,
@@ -129,6 +130,8 @@ GET /todos
 - 番号はスペースごとに 1 から振ります。タスクを削除しても、その番号は再利用しません。
 - スペース未割り当てのタスクは、接頭辞 `TASK` の番号を共有します（例: `TASK-3`）。`TASK` はスペースのキーには使えません。
 - `PUT` でスペースを変えると、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースの次の番号になります（キーが変わります）。エピックのスペース変更やスペースの削除で子タスクのスペースが変わった場合も同じです。古いキーは残りません。
+
+`CommentCount` はその課題のコメント数です（リクエストに含めても無視します）。
 
 `Links` は課題リンクの配列で、リンクがなければ `[]` です。`Relation` はこの課題から見たリンクの名前、`Issue` はリンク相手の課題の概要です。リンクは片方の課題に作ると、相手の課題にも逆向きの名前で返ります。
 
@@ -239,7 +242,7 @@ GET /labels
 DELETE /todos/:id
 ```
 
-サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンクも削除します。
+サブタスクを持つ課題を削除すると、サブタスクも一緒に削除します。削除した課題（とサブタスク）の課題リンクとコメントも削除します。
 
 ### 課題リンクを作成
 
@@ -290,6 +293,35 @@ POST /todos/:id/move
 
 `PUT` では親課題（`ParentID`）は変えられません（リクエストに含めても無視します）。サブタスクの `SpaceID`・`EpicID` は親課題と同じままになり、サブタスクと他の課題タイプを相互に変えようとすると 400 を返します。親課題の `SpaceID`・`EpicID` を変えると、そのサブタスクも同じスペース・エピックに移ります（スペースが変わると課題キーも変わります）。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
 
+### コメント
+
+```
+GET    /todos/:id/comments
+POST   /todos/:id/comments   {"body": "Markdown の本文"}
+PUT    /comments/:id         {"body": "編集後の本文"}
+DELETE /comments/:id
+```
+
+`GET` は課題（`:id`）のコメントを投稿順（古い順）の配列で返します。
+
+```json
+[
+  {
+    "ID": 1,
+    "TodoID": 3,
+    "Body": "**確認しました**",
+    "CreatedAt": "2026-10-11T01:00:00Z",
+    "UpdatedAt": "2026-10-11T01:05:00Z"
+  }
+]
+```
+
+- `Body` は Markdown の本文です。空や空白だけの本文、10000 文字を超える本文は 400 を返します。
+- `CreatedAt` は投稿日時、`UpdatedAt` は最後に編集した日時です（UTC の RFC 3339 形式）。編集していないコメントの `UpdatedAt` は `null` です。
+- `POST` は 201 で作成したコメントを、`PUT` は 200 で編集後のコメントを `comment` に入れて返します。
+- 課題やコメントが存在しなければ 404 を返します。
+- 投稿者はまだ持ちません（ユーザー機能の追加後に付けます）。
+
 ### エピック
 
 ```
@@ -334,7 +366,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments` テーブルに保存します。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -342,6 +374,7 @@ DELETE /spaces/:id
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
 - サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
+- コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
 - 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。

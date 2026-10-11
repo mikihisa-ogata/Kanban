@@ -18,10 +18,11 @@ import (
 )
 
 type testRepos struct {
-	todo  repository.TodoRepository
-	epic  repository.EpicRepository
-	space repository.SpaceRepository
-	link  repository.IssueLinkRepository
+	todo    repository.TodoRepository
+	epic    repository.EpicRepository
+	space   repository.SpaceRepository
+	link    repository.IssueLinkRepository
+	comment repository.CommentRepository
 }
 
 // newTestRepos は空のテスト用 MySQL を使うリポジトリを返す（TEST_DB_DSN が未設定ならスキップ）
@@ -29,10 +30,11 @@ func newTestRepos(t *testing.T) testRepos {
 	t.Helper()
 	db := dbtest.Open(t, "handler")
 	return testRepos{
-		todo:  repository.NewTodoMySQLRepository(db),
-		epic:  repository.NewEpicMySQLRepository(db),
-		space: repository.NewSpaceMySQLRepository(db),
-		link:  repository.NewIssueLinkMySQLRepository(db),
+		todo:    repository.NewTodoMySQLRepository(db),
+		epic:    repository.NewEpicMySQLRepository(db),
+		space:   repository.NewSpaceMySQLRepository(db),
+		link:    repository.NewIssueLinkMySQLRepository(db),
+		comment: repository.NewCommentMySQLRepository(db),
 	}
 }
 

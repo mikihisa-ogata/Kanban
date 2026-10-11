@@ -115,6 +115,7 @@
           @update="handleUpdateTodoFromModal"
           @subtasks-changed="fetchTodos"
           @links-changed="fetchTodos"
+          @comments-changed="fetchTodos"
           @open="openDetailByKey"
         >
           <template #actions>

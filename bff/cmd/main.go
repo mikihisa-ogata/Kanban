@@ -43,6 +43,9 @@ func main() {
 	h := handler.NewTodoHandler(svc)
 	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo)
 	epicHandler := handler.NewEpicHandler(epicSvc)
+	commentRepo := repository.NewCommentMySQLRepository(db)
+	commentSvc := service.NewCommentService(commentRepo, repo)
+	commentHandler := handler.NewCommentHandler(commentSvc)
 	spaceSvc := service.NewSpaceService(spaceRepo, epicRepo, repo)
 	spaceHandler := handler.NewSpaceHandler(spaceSvc)
 
@@ -55,6 +58,11 @@ func main() {
 	r.GET("/labels", h.GetLabels)
 	r.POST("/todos/:id/links", h.AddLink)
 	r.DELETE("/links/:id", h.DeleteLink)
+
+	r.GET("/todos/:id/comments", commentHandler.GetComments)
+	r.POST("/todos/:id/comments", commentHandler.CreateComment)
+	r.PUT("/comments/:id", commentHandler.UpdateComment)
+	r.DELETE("/comments/:id", commentHandler.DeleteComment)
 
 	r.GET("/epics", epicHandler.GetEpics)
 	r.POST("/epics", epicHandler.CreateEpic)
