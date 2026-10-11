@@ -185,12 +185,14 @@ func (s *todoService) attachLinks(targets []domain.Todo, all []domain.Todo) erro
 				ID:       link.ID,
 				Relation: link.RelationFrom(id),
 				Issue: domain.LinkedIssue{
-					ID:        other.ID,
-					Key:       other.Key,
-					Title:     other.Title,
-					Status:    other.Status,
-					IssueType: other.IssueType,
-					Priority:  other.Priority,
+					ID:             other.ID,
+					Key:            other.Key,
+					Title:          other.Title,
+					Status:         other.Status,
+					StatusName:     other.StatusName,
+					StatusCategory: other.StatusCategory,
+					IssueType:      other.IssueType,
+					Priority:       other.Priority,
 				},
 			})
 		}

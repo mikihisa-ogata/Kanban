@@ -530,7 +530,7 @@ func TestTodoHandler_Links(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if len(created.Todo.Links) != 1 || created.Todo.Links[0].Relation != "is blocked by" || created.Todo.Links[0].Issue.Key != "TASK-2" {
+	if len(created.Todo.Links) != 1 || created.Todo.Links[0].Relation != "is blocked by" || created.Todo.Links[0].Issue.Key != "TASK-2" || created.Todo.Links[0].Issue.StatusName != "オープン" || created.Todo.Links[0].Issue.StatusCategory != domain.StatusCategoryToDo {
 		t.Errorf("created todo links = %+v", created.Todo.Links)
 	}
 	mustStatus(t, r, http.MethodPost, "/todos/1/links", `{"relation":"relates to","targetId":3}`, http.StatusCreated)

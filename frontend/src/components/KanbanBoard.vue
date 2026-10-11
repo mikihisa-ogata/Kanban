@@ -18,27 +18,28 @@
 
       <!-- 画面が狭いときに画面端で見切れるよう、左右の余白は外側ではなくスクロール領域の内側に持たせる -->
       <div class="overflow-x-auto px-8 pb-6 mt-6">
-        <div class="min-w-5xl flex flex-col gap-4">
-          <div class="grid grid-cols-4 gap-4 px-3">
+        <!-- 列はスペースのワークフローのステータス。すべてのスペースではカテゴリの 3 列。列が多いときは横にスクロールする -->
+        <div class="flex flex-col gap-4" :style="{ minWidth: `max(64rem, ${columns.length * 15}rem)` }">
+          <div class="grid gap-4 px-3" :style="columnGridStyle">
             <div
               v-for="column in columns"
-              :key="column.status"
+              :key="column.key"
               :class="[
-                'flex justify-between items-center px-5 py-4 rounded-lg text-white shadow-md',
-                statusHeaderClass[column.status]
+                'flex justify-between items-center gap-2 px-5 py-4 rounded-lg text-white shadow-md',
+                STATUS_CATEGORY_HEADER_CLASS[column.category]
               ]"
             >
-              <h3 class="m-0 text-xl font-bold tracking-wide">{{ column.title }}</h3>
-              <div class="flex items-center gap-2">
+              <h3 class="m-0 min-w-0 truncate text-xl font-bold tracking-wide" :title="column.title">{{ column.title }}</h3>
+              <div class="flex shrink-0 items-center gap-2">
                 <!-- 列のストーリーポイントの合計（ポイントの付いたタスクがあるときだけ） -->
                 <span
-                  v-if="hasStoryPoints(column.status)"
+                  v-if="hasStoryPoints(column)"
                   class="bg-white/25 text-white px-2.5 py-1 rounded-full text-xs font-bold"
                   title="ストーリーポイントの合計"
                 >
-                  {{ formatStoryPoints(storyPointsByStatus(column.status)) }} pt
+                  {{ formatStoryPoints(storyPointsOf(column)) }} pt
                 </span>
-                <span class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ countByStatus(column.status) }}</span>
+                <span class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ countOf(column) }}</span>
               </div>
             </div>
           </div>
@@ -49,6 +50,7 @@
             :epic="lane.epic"
             :tasks="lane.tasks"
             :columns="columns"
+            :grid-style="columnGridStyle"
             :space-title="lane.spaceTitle"
             @drop="handleDrop"
             @delete-task="handleDeleteTodo"
@@ -88,7 +90,9 @@
       @click.self="closeModal"
     >
       <TaskForm 
-        :initial-status="modalInitialStatus"
+        :statuses="statuses"
+        :initial-status-id="modalInitialStatusId"
+        :initial-category="modalInitialCategory"
         :initial-epic-id="modalInitialEpicId"
         :initial-space-id="modalInitialSpaceId"
         :epics="epics"
@@ -112,6 +116,7 @@
           :subtasks="subtasksOf(detailTask)"
           :parent-task="parentOf(detailTask)"
           :all-todos="todos"
+          :statuses="statuses"
           @update="handleUpdateTodoFromModal"
           @subtasks-changed="fetchTodos"
           @links-changed="fetchTodos"
@@ -166,6 +171,8 @@ import ConfirmDialog from './ConfirmDialog.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
+import { statusesApi } from '../api/statuses';
+import { STATUS_CATEGORIES, STATUS_CATEGORY_HEADER_CLASS, statusesOfSpace, firstStatusInCategory, isInColumn, isDoneCategory } from '../utils/statuses';
 import { rememberLastBoard, issuePath } from '../utils/spaceRoutes';
 import { formatStoryPoints, sumStoryPoints } from '../utils/storyPoints';
 
@@ -180,6 +187,8 @@ const props = defineProps({
 const todos = ref([]);
 const epics = ref([]);
 const spaces = ref([]);
+// すべてのワークフローのステータス
+const statuses = ref([]);
 // スペース一覧を取得し終えたか（取得前に「見つかりません」を出さないため）
 const spacesLoaded = ref(false);
 
@@ -192,7 +201,9 @@ const spaceNotFound = computed(() => props.spaceKey !== null && spacesLoaded.val
 const newEpicTitle = ref('');
 const error = ref('');
 const showModalForm = ref(false);
-const modalInitialStatus = ref('Open');
+// 「+ タスクを追加」した列のステータス（すべてのスペースの列なら 0 にしてカテゴリで決める）
+const modalInitialStatusId = ref(0);
+const modalInitialCategory = ref('ToDo');
 const modalInitialEpicId = ref(0);
 const route = useRoute();
 // 詳細モーダルで表示中のタスク（null の場合は閉じている）。
@@ -206,19 +217,30 @@ const issuesVersion = useState('issuesVersion', () => 0);
 // 削除の確認モーダルの内容と、選んだ結果を返す関数（null の場合は閉じている）
 const confirmDialog = ref(null);
 
-const columns = [
-  { status: 'Open', title: 'オープン' },
-  { status: 'InProgress', title: '進行中' },
-  { status: 'Waiting', title: '待ち状況' },
-  { status: 'Closed', title: 'クローズ' }
-];
+// ボードの列。スペースを選んでいればそのワークフローのステータス（並び順）、すべてのスペースではカテゴリの 3 列。
+// statusId が null の列はカテゴリでまとめた列
+const columns = computed(() => {
+  if (selectedSpaceId.value === null) {
+    return STATUS_CATEGORIES.map(category => ({
+      key: `category-${category.value}`,
+      title: category.label,
+      category: category.value,
+      statusId: null
+    }));
+  }
+  return statusesOfSpace(statuses.value, selectedSpaceId.value).map(status => ({
+    key: `status-${status.ID}`,
+    title: status.Name,
+    category: status.Category,
+    statusId: status.ID
+  }));
+});
 
-const statusHeaderClass = {
-  'Open': 'bg-gradient-to-r from-gray-400 to-gray-600',
-  'InProgress': 'bg-gradient-to-r from-amber-400 to-amber-600',
-  'Waiting': 'bg-gradient-to-r from-purple-500 to-purple-700',
-  'Closed': 'bg-gradient-to-r from-emerald-500 to-emerald-700'
-};
+const columnGridStyle = computed(() => ({ gridTemplateColumns: `repeat(${columns.value.length}, minmax(0, 1fr))` }));
+
+// 列に落としたタスクのステータス。カテゴリの列なら、タスクのスペースの同じカテゴリの先頭のステータス
+const statusIdForColumn = (column, spaceId) =>
+  column.statusId ?? firstStatusInCategory(statusesOfSpace(statuses.value, spaceId), column.category)?.ID ?? 0;
 
 // 選択中のスペース名（画面上部に表示する）
 const selectedSpaceTitle = computed(() => {
@@ -251,7 +273,7 @@ const subtaskProgress = computed(() => {
     if (!todo.ParentID) continue;
     const entry = progress[todo.ParentID] || (progress[todo.ParentID] = { done: 0, total: 0 });
     entry.total++;
-    if (todo.Status === 'Closed') entry.done++;
+    if (isDoneCategory(todo.StatusCategory)) entry.done++;
   }
   return progress;
 });
@@ -278,12 +300,12 @@ const lanes = computed(() => {
   ];
 });
 
-// ステータスごとのタスク件数（選択中のスペース内）
-const countByStatus = (status) => visibleTodos.value.filter(todo => todo.Status === status).length;
+// 列ごとのタスク件数（選択中のスペース内）
+const countOf = (column) => visibleTodos.value.filter(todo => isInColumn(todo, column)).length;
 
-// ステータスごとのストーリーポイントの合計（選択中のスペース内。未設定のタスクは数えない）
-const storyPointsByStatus = (status) => sumStoryPoints(visibleTodos.value.filter(todo => todo.Status === status));
-const hasStoryPoints = (status) => visibleTodos.value.some(todo => todo.Status === status && todo.StoryPoints != null);
+// 列ごとのストーリーポイントの合計（選択中のスペース内。未設定のタスクは数えない）
+const storyPointsOf = (column) => sumStoryPoints(visibleTodos.value.filter(todo => isInColumn(todo, column)));
+const hasStoryPoints = (column) => visibleTodos.value.some(todo => isInColumn(todo, column) && todo.StoryPoints != null);
 
 // タスク作成フォームの初期スペース（エピックのレーンから開いたときはそのエピックのスペース）
 const modalInitialSpaceId = computed(() => {
@@ -347,9 +369,19 @@ const fetchSpaces = async () => {
   }
 };
 
-// サイドバーでスペースを作成・削除したら取り直す（削除すると属するエピック・タスクのスペースも変わる）
+// ワークフローのステータスを取得
+const fetchStatuses = async () => {
+  try {
+    statuses.value = await statusesApi.fetchAll();
+  } catch (err) {
+    error.value = 'ステータスの取得に失敗しました: ' + err.message;
+    console.error('Failed to fetch statuses:', err);
+  }
+};
+
+// サイドバーでスペースを作成・削除したら取り直す（削除すると属するエピック・タスクのスペースも変わる。作るとワークフローができる）
 const handleSpacesChanged = async () => {
-  await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos()]);
+  await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos(), fetchStatuses()]);
 };
 
 // ヘッダーの「作成」で作られた課題をボードに出す
@@ -388,13 +420,12 @@ const handleMoveToSpace = async ({ type, id, spaceId }) => {
     if (task.SpaceID === spaceId) {
       return;
     }
-    // エピックは移動元のスペースに属するので、紐付けを外す
+    // エピックは移動元のスペースに属するので、紐付けを外す。ステータスは bff が移動先のワークフローの同じ名前かカテゴリに合わせる
     await todosApi.update(id, {
       title: task.Title,
       description: task.Description,
-      done: task.Done,
       deadline: task.Deadline,
-      status: task.Status,
+      statusId: task.StatusID,
       issueType: task.IssueType,
       priority: task.Priority,
       epicId: 0,
@@ -469,7 +500,8 @@ const handleCreateTodo = async (formData) => {
       title: formData.title,
       description: formData.description,
       deadline: formData.deadline,
-      status: formData.status,
+      // 0 なら bff がスペースの To Do の先頭にする
+      statusId: formData.statusId,
       issueType: formData.issueType,
       priority: formData.priority,
       labels: formData.labels,
@@ -490,9 +522,10 @@ const handleCreateTodoFromModal = async (formData) => {
   closeModal();
 };
 
-// モーダルを開く（開いたレーンのエピックを初期値にする）
-const openModal = ({ status, epicId }) => {
-  modalInitialStatus.value = status;
+// モーダルを開く（開いた列のステータスとレーンのエピックを初期値にする）
+const openModal = ({ column, epicId }) => {
+  modalInitialStatusId.value = column.statusId ?? 0;
+  modalInitialCategory.value = column.category;
   modalInitialEpicId.value = epicId;
   showModalForm.value = true;
 };
@@ -500,7 +533,8 @@ const openModal = ({ status, epicId }) => {
 // モーダルを閉じる
 const closeModal = () => {
   showModalForm.value = false;
-  modalInitialStatus.value = 'Open';
+  modalInitialStatusId.value = 0;
+  modalInitialCategory.value = 'ToDo';
   modalInitialEpicId.value = 0;
 };
 
@@ -541,7 +575,7 @@ const handleUpdateTodoFromModal = async (payload) => {
 
 // ドラッグ&ドロップでステータスと並び順を更新（別のエピックのレーンへ落としたらエピックも変える）
 // beforeId はドロップ先の直後のタスクの ID（0 は末尾、null は並び順を変えない）
-const handleDrop = async ({ taskId, newStatus, epicId, beforeId }) => {
+const handleDrop = async ({ taskId, column, epicId, beforeId }) => {
   try {
     error.value = '';
     const task = todos.value.find(t => t.ID === taskId);
@@ -554,27 +588,27 @@ const handleDrop = async ({ taskId, newStatus, epicId, beforeId }) => {
       ? !visibleEpics.value.some(e => e.ID === task.EpicID)
       : task.EpicID === epicId;
     const newEpicId = isSameLane ? task.EpicID : epicId;
+    // タスクはエピックと同じスペースに置く
+    const epic = epics.value.find(e => e.ID === newEpicId);
+    const newSpaceId = epic ? epic.SpaceID : task.SpaceID;
+    // 同じ列に落とした場合は、ステータスを変えない（カテゴリの列で同じカテゴリの別のステータスに変わらないように）
+    const newStatusId = isInColumn(task, column) ? task.StatusID : statusIdForColumn(column, newSpaceId);
 
     // ステータスもレーンも並び順も変わらない場合は何もしない
-    if (task.Status === newStatus && isSameLane && beforeId === null) {
+    if (task.StatusID === newStatusId && isSameLane && beforeId === null) {
       return;
     }
 
-    if (task.Status !== newStatus || !isSameLane) {
-      // タスクはエピックと同じスペースに置く
-      const epic = epics.value.find(e => e.ID === newEpicId);
-
-      // タスクを更新
+    if (task.StatusID !== newStatusId || !isSameLane) {
       await todosApi.update(taskId, {
         title: task.Title,
         description: task.Description,
-        done: task.Done,
         deadline: task.Deadline,
-        status: newStatus,
+        statusId: newStatusId,
         issueType: task.IssueType,
         priority: task.Priority,
         epicId: newEpicId,
-        spaceId: epic ? epic.SpaceID : task.SpaceID
+        spaceId: newSpaceId
       });
     }
 
@@ -620,5 +654,6 @@ onMounted(() => {
   fetchTodos();
   fetchEpics();
   fetchSpaces();
+  fetchStatuses();
 });
 </script>

@@ -113,6 +113,7 @@
           class="mt-6"
           :parent="task"
           :subtasks="subtasks"
+          :statuses="statuses"
           @changed="$emit('subtasks-changed')"
           @open="$emit('open', $event)"
         />
@@ -154,11 +155,12 @@
 
             <dt class="text-gray-600 font-semibold"><label :for="fieldId('status')">ステータス</label></dt>
             <dd class="m-0 min-w-0">
+              <!-- 課題のスペースのワークフローのステータスから選ぶ -->
               <OptionSelect
                 :id="fieldId('status')"
-                :model-value="task.Status"
+                :model-value="task.StatusID"
                 :options="statusOptions"
-                @update:model-value="save({ status: $event })"
+                @update:model-value="save({ statusId: $event })"
               />
             </dd>
 
@@ -327,6 +329,7 @@ import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
 import { formatDateTime } from '../utils/datetime';
+import { statusesOfSpace, statusOptionsOf } from '../utils/statuses';
 import { issuePath } from '../utils/spaceRoutes';
 
 const props = defineProps({
@@ -356,6 +359,11 @@ const props = defineProps({
   allTodos: {
     type: Array,
     default: () => []
+  },
+  // すべてのワークフローのステータス（ステータスの選択肢にする）
+  statuses: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -370,12 +378,14 @@ const emit = defineEmits(['update', 'subtasks-changed', 'links-changed', 'commen
 const isSubtask = computed(() => props.task.IssueType === SUBTASK_ISSUE_TYPE);
 const epicTitle = computed(() => props.epics.find(epic => epic.ID === props.task.EpicID)?.Title ?? '');
 
-const statusOptions = [
-  { value: 'Open', label: 'オープン' },
-  { value: 'InProgress', label: '進行中' },
-  { value: 'Waiting', label: '待ち状況' },
-  { value: 'Closed', label: 'クローズ' }
-];
+// 課題のスペースのステータス。ステータスを読み込む前でも今の値は表示する
+const statusOptions = computed(() => {
+  const options = statusOptionsOf(statusesOfSpace(props.statuses, props.task.SpaceID));
+  if (!options.some(option => option.value === props.task.StatusID)) {
+    options.unshift({ value: props.task.StatusID, label: props.task.StatusName || '—' });
+  }
+  return options;
+});
 
 const spaceTitle = computed(() => props.spaces.find(space => space.ID === props.task.SpaceID)?.Title ?? '');
 
@@ -400,9 +410,9 @@ const save = (changes) => {
   emit('update', {
     title: props.task.Title,
     description: props.task.Description,
-    done: props.task.Done,
     deadline: props.task.Deadline,
-    status: props.task.Status,
+    // スペースを変えるとき（changeSpace）は、bff が移動先のワークフローの同じ名前かカテゴリのステータスに合わせる
+    statusId: props.task.StatusID,
     issueType: props.task.IssueType,
     priority: props.task.Priority,
     labels: props.task.Labels || [],

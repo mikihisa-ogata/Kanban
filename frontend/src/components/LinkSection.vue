@@ -28,11 +28,11 @@
           >
             {{ link.Issue.Key }}
           </button>
-          <span :class="['flex-1 min-w-0 truncate text-sm', link.Issue.Status === 'Closed' ? 'text-gray-400 line-through' : 'text-gray-900']">
+          <span :class="['flex-1 min-w-0 truncate text-sm', isDoneCategory(link.Issue.StatusCategory) ? 'text-gray-400 line-through' : 'text-gray-900']">
             {{ link.Issue.Title }}
           </span>
           <PriorityIcon :priority="link.Issue.Priority" />
-          <span class="shrink-0 px-1.5 py-0.5 rounded bg-gray-100 text-xs font-semibold text-gray-600">{{ statusLabel(link.Issue.Status) }}</span>
+          <span :class="['shrink-0 max-w-32 truncate px-1.5 py-0.5 rounded text-xs font-semibold', STATUS_CATEGORY_BADGE_CLASS[link.Issue.StatusCategory] || 'bg-gray-100 text-gray-600']">{{ link.Issue.StatusName }}</span>
           <button
             type="button"
             class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 text-lg leading-none cursor-pointer hover:bg-red-100 hover:text-red-500"
@@ -134,6 +134,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import { todosApi } from '../api/todos';
+import { isDoneCategory, STATUS_CATEGORY_BADGE_CLASS } from '../utils/statuses';
 import { LINK_RELATION_OPTIONS, DEFAULT_LINK_RELATION, linkRelationLabel } from '../utils/issueLinks';
 
 const props = defineProps({
@@ -155,14 +156,6 @@ const emit = defineEmits(['changed', 'open']);
 
 // 検索候補の最大件数
 const MAX_CANDIDATES = 8;
-
-const statusLabels = {
-  Open: 'オープン',
-  InProgress: '進行中',
-  Waiting: '待ち状況',
-  Closed: 'クローズ'
-};
-const statusLabel = (status) => statusLabels[status] || status;
 
 const groups = computed(() => {
   const result = [];

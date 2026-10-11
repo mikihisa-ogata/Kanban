@@ -7,6 +7,7 @@
   >
     <TaskForm
       :initial-space-id="initialSpaceId"
+      :statuses="statuses"
       :epics="epics"
       :spaces="spaces"
       @submit="handleSubmit"
@@ -37,6 +38,7 @@ import TaskForm from './TaskForm.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
+import { statusesApi } from '../api/statuses';
 import { boardPath } from '../utils/spaceRoutes';
 
 // 作成モーダルの開閉（ヘッダーの「作成」ボタンと共有）
@@ -47,7 +49,8 @@ const issuesVersion = useState('issuesVersion', () => 0);
 const route = useRoute();
 const spaces = ref([]);
 const epics = ref([]);
-// スペースとエピックを読み終えてからフォームを出す（初期スペースを正しく選ぶため）
+const statuses = ref([]);
+// スペースとエピック・ステータスを読み終えてからフォームを出す（初期スペースを正しく選ぶため）
 const loaded = ref(false);
 const created = ref(null);
 const error = ref('');
@@ -68,7 +71,7 @@ watch(open, async (isOpen) => {
   }
   try {
     error.value = '';
-    [spaces.value, epics.value] = await Promise.all([spacesApi.fetchAll(), epicsApi.fetchAll()]);
+    [spaces.value, epics.value, statuses.value] = await Promise.all([spacesApi.fetchAll(), epicsApi.fetchAll(), statusesApi.fetchAll()]);
     loaded.value = true;
   } catch (err) {
     open.value = false;
@@ -88,7 +91,8 @@ const handleSubmit = async (formData) => {
       title: formData.title,
       description: formData.description,
       deadline: formData.deadline,
-      status: formData.status,
+      // 0 なら bff がスペースの To Do の先頭にする
+      statusId: formData.statusId,
       issueType: formData.issueType,
       priority: formData.priority,
       labels: formData.labels,

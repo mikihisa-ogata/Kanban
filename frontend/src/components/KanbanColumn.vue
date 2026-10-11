@@ -22,7 +22,7 @@
       <div v-if="dropIndex === tasks.length" class="h-1 -mt-2.5 mb-1.5 rounded-full bg-blue-500"></div>
       <!-- +ボタン -->
       <button
-        @click="$emit('add-task', status)"
+        @click="$emit('add-task', column)"
         class="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 border-2 border-dashed border-gray-400 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200"
       >
         + タスクを追加
@@ -36,8 +36,9 @@ import { ref, defineProps, defineEmits } from 'vue';
 import TaskCard from './TaskCard.vue';
 
 const props = defineProps({
-  status: {
-    type: String,
+  // ボードの列（ステータスかカテゴリ）
+  column: {
+    type: Object,
     required: true
   },
   tasks: {
@@ -93,6 +94,6 @@ const handleDrop = (event) => {
   const isSamePosition = currentIndex !== -1 && (index === currentIndex || index === currentIndex + 1);
   // 挿入先の直後のタスクの ID。列の末尾に落とした場合は 0（全体の末尾へ移動）
   const beforeId = isSamePosition ? null : (props.tasks[index]?.ID ?? 0);
-  emit('drop', { taskId, newStatus: props.status, beforeId });
+  emit('drop', { taskId, column: props.column, beforeId });
 };
 </script>

@@ -110,14 +110,4 @@ const formatDate = (dateString) => {
   const date = new Date(dateString);
   return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
 };
-
-const getStatusLabel = (status) => {
-  const labels = {
-    'Open': 'オープン',
-    'InProgress': '進行中',
-    'Waiting': '待ち状況',
-    'Closed': 'クローズ'
-  };
-  return labels[status] || status;
-};
 </script>

@@ -155,10 +155,10 @@ const itemClass = (active, dragOver) => [
   dragOver ? 'ring-4 ring-teal-300' : ''
 ];
 
-// スペース内のタスクのうちクローズ済みの件数 / 全件数
+// スペース内のタスクのうち完了（Done カテゴリ）の件数 / 全件数
 const progressLabel = (spaceId) => {
   const children = props.todos.filter(todo => todo.SpaceID === spaceId);
-  const closed = children.filter(todo => todo.Status === 'Closed').length;
+  const closed = children.filter(todo => todo.StatusCategory === 'Done').length;
   return `${closed}/${children.length}`;
 };
 

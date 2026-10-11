@@ -14,8 +14,8 @@ export const DEFAULT_LINK_RELATION = 'blocks';
 export const linkRelationLabel = (relation) =>
   LINK_RELATION_OPTIONS.find(option => option.value === relation)?.label ?? relation;
 
-// まだ完了（クローズ）していない、この課題をブロックしている課題
+// まだ完了（Done カテゴリ）していない、この課題をブロックしている課題
 export const openBlockers = (task) =>
   (task.Links || [])
-    .filter(link => link.Relation === 'is blocked by' && link.Issue.Status !== 'Closed')
+    .filter(link => link.Relation === 'is blocked by' && link.Issue.StatusCategory !== 'Done')
     .map(link => link.Issue);

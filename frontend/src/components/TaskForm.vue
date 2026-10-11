@@ -84,7 +84,7 @@
           </label>
           <OptionSelect
             id="status"
-            v-model="formData.status"
+            v-model="formData.statusId"
             :options="statusOptions"
           />
         </div>
@@ -161,11 +161,22 @@ import MarkdownEditor from './MarkdownEditor.vue';
 import { parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, DEFAULT_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from '../utils/priorities';
+import { statusesOfSpace, firstStatusInCategory, statusOptionsOf } from '../utils/statuses';
 
 const props = defineProps({
-  initialStatus: {
+  // すべてのワークフローのステータス（選んだスペースのステータスを選択肢にする）
+  statuses: {
+    type: Array,
+    default: () => []
+  },
+  // 初期のステータス。0 なら initialCategory の先頭のステータス
+  initialStatusId: {
+    type: Number,
+    default: 0
+  },
+  initialCategory: {
     type: String,
-    default: 'Open'
+    default: 'ToDo'
   },
   initialEpicId: {
     type: Number,
@@ -191,7 +202,8 @@ const formData = ref({
   title: '',
   description: '',
   deadline: '',
-  status: props.initialStatus,
+  // 0 は未選択（bff がスペースの To Do の先頭にする）。下の watch で選んだスペースのステータスにする
+  statusId: props.initialStatusId,
   issueType: DEFAULT_ISSUE_TYPE,
   priority: DEFAULT_PRIORITY,
   labels: [],
@@ -203,12 +215,21 @@ const formData = ref({
 // 選択中のスペースに属するエピックだけを選べる
 const spaceEpics = computed(() => props.epics.filter(epic => epic.SpaceID === formData.value.spaceId));
 
-const statusOptions = [
-  { value: 'Open', label: 'オープン' },
-  { value: 'InProgress', label: '進行中' },
-  { value: 'Waiting', label: '待ち状況' },
-  { value: 'Closed', label: 'クローズ' }
-];
+// 選択中のスペースのワークフローのステータスを選べる
+const spaceStatuses = computed(() => statusesOfSpace(props.statuses, formData.value.spaceId));
+const statusOptions = computed(() => statusOptionsOf(spaceStatuses.value));
+
+// 選んだステータスが選択中のスペースにない（スペースを変えた・初期値がカテゴリだけ）ときは、
+// 同じカテゴリの先頭のステータスにする
+const selectedCategory = ref(props.initialCategory);
+watch([spaceStatuses, () => formData.value.statusId], () => {
+  const current = spaceStatuses.value.find(status => status.ID === formData.value.statusId);
+  if (current) {
+    selectedCategory.value = current.Category;
+    return;
+  }
+  formData.value.statusId = firstStatusInCategory(spaceStatuses.value, selectedCategory.value)?.ID ?? 0;
+}, { immediate: true });
 
 const spaceOptions = computed(() => [
   { value: 0, label: 'なし' },
@@ -227,9 +248,10 @@ watch(() => formData.value.spaceId, () => {
   }
 });
 
-// initialStatusが変更された時に formData.status を更新
-watch(() => props.initialStatus, (newStatus) => {
-  formData.value.status = newStatus;
+// 開いた列が変わったら、初期のステータスを選び直す
+watch(() => [props.initialStatusId, props.initialCategory], ([statusId, category]) => {
+  selectedCategory.value = category;
+  formData.value.statusId = statusId;
 });
 
 const isSubmitting = ref(false);
@@ -244,11 +266,12 @@ const handleSubmit = async () => {
   try {
     await emit('submit', { ...formData.value, storyPoints: parseStoryPoints(formData.value.storyPoints).value });
     // フォームをリセット
+    selectedCategory.value = props.initialCategory;
     formData.value = {
       title: '',
       description: '',
       deadline: '',
-      status: props.initialStatus,
+      statusId: props.initialStatusId,
       issueType: DEFAULT_ISSUE_TYPE,
       priority: DEFAULT_PRIORITY,
       labels: [],

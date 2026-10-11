@@ -30,16 +30,16 @@
         >
           {{ subtask.Key }}
         </button>
-        <span :class="['flex-1 min-w-0 truncate text-sm', subtask.Status === 'Closed' ? 'text-gray-400 line-through' : 'text-gray-900']">
+        <span :class="['flex-1 min-w-0 truncate text-sm', isDoneCategory(subtask.StatusCategory) ? 'text-gray-400 line-through' : 'text-gray-900']">
           {{ subtask.Title }}
         </span>
         <select
-          :value="subtask.Status"
+          :value="subtask.StatusID"
           :aria-label="`${subtask.Key} のステータス`"
-          class="shrink-0 px-2 py-1 border border-gray-300 rounded-md text-xs text-gray-800 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-blue-500"
-          @change="changeStatus(subtask, $event.target.value)"
+          class="shrink-0 max-w-40 px-2 py-1 border border-gray-300 rounded-md text-xs text-gray-800 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-blue-500"
+          @change="changeStatus(subtask, Number($event.target.value))"
         >
-          <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <option v-for="option in statusOptionsFor(subtask)" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
         <button
           type="button"
@@ -86,6 +86,7 @@ import { ref, computed } from 'vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import { todosApi } from '../api/todos';
+import { statusesOfSpace, statusOptionsOf, isDoneCategory } from '../utils/statuses';
 
 const props = defineProps({
   // 親課題
@@ -97,6 +98,11 @@ const props = defineProps({
   subtasks: {
     type: Array,
     default: () => []
+  },
+  // すべてのワークフローのステータス（サブタスクのスペースのステータスを選択肢にする）
+  statuses: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -104,14 +110,17 @@ const props = defineProps({
 // open: サブタスクを開く（課題キー）
 const emit = defineEmits(['changed', 'open']);
 
-const statusOptions = [
-  { value: 'Open', label: 'オープン' },
-  { value: 'InProgress', label: '進行中' },
-  { value: 'Waiting', label: '待ち状況' },
-  { value: 'Closed', label: 'クローズ' }
-];
+// サブタスクのスペース（親と同じ）のステータス。ステータスを読み込む前でも今の値は表示する
+const statusOptionsFor = (subtask) => {
+  const options = statusOptionsOf(statusesOfSpace(props.statuses, subtask.SpaceID));
+  if (!options.some(option => option.value === subtask.StatusID)) {
+    options.unshift({ value: subtask.StatusID, label: subtask.StatusName || '—' });
+  }
+  return options;
+};
 
-const doneCount = computed(() => props.subtasks.filter(subtask => subtask.Status === 'Closed').length);
+// 完了（Done カテゴリ）のサブタスクの数
+const doneCount = computed(() => props.subtasks.filter(subtask => isDoneCategory(subtask.StatusCategory)).length);
 const progressPercent = computed(() => (props.subtasks.length ? Math.round((doneCount.value / props.subtasks.length) * 100) : 0));
 
 const newTitle = ref('');
@@ -145,15 +154,14 @@ const addSubtask = async () => {
 };
 
 // ステータスだけを変える（他の項目は今の値を送る）
-const changeStatus = async (subtask, status) => {
+const changeStatus = async (subtask, statusId) => {
   try {
     error.value = '';
     await todosApi.update(subtask.ID, {
       title: subtask.Title,
       description: subtask.Description,
-      done: subtask.Done,
       deadline: subtask.Deadline,
-      status,
+      statusId,
       epicId: subtask.EpicID,
       spaceId: subtask.SpaceID
     });

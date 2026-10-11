@@ -45,12 +45,15 @@ type IssueLink struct {
 
 // LinkedIssue はリンク相手の課題の概要
 type LinkedIssue struct {
-	ID        int
-	Key       string
-	Title     string
-	Status    Status
-	IssueType IssueType
-	Priority  Priority
+	ID     int
+	Key    string
+	Title  string
+	Status Status // 互換用（Todo.Status と同じ）
+	// StatusName・StatusCategory は相手の課題のステータスの名前とカテゴリ
+	StatusName     string
+	StatusCategory StatusCategory
+	IssueType      IssueType
+	Priority       Priority
 }
 
 // ParseRelation は課題から見たリンクの名前（例: "is blocked by"）を、リンクの種類と向きに変える。

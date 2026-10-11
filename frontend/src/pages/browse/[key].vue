@@ -23,6 +23,7 @@
           :subtasks="subtasks"
           :parent-task="parentTask"
           :all-todos="todos"
+          :statuses="statuses"
           @update="handleUpdate"
           @subtasks-changed="fetchTodos"
           @links-changed="handleLinksChanged"
@@ -45,6 +46,7 @@ import IssueDetail from '~/components/IssueDetail.vue';
 import { todosApi } from '~/api/todos';
 import { epicsApi } from '~/api/epics';
 import { spacesApi } from '~/api/spaces';
+import { statusesApi } from '~/api/statuses';
 import { issuePath } from '~/utils/spaceRoutes';
 
 const route = useRoute();
@@ -54,6 +56,8 @@ const issueKey = computed(() => String(route.params.key));
 const issue = ref(null);
 const spaces = ref([]);
 const epics = ref([]);
+// すべてのワークフローのステータス（ステータスの選択肢にする）
+const statuses = ref([]);
 const loading = ref(true);
 // 読み込みに失敗したときのメッセージ（見つからない場合とは分ける）
 const loadError = ref('');
@@ -103,7 +107,7 @@ const fetchTodos = async () => {
 
 const fetchSpacesAndEpics = async () => {
   try {
-    [spaces.value, epics.value] = await Promise.all([spacesApi.fetchAll(), epicsApi.fetchAll()]);
+    [spaces.value, epics.value, statuses.value] = await Promise.all([spacesApi.fetchAll(), epicsApi.fetchAll(), statusesApi.fetchAll()]);
   } catch (err) {
     error.value = 'スペースとエピックの取得に失敗しました: ' + err.message;
     console.error('Failed to fetch spaces and epics:', err);

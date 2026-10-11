@@ -114,7 +114,7 @@ GET /todos
       {
         "ID": 7,
         "Relation": "is blocked by",
-        "Issue": { "ID": 4, "Key": "KAN-4", "Title": "先に終わらせるタスク", "Status": "InProgress", "IssueType": "Task", "Priority": "High" }
+        "Issue": { "ID": 4, "Key": "KAN-4", "Title": "先に終わらせるタスク", "Status": "InProgress", "StatusName": "進行中", "StatusCategory": "InProgress", "IssueType": "Task", "Priority": "High" }
       }
     ],
     "CreatedAt": "2026-10-10T12:00:00Z",

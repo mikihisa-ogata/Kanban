@@ -47,16 +47,16 @@
       </button>
     </div>
 
-    <div class="grid grid-cols-4 gap-4">
+    <div class="grid gap-4" :style="gridStyle">
       <KanbanColumn
         v-for="column in columns"
-        :key="column.status"
-        :status="column.status"
-        :tasks="tasks.filter(task => task.Status === column.status)"
+        :key="column.key"
+        :column="column"
+        :tasks="tasks.filter(task => isInColumn(task, column))"
         @drop="$emit('drop', { ...$event, epicId: epic ? epic.ID : 0 })"
         @delete-task="$emit('delete-task', $event)"
         @open-task="$emit('open-task', $event)"
-        @add-task="$emit('add-task', { status: $event, epicId: epic ? epic.ID : 0 })"
+        @add-task="$emit('add-task', { column: $event, epicId: epic ? epic.ID : 0 })"
       />
     </div>
   </section>
@@ -66,6 +66,7 @@
 import { ref, computed, nextTick } from 'vue';
 import KanbanColumn from './KanbanColumn.vue';
 import { formatDateTime } from '../utils/datetime';
+import { isInColumn, isDoneCategory } from '../utils/statuses';
 
 const props = defineProps({
   // null の場合は「エピックなし」のレーン
@@ -78,9 +79,15 @@ const props = defineProps({
     type: Array,
     required: true
   },
+  // ボードの列（KanbanBoard の columns）
   columns: {
     type: Array,
     required: true
+  },
+  // 列の並べ方（見出しと同じ grid-template-columns）
+  gridStyle: {
+    type: Object,
+    default: () => ({})
   },
   // 全スペース表示のときだけ、エピックの属するスペース名を出す
   spaceTitle: {
@@ -135,9 +142,9 @@ const titleTooltip = computed(() => {
   return lines.join('\n');
 });
 
-// 子タスクのうちクローズ済みの件数 / 全件数
+// 子タスクのうち完了（Done カテゴリ）の件数 / 全件数
 const progressLabel = computed(() => {
-  const closed = props.tasks.filter(todo => todo.Status === 'Closed').length;
+  const closed = props.tasks.filter(todo => isDoneCategory(todo.StatusCategory)).length;
   return `${closed}/${props.tasks.length}`;
 });
 
