@@ -74,3 +74,50 @@ func (r *statusMySQLRepository) DeleteBySpace(spaceID int) error {
 	_, err := r.db.Exec(`DELETE FROM statuses WHERE space_id = ?`, spaceID)
 	return err
 }
+
+// Create は並び順をスペースの最後の次にして追加する
+func (r *statusMySQLRepository) Create(status domain.WorkflowStatus) (int, error) {
+	result, err := r.db.Exec(
+		`INSERT INTO statuses (space_id, name, category, position)
+		 SELECT ?, ?, ?, COALESCE(MAX(position), 0) + 1 FROM statuses WHERE space_id = ?`,
+		status.SpaceID, status.Name, string(status.Category), status.SpaceID)
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(id), nil
+}
+
+func (r *statusMySQLRepository) Rename(id int, name string) error {
+	result, err := r.db.Exec(`UPDATE statuses SET name = ? WHERE id = ?`, name, id)
+	if err != nil {
+		return err
+	}
+	return requireAffected(result, "status", id)
+}
+
+func (r *statusMySQLRepository) Reorder(spaceID int, ids []int) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for i, id := range ids {
+		if _, err := tx.Exec(`UPDATE statuses SET position = ? WHERE id = ? AND space_id = ?`, i+1, id, spaceID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (r *statusMySQLRepository) Delete(id int) error {
+	result, err := r.db.Exec(`DELETE FROM statuses WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	return requireAffected(result, "status", id)
+}

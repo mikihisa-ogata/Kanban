@@ -26,6 +26,12 @@ type SpaceService interface {
 	DeleteSpace(id int) error
 	// GetStatuses はすべてのワークフローのステータス（未割り当ての SpaceID 0 を含む）を、スペース・並び順の順に返す
 	GetStatuses() ([]domain.WorkflowStatus, error)
+	// CreateStatus・RenameStatus・ReorderStatuses・DeleteStatus はスペースのワークフローを編集する（workflow.go）。
+	// 未割り当てのワークフローは編集できない
+	CreateStatus(spaceID int, name string, category string) (domain.WorkflowStatus, error)
+	RenameStatus(id int, name string) (domain.WorkflowStatus, error)
+	ReorderStatuses(spaceID int, ids []int) error
+	DeleteStatus(id int, moveToID int) error
 }
 
 type spaceService struct {

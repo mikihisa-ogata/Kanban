@@ -1,5 +1,11 @@
 package domain
 
+import (
+	"errors"
+	"strings"
+	"unicode/utf8"
+)
+
 // StatusCategory はステータスのカテゴリ（Jira の To Do / In Progress / Done）。
 // Done のステータスにした課題は完了扱い（Todo.Done が true）になる
 type StatusCategory string
@@ -86,4 +92,18 @@ func FirstInCategory(statuses []WorkflowStatus, category StatusCategory) (Workfl
 		return WorkflowStatus{}, false
 	}
 	return statuses[0], true
+}
+
+// statusNameMax はステータス名の最大文字数（DB の VARCHAR(50)）
+const statusNameMax = 50
+
+var ErrInvalidStatusName = errors.New("ステータスの名前は 1〜50 文字で入力してください")
+
+// NormalizeStatusName は前後の空白を除いたステータス名を返す。空や長すぎる名前は ErrInvalidStatusName
+func NormalizeStatusName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || utf8.RuneCountInString(name) > statusNameMax {
+		return "", ErrInvalidStatusName
+	}
+	return name, nil
 }

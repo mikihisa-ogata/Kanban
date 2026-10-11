@@ -11,4 +11,12 @@ type StatusRepository interface {
 	EnsureDefaults(spaceID int) error
 	// DeleteBySpace はスペースのステータスをすべて削除する
 	DeleteBySpace(spaceID int) error
+	// Create はスペースの末尾にステータスを追加し、その ID を返す
+	Create(status domain.WorkflowStatus) (int, error)
+	// Rename はステータスの名前を変える。存在しなければ not found のエラーを返す
+	Rename(id int, name string) error
+	// Reorder はスペースのステータスを ids の順に並べ直す（ids はそのスペースのステータスの ID をすべて含む）
+	Reorder(spaceID int, ids []int) error
+	// Delete はステータスを削除する。存在しなければ not found のエラーを返す
+	Delete(id int) error
 }

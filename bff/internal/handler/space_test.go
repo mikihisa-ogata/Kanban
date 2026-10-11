@@ -30,6 +30,10 @@ func setupSpaceRouter(t *testing.T) *gin.Engine {
 	r.PUT("/spaces/:id", sh.UpdateSpace)
 	r.DELETE("/spaces/:id", sh.DeleteSpace)
 	r.GET("/statuses", sh.GetStatuses)
+	r.POST("/spaces/:id/statuses", sh.CreateStatus)
+	r.PUT("/spaces/:id/statuses/order", sh.ReorderStatuses)
+	r.PUT("/statuses/:id", sh.RenameStatus)
+	r.DELETE("/statuses/:id", sh.DeleteStatus)
 	return r
 }
 

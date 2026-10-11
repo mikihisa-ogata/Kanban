@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"todo-api/internal/domain"
 	"todo-api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -170,5 +171,131 @@ func (h *SpaceHandler) DeleteSpace(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "スペースの削除に成功しました",
+	})
+}
+
+// CreateStatus はスペース（:id）のワークフローの末尾にステータスを追加する
+func (h *SpaceHandler) CreateStatus(c *gin.Context) {
+	spaceID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Name     string `json:"name"`
+		Category string `json:"category"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	status, err := h.service.CreateStatus(spaceID, req.Name, req.Category)
+	if err != nil {
+		respondWorkflowError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "ステータスの追加に成功しました",
+		"status":  status,
+	})
+}
+
+// RenameStatus はステータス（:id）の名前を変える
+func (h *SpaceHandler) RenameStatus(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	status, err := h.service.RenameStatus(id, req.Name)
+	if err != nil {
+		respondWorkflowError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "ステータスの名前の変更に成功しました",
+		"status":  status,
+	})
+}
+
+// ReorderStatuses はスペース（:id）のステータスを statusIds の順に並べ直す
+func (h *SpaceHandler) ReorderStatuses(c *gin.Context) {
+	spaceID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		StatusIDs []int `json:"statusIds"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if err := h.service.ReorderStatuses(spaceID, req.StatusIDs); err != nil {
+		respondWorkflowError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "ステータスの並べ替えに成功しました",
+	})
+}
+
+// DeleteStatus はステータス（:id）を削除する。そのステータスの課題は ?moveTo=<ステータスの ID> へ移す
+func (h *SpaceHandler) DeleteStatus(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	moveTo := 0
+	if v := c.Query("moveTo"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			respondWorkflowError(c, service.ErrInvalidMoveTarget)
+			return
+		}
+		moveTo = n
+	}
+	if err := h.service.DeleteStatus(id, moveTo); err != nil {
+		respondWorkflowError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "ステータスの削除に成功しました",
+	})
+}
+
+// respondWorkflowError はワークフローの編集のエラーを、種類に合ったステータスで返す
+func respondWorkflowError(c *gin.Context, err error) {
+	status := http.StatusInternalServerError
+	switch {
+	case errors.Is(err, service.ErrSpaceNotFound), errors.Is(err, service.ErrStatusNotFound):
+		status = http.StatusNotFound
+	case errors.Is(err, service.ErrStatusNameDuplicate), errors.Is(err, service.ErrStatusInUse):
+		status = http.StatusConflict
+	case errors.Is(err, domain.ErrInvalidStatusName),
+		errors.Is(err, service.ErrInvalidStatusCategory),
+		errors.Is(err, service.ErrUnassignedWorkflow),
+		errors.Is(err, service.ErrInvalidMoveTarget),
+		errors.Is(err, service.ErrLastStatus),
+		errors.Is(err, service.ErrInvalidStatusOrder):
+		status = http.StatusBadRequest
+	}
+	c.JSON(status, gin.H{
+		"error": err.Error(),
 	})
 }

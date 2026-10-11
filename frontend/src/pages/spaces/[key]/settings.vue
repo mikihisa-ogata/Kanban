@@ -69,6 +69,15 @@
             </form>
           </section>
 
+          <WorkflowSection
+            class="mt-6"
+            :space="space"
+            :statuses="statuses"
+            :todos="todos"
+            :loading="!workflowLoaded"
+            @changed="fetchWorkflow"
+          />
+
           <!-- スペースの削除 -->
           <section class="mt-6 bg-white rounded-2xl px-8 py-6 shadow-xl">
             <h3 class="m-0 mb-2 text-lg font-bold text-gray-900">スペースを削除</h3>
@@ -102,7 +111,10 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import ConfirmDialog from '~/components/ConfirmDialog.vue';
 import SpaceShell from '~/components/SpaceShell.vue';
+import WorkflowSection from '~/components/WorkflowSection.vue';
 import { spacesApi } from '~/api/spaces';
+import { statusesApi } from '~/api/statuses';
+import { todosApi } from '~/api/todos';
 import { normalizeSpaceKey, spaceKeyError } from '~/utils/spaceKey';
 import { boardPath, settingsPath } from '~/utils/spaceRoutes';
 
@@ -118,6 +130,10 @@ const saved = ref(false);
 const saveError = ref('');
 const confirmingDelete = ref(false);
 const deleteError = ref('');
+// ワークフロー（ステータスと、ステータスごとの課題の件数を出すための課題）
+const statuses = ref([]);
+const todos = ref([]);
+const workflowLoaded = ref(false);
 
 const space = computed(() => spaces.value.find(s => s.Key === spaceKey.value) || null);
 
@@ -133,6 +149,16 @@ const canSave = computed(() =>
 const fetchSpaces = async () => {
   spaces.value = await spacesApi.fetchAll();
   resetForm();
+};
+
+const fetchWorkflow = async () => {
+  try {
+    [statuses.value, todos.value] = await Promise.all([statusesApi.fetchAll(), todosApi.fetchAll()]);
+    workflowLoaded.value = true;
+  } catch (err) {
+    saveError.value = 'ワークフローの取得に失敗しました: ' + err.message;
+    console.error('Failed to fetch workflow:', err);
+  }
 };
 
 // フォームを表示中のスペースの今の値に戻す
@@ -191,6 +217,7 @@ const handleDelete = async () => {
 };
 
 onMounted(async () => {
+  fetchWorkflow();
   try {
     await fetchSpaces();
   } catch (err) {

@@ -95,6 +95,10 @@ func main() {
 	r.PUT("/spaces/:id", spaceHandler.UpdateSpace)
 	r.DELETE("/spaces/:id", spaceHandler.DeleteSpace)
 	r.GET("/statuses", spaceHandler.GetStatuses)
+	r.POST("/spaces/:id/statuses", spaceHandler.CreateStatus)
+	r.PUT("/spaces/:id/statuses/order", spaceHandler.ReorderStatuses)
+	r.PUT("/statuses/:id", spaceHandler.RenameStatus)
+	r.DELETE("/statuses/:id", spaceHandler.DeleteStatus)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
