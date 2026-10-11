@@ -8,6 +8,7 @@ const FIELD_LABELS = {
   title: '要約',
   description: '説明',
   status: 'ステータス',
+  statusCategory: 'ステータスのカテゴリ',
   done: '完了',
   issueType: '課題タイプ',
   priority: '優先度',
@@ -21,6 +22,14 @@ const FIELD_LABELS = {
   key: '課題キー'
 };
 
+// ステータスのカテゴリ（bff の domain.StatusCategory）
+const STATUS_CATEGORY_LABELS = {
+  ToDo: 'To Do',
+  InProgress: '進行中',
+  Done: '完了'
+};
+
+// ワークフローの導入前の記録は、ステータスを Open などの値で持つ（導入後は名前）
 const STATUS_LABELS = {
   Open: 'オープン',
   InProgress: '進行中',
@@ -36,6 +45,8 @@ export const formatHistoryValue = (field, value) => {
   switch (field) {
     case 'status':
       return STATUS_LABELS[value] ?? value;
+    case 'statusCategory':
+      return STATUS_CATEGORY_LABELS[value] ?? value;
     case 'done':
       return value === 'true' ? '完了' : '未完了';
     case 'issueType':

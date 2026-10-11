@@ -30,10 +30,11 @@ type worklogService struct {
 	worklogRepo repository.WorklogRepository
 	todoRepo    repository.TodoRepository
 	history     historyRecorder
+	statuses    statusResolver
 }
 
-func NewWorklogService(w repository.WorklogRepository, t repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, h repository.HistoryRepository) WorklogService {
-	return &worklogService{worklogRepo: w, todoRepo: t, history: historyRecorder{history: h, epics: e, spaces: s}}
+func NewWorklogService(w repository.WorklogRepository, t repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, h repository.HistoryRepository, st repository.StatusRepository) WorklogService {
+	return &worklogService{worklogRepo: w, todoRepo: t, history: historyRecorder{history: h, epics: e, spaces: s}, statuses: statusResolver{repo: st}}
 }
 
 func (s *worklogService) GetWorklogs(todoID int) ([]domain.Worklog, error) {
@@ -134,7 +135,7 @@ func (s *worklogService) adjustRemaining(todoID int, delta int, remaining Durati
 	if err != nil {
 		return err
 	}
-	return updateWithHistory(s.todoRepo, s.history, names, before, after)
+	return updateWithHistory(s.todoRepo, s.history, s.statuses, names, before, after)
 }
 
 func (s *worklogService) findWorklog(id int) (domain.Worklog, error) {

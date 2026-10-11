@@ -42,9 +42,10 @@ func main() {
 	linkRepo := repository.NewIssueLinkMySQLRepository(db)
 	historyRepo := repository.NewHistoryMySQLRepository(db)
 	attachmentRepo := repository.NewAttachmentMySQLRepository(db, attachmentsDir())
-	svc := service.NewTodoService(repo, epicRepo, spaceRepo, linkRepo, historyRepo, attachmentRepo)
+	statusRepo := repository.NewStatusMySQLRepository(db)
+	svc := service.NewTodoService(repo, epicRepo, spaceRepo, linkRepo, historyRepo, attachmentRepo, statusRepo)
 	h := handler.NewTodoHandler(svc)
-	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo, historyRepo)
+	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo, historyRepo, statusRepo)
 	epicHandler := handler.NewEpicHandler(epicSvc)
 	commentRepo := repository.NewCommentMySQLRepository(db)
 	commentSvc := service.NewCommentService(commentRepo, repo)
@@ -52,9 +53,9 @@ func main() {
 	attachmentSvc := service.NewAttachmentService(attachmentRepo, repo)
 	attachmentHandler := handler.NewAttachmentHandler(attachmentSvc)
 	worklogRepo := repository.NewWorklogMySQLRepository(db)
-	worklogSvc := service.NewWorklogService(worklogRepo, repo, epicRepo, spaceRepo, historyRepo)
+	worklogSvc := service.NewWorklogService(worklogRepo, repo, epicRepo, spaceRepo, historyRepo, statusRepo)
 	worklogHandler := handler.NewWorklogHandler(worklogSvc)
-	spaceSvc := service.NewSpaceService(spaceRepo, epicRepo, repo, historyRepo)
+	spaceSvc := service.NewSpaceService(spaceRepo, epicRepo, repo, historyRepo, statusRepo)
 	spaceHandler := handler.NewSpaceHandler(spaceSvc)
 
 	r.GET("/todos", h.GetTodos)
@@ -93,6 +94,7 @@ func main() {
 	r.POST("/spaces", spaceHandler.CreateSpace)
 	r.PUT("/spaces/:id", spaceHandler.UpdateSpace)
 	r.DELETE("/spaces/:id", spaceHandler.DeleteSpace)
+	r.GET("/statuses", spaceHandler.GetStatuses)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)

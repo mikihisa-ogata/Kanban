@@ -69,8 +69,9 @@ func TestMigrate(t *testing.T) {
 		"issue_history":  {"id", "todo_id", "field", "old_value", "new_value", "created_at"},
 		"attachments":    {"id", "todo_id", "file_name", "content_type", "size", "storage_name", "created_at"},
 		"worklogs":       {"id", "todo_id", "minutes", "started_at", "note", "created_at", "updated_at"},
+		"statuses":       {"id", "space_id", "name", "category", "position", "legacy_key"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
-		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate"},
+		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id"},
 	}
 	for table, columns := range want {
 		rows, err := db.Query(
@@ -267,4 +268,66 @@ func queryString(t *testing.T, db *sql.DB, query string) string {
 		t.Fatal(err)
 	}
 	return s.String
+}
+
+// ワークフローの導入前のデータベースでも、各スペースと未割り当てに既定の 4 ステータスができ、
+// タスクは同じスペースの同じステータス（同じ列）に対応付けられる。完了（done）はカテゴリに合わせる
+func TestMigrate_AssignsWorkflowStatuses(t *testing.T) {
+	db := openEmptyDatabase(t, "workflow")
+
+	legacy := []string{
+		`CREATE TABLE spaces (
+			id    INT AUTO_INCREMENT PRIMARY KEY,
+			title VARCHAR(255) NOT NULL
+		) DEFAULT CHARSET = utf8mb4`,
+		`CREATE TABLE todos (
+			id          INT AUTO_INCREMENT PRIMARY KEY,
+			title       VARCHAR(255) NOT NULL,
+			done        BOOLEAN NOT NULL DEFAULT FALSE,
+			deadline    DATE NULL,
+			status      VARCHAR(20) NOT NULL,
+			epic_id     INT NOT NULL DEFAULT 0,
+			description TEXT NOT NULL,
+			space_id    INT NOT NULL DEFAULT 0,
+			position    INT NOT NULL
+		) DEFAULT CHARSET = utf8mb4`,
+		`INSERT INTO spaces (title) VALUES ('Kanban'), ('お金')`,
+		`INSERT INTO todos (title, done, status, description, space_id, position) VALUES
+			('open', FALSE, 'Open', '', 1, 1),
+			('progress', FALSE, 'InProgress', '', 1, 2),
+			('waiting', FALSE, 'Waiting', '', 2, 3),
+			('closed but not done', FALSE, 'Closed', '', 2, 4),
+			('done but open', TRUE, 'Open', '', 0, 5),
+			('unknown status', FALSE, 'Someday', '', 1, 6),
+			('deleted space', FALSE, 'Waiting', '', 9, 7)`,
+	}
+	for _, stmt := range legacy {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i < 2; i++ {
+		if err := Migrate(db); err != nil {
+			t.Fatalf("Migrate() #%d error = %v", i+1, err)
+		}
+	}
+
+	// 未割り当て（0）と各スペースに 4 つずつ。2 回目の Migrate で増えない
+	if got := queryString(t, db, `SELECT GROUP_CONCAT(CONCAT(space_id, ':', cnt) ORDER BY space_id) FROM (SELECT space_id, COUNT(*) cnt FROM statuses GROUP BY space_id) x`); got != "0:4,1:4,2:4" {
+		t.Errorf("statuses per space = %s", got)
+	}
+	if got := queryString(t, db, `SELECT GROUP_CONCAT(CONCAT(name, '/', category, '/', legacy_key) ORDER BY position) FROM statuses WHERE space_id = 1`); got != "オープン/ToDo/Open,進行中/InProgress/InProgress,待ち状況/InProgress/Waiting,クローズ/Done/Closed" {
+		t.Errorf("default statuses = %s", got)
+	}
+	// 同じスペースの、同じ導入前のステータスに対応付く
+	got := queryString(t, db, `SELECT GROUP_CONCAT(CONCAT(t.title, '=', s.space_id, ':', s.name, ':', t.done) ORDER BY t.id SEPARATOR '|')
+		FROM todos t JOIN statuses s ON s.id = t.status_id`)
+	want := "open=1:オープン:0|progress=1:進行中:0|waiting=2:待ち状況:0|closed but not done=2:クローズ:1|done but open=0:オープン:0|unknown status=1:オープン:0|deleted space=0:待ち状況:0"
+	if got != want {
+		t.Errorf("todos =\n%s\nwant\n%s", got, want)
+	}
+	if got := queryString(t, db, `SELECT COUNT(*) FROM todos WHERE status_id = 0`); got != "0" {
+		t.Errorf("unassigned todos = %s", got)
+	}
 }

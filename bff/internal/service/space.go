@@ -24,6 +24,8 @@ type SpaceService interface {
 	// SuggestSpaceKey は名前から、既存のスペースと重複しないキーの候補を返す
 	SuggestSpaceKey(title string) (string, error)
 	DeleteSpace(id int) error
+	// GetStatuses はすべてのワークフローのステータス（未割り当ての SpaceID 0 を含む）を、スペース・並び順の順に返す
+	GetStatuses() ([]domain.WorkflowStatus, error)
 }
 
 type spaceService struct {
@@ -31,10 +33,33 @@ type spaceService struct {
 	epicRepo  repository.EpicRepository
 	todoRepo  repository.TodoRepository
 	history   historyRecorder
+	statuses  statusResolver
 }
 
-func NewSpaceService(s repository.SpaceRepository, e repository.EpicRepository, t repository.TodoRepository, h repository.HistoryRepository) SpaceService {
-	return &spaceService{spaceRepo: s, epicRepo: e, todoRepo: t, history: historyRecorder{history: h, epics: e, spaces: s}}
+func NewSpaceService(s repository.SpaceRepository, e repository.EpicRepository, t repository.TodoRepository, h repository.HistoryRepository, st repository.StatusRepository) SpaceService {
+	return &spaceService{spaceRepo: s, epicRepo: e, todoRepo: t, history: historyRecorder{history: h, epics: e, spaces: s}, statuses: statusResolver{repo: st}}
+}
+
+func (s *spaceService) GetStatuses() ([]domain.WorkflowStatus, error) {
+	spaces, err := s.spaceRepo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	// ステータスのないスペースがあれば既定のワークフローを作ってから返す
+	for _, id := range append([]int{0}, spaceIDs(spaces)...) {
+		if err := s.statuses.repo.EnsureDefaults(id); err != nil {
+			return nil, err
+		}
+	}
+	return s.statuses.repo.FindAll()
+}
+
+func spaceIDs(spaces []domain.Space) []int {
+	ids := make([]int, 0, len(spaces))
+	for _, space := range spaces {
+		ids = append(ids, space.ID)
+	}
+	return ids
 }
 
 func (s *spaceService) GetSpaces() ([]domain.Space, error) {
@@ -57,7 +82,20 @@ func (s *spaceService) CreateSpace(title string, key string) error {
 	if taken[key] {
 		return ErrSpaceKeyDuplicate
 	}
-	return s.spaceRepo.Create(domain.Space{Title: title, Key: key})
+	if err := s.spaceRepo.Create(domain.Space{Title: title, Key: key}); err != nil {
+		return err
+	}
+	// 作ったスペースに既定のワークフロー（4 ステータス）を作る。キーは重複しないので、キーでスペースを探す
+	spaces, err := s.spaceRepo.FindAll()
+	if err != nil {
+		return err
+	}
+	for _, space := range spaces {
+		if space.Key == key {
+			return s.statuses.repo.EnsureDefaults(space.ID)
+		}
+	}
+	return nil
 }
 
 func (s *spaceService) UpdateSpace(id int, title string, key string) error {
@@ -143,12 +181,13 @@ func (s *spaceService) DeleteSpace(id int) error {
 		}
 		unlinked := todo
 		unlinked.SpaceID = 0
-		if err := updateWithHistory(s.todoRepo, s.history, names, todo, unlinked); err != nil {
+		if err := updateWithHistory(s.todoRepo, s.history, s.statuses, names, todo, unlinked); err != nil {
 			return fmt.Errorf("failed to unlink todo %d from space %d: %w", todo.ID, id, err)
 		}
 	}
 
-	return nil
+	// 課題は未割り当てのワークフローへ移したので、スペースのステータスは消す
+	return s.statuses.repo.DeleteBySpace(id)
 }
 
 // spaceExists は指定IDのスペースが存在するかを返す（0 は未割り当てとして常に有効）

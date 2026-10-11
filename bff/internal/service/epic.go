@@ -22,10 +22,11 @@ type epicService struct {
 	todoRepo  repository.TodoRepository
 	spaceRepo repository.SpaceRepository
 	history   historyRecorder
+	statuses  statusResolver
 }
 
-func NewEpicService(e repository.EpicRepository, t repository.TodoRepository, s repository.SpaceRepository, h repository.HistoryRepository) EpicService {
-	return &epicService{epicRepo: e, todoRepo: t, spaceRepo: s, history: historyRecorder{history: h, epics: e, spaces: s}}
+func NewEpicService(e repository.EpicRepository, t repository.TodoRepository, s repository.SpaceRepository, h repository.HistoryRepository, st repository.StatusRepository) EpicService {
+	return &epicService{epicRepo: e, todoRepo: t, spaceRepo: s, history: historyRecorder{history: h, epics: e, spaces: s}, statuses: statusResolver{repo: st}}
 }
 
 func (s *epicService) GetEpics() ([]domain.Epic, error) {
@@ -74,7 +75,7 @@ func (s *epicService) UpdateEpic(id int, title string, spaceID int) error {
 		}
 		moved := todo
 		moved.SpaceID = spaceID
-		if err := updateWithHistory(s.todoRepo, s.history, names, todo, moved); err != nil {
+		if err := updateWithHistory(s.todoRepo, s.history, s.statuses, names, todo, moved); err != nil {
 			return fmt.Errorf("failed to move todo %d to space %d: %w", todo.ID, spaceID, err)
 		}
 	}
@@ -104,7 +105,7 @@ func (s *epicService) DeleteEpic(id int) error {
 		}
 		unlinked := todo
 		unlinked.EpicID = 0
-		if err := updateWithHistory(s.todoRepo, s.history, names, todo, unlinked); err != nil {
+		if err := updateWithHistory(s.todoRepo, s.history, s.statuses, names, todo, unlinked); err != nil {
 			return fmt.Errorf("failed to unlink todo %d from epic %d: %w", todo.ID, id, err)
 		}
 	}

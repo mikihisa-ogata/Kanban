@@ -75,7 +75,79 @@ func Migrate(db *sql.DB) error {
 	if err := assignMissingIssueNumbers(db); err != nil {
 		return fmt.Errorf("failed to assign issue numbers: %w", err)
 	}
+	if err := assignDefaultStatuses(db); err != nil {
+		return fmt.Errorf("failed to create default statuses: %w", err)
+	}
+	if err := assignMissingStatusIDs(db); err != nil {
+		return fmt.Errorf("failed to assign statuses: %w", err)
+	}
 	return nil
+}
+
+// assignDefaultStatuses は、ステータスが 1 つもないスペースと未割り当て（space_id = 0）に既定の 4 ステータスを作る
+func assignDefaultStatuses(db *sql.DB) error {
+	rows, err := db.Query(
+		`SELECT ids.id FROM (SELECT 0 AS id UNION SELECT id FROM spaces) ids
+		 WHERE NOT EXISTS (SELECT 1 FROM statuses s WHERE s.space_id = ids.id) ORDER BY ids.id`)
+	if err != nil {
+		return err
+	}
+	spaceIDs := []int{}
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		spaceIDs = append(spaceIDs, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, spaceID := range spaceIDs {
+		for _, s := range domain.DefaultWorkflow() {
+			if _, err := db.Exec(
+				`INSERT INTO statuses (space_id, name, category, position, legacy_key) VALUES (?, ?, ?, ?, ?)`,
+				spaceID, s.Name, string(s.Category), s.Position, string(s.LegacyKey)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// assignMissingStatusIDs は、ステータス未対応付け（status_id = 0）のタスクを、同じスペースの同じ導入前のステータス（todos.status）に対応付ける。
+// スペースのステータスが見つからなければ未割り当てのワークフローで、知らない値ならカテゴリ To Do の先頭で対応付ける。
+// 最後に、完了（done）をステータスのカテゴリ（Done なら完了）に合わせる
+func assignMissingStatusIDs(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	statements := []string{
+		`UPDATE todos t JOIN statuses s ON s.space_id = t.space_id AND s.legacy_key = t.status
+		 SET t.status_id = s.id WHERE t.status_id = 0`,
+		`UPDATE todos t JOIN statuses s ON s.space_id = 0 AND s.legacy_key = t.status
+		 SET t.status_id = s.id WHERE t.status_id = 0`,
+		`UPDATE todos t JOIN (
+			SELECT space_id, MIN(position) AS position FROM statuses WHERE category = 'ToDo' GROUP BY space_id
+		 ) first ON first.space_id = t.space_id
+		 JOIN statuses s ON s.space_id = first.space_id AND s.position = first.position
+		 SET t.status_id = s.id WHERE t.status_id = 0`,
+		`UPDATE todos t JOIN statuses s ON s.space_id = 0 AND s.legacy_key = 'Open'
+		 SET t.status_id = s.id WHERE t.status_id = 0`,
+		`UPDATE todos t JOIN statuses s ON s.id = t.status_id SET t.done = (s.category = 'Done')`,
+	}
+	for _, stmt := range statements {
+		if _, err := tx.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 type column struct {
@@ -108,6 +180,8 @@ func addedColumns() []column {
 		// 初期見積もり・残り時間（分）。NULL は未設定
 		{"todos", "original_estimate", "INT NULL"},
 		{"todos", "remaining_estimate", "INT NULL"},
+		// ワークフローのステータス（statuses.id）。0 は未対応付け（assignMissingStatusIDs で埋める）
+		{"todos", "status_id", "INT NOT NULL DEFAULT 0"},
 	}
 }
 
@@ -312,6 +386,18 @@ func schemaStatements() []string {
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NULL,
 			INDEX idx_worklogs_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// ワークフローのステータス（ボードの列）。space_id 0 はスペース未割り当ての課題の既定のワークフロー。
+		// category は ToDo・InProgress・Done。legacy_key は導入前の固定のステータス（Open など。既定の 4 ステータスだけが持つ）。
+		// 名前の重複はサービスで確かめる（既定の照合順序はひらがなとカタカナなどを同じとみなすため、一意インデックスにしない）
+		`CREATE TABLE IF NOT EXISTS statuses (
+			id         INT AUTO_INCREMENT PRIMARY KEY,
+			space_id   INT NOT NULL,
+			name       VARCHAR(50) NOT NULL,
+			category   VARCHAR(20) NOT NULL,
+			position   INT NOT NULL,
+			legacy_key VARCHAR(20) NOT NULL DEFAULT '',
+			INDEX idx_statuses_space (space_id, position)
 		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,

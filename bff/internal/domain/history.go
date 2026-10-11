@@ -12,8 +12,9 @@ const (
 	HistoryFieldCreated           = "created" // 課題の作成。変更前・変更後は持たない
 	HistoryFieldTitle             = "title"
 	HistoryFieldDescription       = "description"
-	HistoryFieldStatus            = "status"
-	HistoryFieldDone              = "done"
+	HistoryFieldStatus            = "status"         // 値はステータスの名前（ワークフローの導入前の記録は Open などの値）
+	HistoryFieldStatusCategory    = "statusCategory" // 値は ToDo・InProgress・Done
+	HistoryFieldDone              = "done"           // ワークフローの導入前の記録だけにある（完了はステータスのカテゴリで決まる）
 	HistoryFieldIssueType         = "issueType"
 	HistoryFieldPriority          = "priority"
 	HistoryFieldLabels            = "labels"
@@ -55,8 +56,8 @@ func DiffTodo(before, after Todo, names HistoryNames) []HistoryEntry {
 	}
 	add(HistoryFieldTitle, text(before.Title), text(after.Title))
 	add(HistoryFieldDescription, text(before.Description), text(after.Description))
-	add(HistoryFieldStatus, text(string(before.Status)), text(string(after.Status)))
-	add(HistoryFieldDone, boolText(before.Done), boolText(after.Done))
+	add(HistoryFieldStatus, text(before.StatusName), text(after.StatusName))
+	add(HistoryFieldStatusCategory, text(string(before.StatusCategory)), text(string(after.StatusCategory)))
 	add(HistoryFieldIssueType, text(string(before.IssueType)), text(string(after.IssueType)))
 	add(HistoryFieldPriority, text(string(before.Priority)), text(string(after.Priority)))
 	add(HistoryFieldLabels, text(strings.Join(before.Labels, ", ")), text(strings.Join(after.Labels, ", ")))
@@ -75,11 +76,6 @@ func text(s string) *string {
 	if s == "" {
 		return nil
 	}
-	return &s
-}
-
-func boolText(b bool) *string {
-	s := strconv.FormatBool(b)
 	return &s
 }
 

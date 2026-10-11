@@ -54,12 +54,16 @@ func TestTodoHandler_History(t *testing.T) {
 
 	want := []string{
 		"created",
-		"status:Open>InProgress",
+		// ステータスは名前で残り、カテゴリが変われば一緒に残る
+		"status:オープン>進行中",
+		"statusCategory:ToDo>InProgress",
 		"title:a>b",
 		"priority:Medium>High",
 		"labels:->ui",
 		"storyPoints:3>5",
-		"status:InProgress>Closed",
+		"status:進行中>クローズ",
+		"statusCategory:InProgress>Done",
+		// 未割り当てのワークフローにも同じ名前のステータスがあるので、ステータスは変わらない
 		"space:開発>-",
 		"key:DEV-1>TASK-1",
 	}

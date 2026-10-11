@@ -30,6 +30,19 @@ func (h *SpaceHandler) GetSpaces(c *gin.Context) {
 	c.JSON(http.StatusOK, spaces)
 }
 
+// GetStatuses はすべてのワークフローのステータスを返す（SpaceID 0 はスペース未割り当ての課題のワークフロー）
+func (h *SpaceHandler) GetStatuses(c *gin.Context) {
+	statuses, err := h.service.GetStatuses()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, statuses)
+}
+
 func (h *SpaceHandler) CreateSpace(c *gin.Context) {
 	var req struct {
 		Title string `json:"title" binding:"required"`

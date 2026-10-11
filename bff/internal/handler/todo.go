@@ -69,6 +69,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		Title       string   `json:"title" binding:"required"`
 		Deadline    string   `json:"deadline"`
 		Status      string   `json:"status"`
+		StatusID    int      `json:"statusId"`
 		IssueType   string   `json:"issueType"`
 		Priority    string   `json:"priority"`
 		Labels      []string `json:"labels"`
@@ -86,7 +87,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.service.CreateTodo(req.Title, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, req.StoryPoints, req.ParentID, req.EpicID, req.Description, req.SpaceID)
+	todo, err := h.service.CreateTodo(req.Title, req.Deadline, service.StatusInput{ID: req.StatusID, Legacy: req.Status}, req.IssueType, req.Priority, req.Labels, req.StoryPoints, req.ParentID, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -117,10 +118,12 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 	}
 
 	var req struct {
-		Title     string   `json:"title" binding:"required"`
-		Done      bool     `json:"done"`
-		Deadline  string   `json:"deadline"`
-		Status    string   `json:"status" binding:"required"`
+		Title    string `json:"title" binding:"required"`
+		Done     bool   `json:"done"`
+		Deadline string `json:"deadline"`
+		// ステータスは statusId（ワークフローのステータスの ID）か、導入前の status（Open など）で指定する。どちらもなければ今のまま
+		Status    string   `json:"status"`
+		StatusID  int      `json:"statusId"`
 		IssueType string   `json:"issueType"`
 		Priority  string   `json:"priority"`
 		Labels    []string `json:"labels"`
@@ -164,7 +167,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, req.Status, req.IssueType, req.Priority, req.Labels, storyPoints,
+	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, service.StatusInput{ID: req.StatusID, Legacy: req.Status}, req.IssueType, req.Priority, req.Labels, storyPoints,
 		service.EstimatesUpdate{Original: original, Remaining: remaining}, req.EpicID, req.Description, req.SpaceID)
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -388,5 +391,7 @@ func isTodoValidationError(err error) bool {
 		errors.Is(err, service.ErrParentNotFound) ||
 		errors.Is(err, service.ErrSubtaskParent) ||
 		errors.Is(err, service.ErrSubtaskType) ||
-		errors.Is(err, domain.ErrInvalidDuration)
+		errors.Is(err, domain.ErrInvalidDuration) ||
+		errors.Is(err, service.ErrStatusNotFound) ||
+		errors.Is(err, service.ErrInvalidStatus)
 }

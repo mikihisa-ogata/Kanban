@@ -26,6 +26,7 @@ type testRepos struct {
 	history    repository.HistoryRepository
 	attachment repository.AttachmentRepository
 	worklog    repository.WorklogRepository
+	status     repository.StatusRepository
 	// attachmentsDir は添付ファイルの保存先（テストごとの一時ディレクトリ）
 	attachmentsDir string
 }
@@ -44,6 +45,7 @@ func newTestRepos(t *testing.T) testRepos {
 		history:        repository.NewHistoryMySQLRepository(db),
 		attachment:     repository.NewAttachmentMySQLRepository(db, dir),
 		worklog:        repository.NewWorklogMySQLRepository(db),
+		status:         repository.NewStatusMySQLRepository(db),
 		attachmentsDir: dir,
 	}
 }
@@ -55,7 +57,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 
 func newTodoRouter(repos testRepos) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment))
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)

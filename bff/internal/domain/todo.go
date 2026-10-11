@@ -63,16 +63,23 @@ func ValidStoryPoints(points float64) bool {
 }
 
 type Todo struct {
-	ID          int
-	Title       string
-	Done        bool
-	Deadline    string
-	Status      Status
-	IssueType   IssueType // 課題タイプ。既存のタスクは Task
-	Priority    Priority  // 優先度。既定と既存のタスクは Medium
-	Labels      []string  // ラベル（名前順）。ラベルがなければ空の配列
-	StoryPoints *float64  // ストーリーポイント（見積もり）。nil は未設定
-	ParentID    int       // サブタスクの親課題の ID。0 はサブタスクではない
+	ID       int
+	Title    string
+	Done     bool
+	Deadline string
+	// Status は導入前の固定のステータス（Open・InProgress・Waiting・Closed）。互換のために残している。
+	// 追加したステータスではカテゴリから決まる（To Do は Open、In Progress は InProgress、Done は Closed）
+	Status Status
+	// StatusID はワークフローのステータス（WorkflowStatus.ID）。課題のスペースのワークフローに属する
+	StatusID int
+	// StatusName・StatusCategory はステータスの名前とカテゴリ。API の出力専用
+	StatusName     string
+	StatusCategory StatusCategory
+	IssueType      IssueType // 課題タイプ。既存のタスクは Task
+	Priority       Priority  // 優先度。既定と既存のタスクは Medium
+	Labels         []string  // ラベル（名前順）。ラベルがなければ空の配列
+	StoryPoints    *float64  // ストーリーポイント（見積もり）。nil は未設定
+	ParentID       int       // サブタスクの親課題の ID。0 はサブタスクではない
 	// OriginalEstimate は初期見積もり（分）。nil は未設定
 	OriginalEstimate *int
 	// RemainingEstimate は残り時間（分）。nil は未設定。作業ログを記録すると減る

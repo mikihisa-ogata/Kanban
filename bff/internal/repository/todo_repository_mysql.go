@@ -25,8 +25,9 @@ const selectTodos = `SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_
 		        t.created_at, t.updated_at, t.number, s.space_key, t.issue_type, t.priority, t.story_points, t.parent_id,
 		        (SELECT COUNT(*) FROM comments c WHERE c.todo_id = t.id),
 		        t.original_estimate, t.remaining_estimate,
-		        (SELECT COALESCE(SUM(w.minutes), 0) FROM worklogs w WHERE w.todo_id = t.id)
-		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id`
+		        (SELECT COALESCE(SUM(w.minutes), 0) FROM worklogs w WHERE w.todo_id = t.id),
+		        t.status_id, st.name, st.category
+		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id LEFT JOIN statuses st ON st.id = t.status_id`
 
 // FindAll は表示順（position）でタスクを返す。課題キーはスペースのキーと番号から作る
 func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
@@ -156,15 +157,19 @@ func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 	var issueType, priority string
 	var storyPoints sql.NullFloat64
 	var originalEstimate, remainingEstimate sql.NullInt64
+	var statusName, statusCategory sql.NullString
 	if err := row.Scan(&todo.ID, &todo.Title, &todo.Done, &deadline, &status,
 		&todo.EpicID, &todo.Description, &todo.SpaceID, &todo.CreatedAt, &todo.UpdatedAt,
 		&todo.Number, &spaceKey, &issueType, &priority, &storyPoints, &todo.ParentID, &todo.CommentCount,
-		&originalEstimate, &remainingEstimate, &todo.TimeSpent); err != nil {
+		&originalEstimate, &remainingEstimate, &todo.TimeSpent,
+		&todo.StatusID, &statusName, &statusCategory); err != nil {
 		return domain.Todo{}, err
 	}
 	if storyPoints.Valid {
 		todo.StoryPoints = &storyPoints.Float64
 	}
+	todo.StatusName = statusName.String
+	todo.StatusCategory = domain.StatusCategory(statusCategory.String)
 	todo.OriginalEstimate = nullIntPtr(originalEstimate)
 	todo.RemainingEstimate = nullIntPtr(remainingEstimate)
 	todo.IssueType = domain.IssueType(issueType)
@@ -197,9 +202,9 @@ func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 	}
 	now := currentTime()
 	result, err := tx.Exec(
-		`INSERT INTO todos (title, done, deadline, status, issue_type, priority, story_points, original_estimate, remaining_estimate, parent_id, epic_id, description, space_id, number, position, created_at, updated_at)
-		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
-		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.ParentID, todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
+		`INSERT INTO todos (title, done, deadline, status, status_id, issue_type, priority, story_points, original_estimate, remaining_estimate, parent_id, epic_id, description, space_id, number, position, created_at, updated_at)
+		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.StatusID, issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.ParentID, todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
 	if err != nil {
 		return 0, err
 	}
@@ -244,9 +249,9 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	}
 
 	_, err = tx.Exec(
-		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, issue_type = ?, priority = ?, story_points = ?, original_estimate = ?, remaining_estimate = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
+		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, status_id = ?, issue_type = ?, priority = ?, story_points = ?, original_estimate = ?, remaining_estimate = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
 		 WHERE id = ?`,
-		todo.Title, todo.Done, deadline, string(todo.Status), issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.StatusID, issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
 	if err != nil {
 		return err
 	}

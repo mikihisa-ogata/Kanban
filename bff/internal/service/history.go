@@ -43,8 +43,16 @@ func (r historyRecorder) recordChanges(names domain.HistoryNames, before, after 
 }
 
 // updateWithHistory は before の課題を after の内容で更新し、変わった項目を履歴に記録する。
-// エピックの移動やスペースの削除など、他の操作に伴って課題が変わるときに使う
-func updateWithHistory(repo repository.TodoRepository, r historyRecorder, names domain.HistoryNames, before, after domain.Todo) error {
+// エピックの移動やスペースの削除など、他の操作に伴って課題が変わるときに使う。
+// スペースが変わる場合は、ステータスを移動先のワークフローの同じ名前かカテゴリのステータスに対応付ける
+func updateWithHistory(repo repository.TodoRepository, r historyRecorder, statuses statusResolver, names domain.HistoryNames, before, after domain.Todo) error {
+	if after.SpaceID != before.SpaceID {
+		s, err := statuses.resolve(after.SpaceID, StatusInput{}, &before)
+		if err != nil {
+			return err
+		}
+		applyStatus(&after, s)
+	}
 	if err := repo.Update(before.ID, after); err != nil {
 		return err
 	}

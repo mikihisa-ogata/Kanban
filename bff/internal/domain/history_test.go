@@ -6,7 +6,7 @@ func TestDiffTodo(t *testing.T) {
 	names := HistoryNames{Epics: map[int]string{1: "認証"}, Spaces: map[int]string{1: "開発", 2: "運用"}}
 	three := 3.0
 	half := 0.5
-	before := Todo{ID: 7, Title: "a", Status: StatusOpen, IssueType: IssueTypeTask, Priority: PriorityMedium,
+	before := Todo{ID: 7, Title: "a", Status: StatusOpen, StatusName: "オープン", StatusCategory: StatusCategoryToDo, IssueType: IssueTypeTask, Priority: PriorityMedium,
 		Labels: []string{"ui"}, StoryPoints: &three, EpicID: 1, SpaceID: 1, Key: "DEV-1"}
 
 	if entries := DiffTodo(before, before, names); len(entries) != 0 {
@@ -17,6 +17,8 @@ func TestDiffTodo(t *testing.T) {
 	after.Title = "b"
 	after.Description = "説明"
 	after.Status = StatusInProgress
+	after.StatusName = "レビュー"
+	after.StatusCategory = StatusCategoryInProgress
 	after.Labels = []string{"api", "ui"}
 	after.StoryPoints = &half
 	after.EpicID = 0
@@ -30,14 +32,15 @@ func TestDiffTodo(t *testing.T) {
 		got[e.Field] = [2]string{value(e.OldValue), value(e.NewValue)}
 	}
 	want := map[string][2]string{
-		HistoryFieldTitle:       {"a", "b"},
-		HistoryFieldDescription: {"<nil>", "説明"},
-		HistoryFieldStatus:      {"Open", "InProgress"},
-		HistoryFieldLabels:      {"ui", "api, ui"},
-		HistoryFieldStoryPoints: {"3", "0.5"},
-		HistoryFieldEpic:        {"認証", "<nil>"},
-		HistoryFieldSpace:       {"開発", "運用"},
-		HistoryFieldKey:         {"DEV-1", "OPS-1"},
+		HistoryFieldTitle:          {"a", "b"},
+		HistoryFieldDescription:    {"<nil>", "説明"},
+		HistoryFieldStatus:         {"オープン", "レビュー"},
+		HistoryFieldStatusCategory: {"ToDo", "InProgress"},
+		HistoryFieldLabels:         {"ui", "api, ui"},
+		HistoryFieldStoryPoints:    {"3", "0.5"},
+		HistoryFieldEpic:           {"認証", "<nil>"},
+		HistoryFieldSpace:          {"開発", "運用"},
+		HistoryFieldKey:            {"DEV-1", "OPS-1"},
 	}
 	if len(got) != len(want) {
 		t.Errorf("fields = %v, want %v", got, want)

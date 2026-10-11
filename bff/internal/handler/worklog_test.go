@@ -15,7 +15,7 @@ func newWorklogRouter(t *testing.T) (*gin.Engine, testRepos) {
 	t.Helper()
 	repos := newTestRepos(t)
 	r := newTodoRouter(repos)
-	h := NewWorklogHandler(service.NewWorklogService(repos.worklog, repos.todo, repos.epic, repos.space, repos.history))
+	h := NewWorklogHandler(service.NewWorklogService(repos.worklog, repos.todo, repos.epic, repos.space, repos.history, repos.status))
 	r.GET("/todos/:id/worklogs", h.GetWorklogs)
 	r.POST("/todos/:id/worklogs", h.AddWorklog)
 	r.PUT("/worklogs/:id", h.UpdateWorklog)

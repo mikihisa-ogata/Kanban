@@ -76,12 +76,12 @@ type TodoService interface {
 	// CreateTodo はタスクを作成し、採番した課題キーを含む作成後のタスクを返す。課題タイプが空なら Task、優先度が空なら Medium にする
 	// ストーリーポイントが nil なら未設定にする。
 	// parentID を指定するとその課題のサブタスクを作る（課題タイプは Subtask、スペースとエピックは親と同じ）
-	CreateTodo(title string, deadline string, status string, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error)
+	CreateTodo(title string, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error)
 	// UpdateTodo はタスクを更新し、更新後のタスクを返す（スペースを変えると課題キーが変わる）。
 	// 課題タイプ・優先度が空、ラベルが nil、ストーリーポイントの Set が false なら今の値のままにする。
 	// サブタスクのスペースとエピックは親と同じにする。親のスペースやエピックを変えると、サブタスクも同じものに移す。
 	// 残り時間が未設定のまま初期見積もりを設定すると、残り時間は「初期見積もり − 記録済みの作業時間」にする
-	UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error)
+	UpdateTodo(id int, title string, done bool, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error)
 	// DeleteTodo はタスクを削除する。サブタスクがあれば一緒に削除し、それらの課題リンク・添付ファイルも削除する
 	DeleteTodo(id int) error
 	MoveTodo(id int, beforeID int) error
@@ -101,10 +101,12 @@ type todoService struct {
 	linkRepo       repository.IssueLinkRepository
 	attachmentRepo repository.AttachmentRepository
 	history        historyRecorder
+	statuses       statusResolver
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a, history: historyRecorder{history: h, epics: e, spaces: s}}
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository, st repository.StatusRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a,
+		history: historyRecorder{history: h, epics: e, spaces: s}, statuses: statusResolver{repo: st}}
 }
 
 func (s *todoService) GetHistory(id int) ([]domain.HistoryEntry, error) {
@@ -275,7 +277,7 @@ func (s *todoService) GetTodoByKey(key string) (domain.Todo, error) {
 	return s.withLinks(*todo)
 }
 
-func (s *todoService) CreateTodo(title string, deadline string, status string, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error) {
+func (s *todoService) CreateTodo(title string, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error) {
 	todoType := domain.IssueType(issueType)
 	if parentID != 0 {
 		// サブタスクは親と同じスペース・エピックに置く
@@ -315,17 +317,15 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, i
 		return domain.Todo{}, ErrInvalidStoryPoints
 	}
 
-	// statusが空の場合はデフォルト値を設定
-	todoStatus := domain.Status(status)
-	if status == "" {
-		todoStatus = domain.StatusOpen
+	// ステータスの指定がなければ、スペースのワークフローのカテゴリ To Do の先頭にする
+	workflowStatus, err := s.statuses.resolve(spaceID, status, nil)
+	if err != nil {
+		return domain.Todo{}, err
 	}
 
 	todo := domain.Todo{
 		Title:       title,
-		Done:        false,
 		Deadline:    deadline,
-		Status:      todoStatus,
 		IssueType:   todoType,
 		Priority:    todoPriority,
 		Labels:      todoLabels,
@@ -335,6 +335,7 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, i
 		Description: description,
 		SpaceID:     spaceID,
 	}
+	applyStatus(&todo, workflowStatus)
 	id, err := s.repo.Create(todo)
 	if err != nil {
 		return domain.Todo{}, err
@@ -345,7 +346,7 @@ func (s *todoService) CreateTodo(title string, deadline string, status string, i
 	return s.findWithLinks(id)
 }
 
-func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status string, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error) {
+func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error) {
 	current, err := s.repo.FindByID(id)
 	if err != nil {
 		return domain.Todo{}, err
@@ -410,6 +411,12 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 		remaining = &left
 	}
 
+	// ステータスはスペースのワークフローから決める。完了（Done）はステータスのカテゴリで決まり、done の指定は使わない
+	workflowStatus, err := s.statuses.resolve(spaceID, status, &current)
+	if err != nil {
+		return domain.Todo{}, err
+	}
+
 	names, err := s.history.names()
 	if err != nil {
 		return domain.Todo{}, err
@@ -417,9 +424,7 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 
 	todo := domain.Todo{
 		Title:       title,
-		Done:        done,
 		Deadline:    deadline,
-		Status:      domain.Status(status),
 		IssueType:   todoType,
 		Priority:    todoPriority,
 		Labels:      todoLabels,
@@ -431,6 +436,7 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 		OriginalEstimate:  original,
 		RemainingEstimate: remaining,
 	}
+	applyStatus(&todo, workflowStatus)
 	if err := s.repo.Update(id, todo); err != nil {
 		return domain.Todo{}, err
 	}
@@ -480,7 +486,7 @@ func (s *todoService) moveSubtasks(names domain.HistoryNames, parentID int, epic
 		}
 		moved := todo
 		moved.EpicID, moved.SpaceID = epicID, spaceID
-		if err := updateWithHistory(s.repo, s.history, names, todo, moved); err != nil {
+		if err := updateWithHistory(s.repo, s.history, s.statuses, names, todo, moved); err != nil {
 			return fmt.Errorf("failed to move subtask %d: %w", todo.ID, err)
 		}
 	}

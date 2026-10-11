@@ -93,6 +93,9 @@ GET /todos
     "Done": false,
     "Deadline": "2026-03-31（省略可。省略すると期限なし）",
     "Status": "Waiting",
+    "StatusID": 3,
+    "StatusName": "待ち状況",
+    "StatusCategory": "InProgress",
     "IssueType": "Task",
     "Priority": "Medium",
     "Labels": ["backend", "ui"],
@@ -119,6 +122,8 @@ GET /todos
   }
 ]
 ```
+
+`StatusID` は課題のステータス（ワークフローのステータスの ID。`GET /statuses` を参照）で、`StatusName`・`StatusCategory` はその名前とカテゴリ（`ToDo`・`InProgress`・`Done`）です。`Done` はステータスのカテゴリが `Done` なら `true` になります（リクエストの `done` は使いません）。`Status` はワークフローの導入前の固定のステータス（`Open`・`InProgress`・`Waiting`・`Closed`）で、互換のために返しています。既定のステータスはそれぞれの値、追加したステータスはカテゴリから決まります（To Do は `Open`、In Progress は `InProgress`、Done は `Closed`）。
 
 `IssueType` は課題タイプで、`Task`（タスク）・`Bug`（バグ）・`Story`（ストーリー）・`Subtask`（サブタスク）のいずれかです。課題タイプの追加前に作られたタスクは `Task` になります。
 
@@ -164,7 +169,7 @@ POST /todos
 {
   "Title": "新しいタスク",
   "Deadline": "2026-03-31（省略可。省略すると期限なし）",
-  "Status": "Open",
+  "Status": "Open（StatusID か Status。省略するとスペースの To Do の先頭）",
   "IssueType": "Bug（省略可。省略すると Task）",
   "Priority": "High（省略可。省略すると Medium）",
   "Labels": ["ui", "不具合"],
@@ -197,9 +202,9 @@ PUT /todos/:id
 ```json
 {
   "Title": "更新されたタスク",
-  "Done": true,
   "Deadline": "2026-03-31（省略すると期限なしになる）",
-  "Status": "InProgress",
+  "StatusID": 2,
+  "Status": "InProgress（StatusID の代わりに導入前の値でも指定できる。どちらも省略すると今のステータスのまま）",
   "IssueType": "Story（省略すると今の課題タイプのまま）",
   "Priority": "Low（省略すると今の優先度のまま）",
   "Labels": ["ui"],
@@ -298,6 +303,13 @@ POST /todos/:id/move
 
 `EpicID` / `SpaceID` は省略すると 0（未割り当て）になります。`IssueType` に `Task`・`Bug`・`Story` 以外、`Priority` に上の 5 つ以外、`Labels` に空や空白を含むラベルを指定すると 400 を返します。`Labels` は、作成で省略するとラベルなし、更新で省略すると今のラベルのまま、`[]` を送るとすべて外します。`StoryPoints` は、作成で省略または `null` にすると未設定、更新で省略すると今の値のまま、`null` を送ると未設定に戻します。範囲外や小数第 3 位以下を含む値は 400 を返します。
 
+ステータスは `statusId`（ワークフローのステータスの ID）か、導入前の `status`（`Open`・`InProgress`・`Waiting`・`Closed`）で指定します。`statusId` を優先します。
+
+- 作成で指定がなければ、課題のスペースのワークフローのカテゴリ To Do の先頭になります。更新で指定がなければ今のままです。
+- `status` で指定すると、スペースの同じ導入前のステータス（なければ同じカテゴリの先頭）になります。ただし今のステータスの `Status` と同じ値を送った場合は、今のステータスのままです。
+- 存在しない `statusId`、知らない `status` は 400 を返します。
+- スペースを変えると（エピックのスペース変更やスペースの削除で変わった場合も）、移動先のワークフローの同じ名前のステータス、なければ同じカテゴリの先頭のステータスになります。別のスペースのステータスの `statusId` を指定した場合も同じように対応付けます。
+
 `PUT` の `originalEstimate`・`remainingEstimate` は「`1w 2d 3h 30m`」形式の文字列で指定します（w=週・d=日・h=時間・m=分。1d=8h、1w=5d。順番・空白の有無は問わず、`1.5h` のような小数も使えます）。省略すると今の値のまま、`null` か空文字で未設定に戻します。単位のない数値など読めない値は 400 を返します。残り時間が未設定のまま初期見積もりを設定すると、残り時間は「初期見積もり − 記録済みの作業時間」になります。
 
 `PUT` では親課題（`ParentID`）は変えられません（リクエストに含めても無視します）。サブタスクの `SpaceID`・`EpicID` は親課題と同じままになり、サブタスクと他の課題タイプを相互に変えようとすると 400 を返します。親課題の `SpaceID`・`EpicID` を変えると、そのサブタスクも同じスペース・エピックに移ります（スペースが変わると課題キーも変わります）。エピックを指定する場合、タスクの `SpaceID` はそのエピックの `SpaceID` と同じでなければなりません（異なると 400）。
@@ -373,7 +385,7 @@ GET /todos/:id/history
 ```json
 [
   { "ID": 1, "TodoID": 3, "Field": "created", "OldValue": null, "NewValue": null, "CreatedAt": "2026-10-11T01:00:00Z" },
-  { "ID": 2, "TodoID": 3, "Field": "status", "OldValue": "Open", "NewValue": "InProgress", "CreatedAt": "2026-10-11T01:05:00Z" },
+  { "ID": 2, "TodoID": 3, "Field": "status", "OldValue": "オープン", "NewValue": "進行中", "CreatedAt": "2026-10-11T01:05:00Z" },
   { "ID": 3, "TodoID": 3, "Field": "storyPoints", "OldValue": "3", "NewValue": "5", "CreatedAt": "2026-10-11T01:05:00Z" }
 ]
 ```
@@ -383,8 +395,9 @@ GET /todos/:id/history
 | Field | 値 |
 |---|---|
 | `title` / `description` | 要約・説明 |
-| `status` | `Open`・`InProgress`・`Waiting`・`Closed` |
-| `done` | `true`・`false` |
+| `status` | ステータスの名前（ワークフローの導入前の記録は `Open`・`InProgress`・`Waiting`・`Closed`） |
+| `statusCategory` | `ToDo`・`InProgress`・`Done`（カテゴリが変わったときだけ） |
+| `done` | `true`・`false`（ワークフローの導入前の記録だけ。今は完了はカテゴリで決まる） |
 | `issueType` / `priority` | `IssueType`・`Priority` の値 |
 | `labels` | ラベル名を `, ` でつないだもの |
 | `storyPoints` | 数値（例: `0.5`） |
@@ -423,6 +436,23 @@ DELETE /comments/:id
 - `POST` は 201 で作成したコメントを、`PUT` は 200 で編集後のコメントを `comment` に入れて返します。
 - 課題やコメントが存在しなければ 404 を返します。
 - 投稿者はまだ持ちません（ユーザー機能の追加後に付けます）。
+
+### ワークフローのステータス
+
+```
+GET /statuses
+```
+
+すべてのワークフローのステータス（ボードの列）を、スペース・並び順の順に返します。`SpaceID` が `0` のものは、スペース未割り当ての課題のワークフローです。スペースを作ると、そのスペースに既定の 4 ステータスを作ります。スペースを削除すると、そのスペースのステータスも削除します（課題は未割り当てのワークフローへ移ります）。
+
+```json
+[
+  { "ID": 1, "SpaceID": 0, "Name": "オープン", "Category": "ToDo", "Position": 1 },
+  { "ID": 2, "SpaceID": 0, "Name": "進行中", "Category": "InProgress", "Position": 2 },
+  { "ID": 3, "SpaceID": 0, "Name": "待ち状況", "Category": "InProgress", "Position": 3 },
+  { "ID": 4, "SpaceID": 0, "Name": "クローズ", "Category": "Done", "Position": 4 }
+]
+```
 
 ### エピック
 
@@ -468,7 +498,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -476,6 +506,7 @@ DELETE /spaces/:id
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
 - サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
+- ワークフローのステータスは `statuses` に、スペース `space_id`（0 は未割り当て）・名前 `name`・カテゴリ `category`・並び順 `position`・導入前のステータス `legacy_key`（既定の 4 ステータスだけ）で保存し、課題は `todos.status_id` で指します。`todos.status` には互換用の値を書き込みます。ワークフローの導入前のデータベースでは、起動時に `Migrate` が各スペースと未割り当てに既定の 4 ステータス（オープン=To Do、進行中・待ち状況=In Progress、クローズ=Done）を作り、課題を同じスペースの同じステータスに対応付け、`done` をカテゴリに合わせます（何度実行しても同じ結果になります）。
 - 初期見積もり・残り時間は `todos.original_estimate`・`todos.remaining_estimate`（分、`NULL` は未設定）、作業ログは `worklogs` に課題 `todo_id`・作業時間 `minutes`（分）・開始日時 `started_at`・メモ `note`・記録日時 `created_at`・編集日時 `updated_at` で保存します。
 - 添付ファイルは `attachments` に、課題 `todo_id`・ファイル名 `file_name`・種類 `content_type`・バイト数 `size`・保存名 `storage_name`・添付日時 `created_at` で保存します。本体は `ATTACHMENTS_DIR` に `storage_name`（推測できないランダムな名前）で置きます。読み書きは `internal/repository` の添付ファイルの Repository だけが行います。
 - 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
