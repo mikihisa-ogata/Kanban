@@ -38,6 +38,11 @@ export const statusesApi = {
     return sendJSON(`${API_BASE_URL}/statuses/${id}`, 'PUT', { name }, 'Failed to rename status');
   },
 
+  // ステータスの列の最大件数（WIP 制限）を変える。null で制限なし
+  async setWipLimit(id, wipLimit) {
+    return sendJSON(`${API_BASE_URL}/statuses/${id}/wip-limit`, 'PUT', { wipLimit }, 'Failed to set WIP limit');
+  },
+
   // スペースのステータスを statusIds の順に並べ直す（ボードの列の順）
   async reorder(spaceId, statusIds) {
     return sendJSON(`${API_BASE_URL}/spaces/${spaceId}/statuses/order`, 'PUT', { statusIds }, 'Failed to reorder statuses');

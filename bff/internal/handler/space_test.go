@@ -33,6 +33,7 @@ func setupSpaceRouter(t *testing.T) *gin.Engine {
 	r.POST("/spaces/:id/statuses", sh.CreateStatus)
 	r.PUT("/spaces/:id/statuses/order", sh.ReorderStatuses)
 	r.PUT("/statuses/:id", sh.RenameStatus)
+	r.PUT("/statuses/:id/wip-limit", sh.SetStatusWIPLimit)
 	r.DELETE("/statuses/:id", sh.DeleteStatus)
 	return r
 }

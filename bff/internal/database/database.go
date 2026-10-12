@@ -188,6 +188,8 @@ func addedColumns() []column {
 		// コメントの投稿者・履歴の変更者（users.id）。0 はなし（追加前の記録）
 		{"comments", "author_id", "INT NOT NULL DEFAULT 0"},
 		{"issue_history", "user_id", "INT NOT NULL DEFAULT 0"},
+		// ステータスの列の最大件数（WIP 制限）。NULL は制限なし
+		{"statuses", "wip_limit", "INT NULL"},
 	}
 }
 

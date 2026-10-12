@@ -57,3 +57,30 @@ func TestMatchStatus(t *testing.T) {
 		t.Error("empty target should not match")
 	}
 }
+
+func TestNormalizeWIPLimit(t *testing.T) {
+	ptr := func(n int) *int { return &n }
+	for _, tt := range []struct {
+		in      *int
+		want    *int
+		wantErr bool
+	}{
+		{in: nil, want: nil},
+		{in: ptr(0), want: nil},
+		{in: ptr(1), want: ptr(1)},
+		{in: ptr(999), want: ptr(999)},
+		{in: ptr(-1), wantErr: true},
+		{in: ptr(1000), wantErr: true},
+	} {
+		got, err := NormalizeWIPLimit(tt.in)
+		if tt.wantErr {
+			if err != ErrInvalidWIPLimit {
+				t.Errorf("NormalizeWIPLimit(%v) error = %v, want ErrInvalidWIPLimit", *tt.in, err)
+			}
+			continue
+		}
+		if err != nil || (got == nil) != (tt.want == nil) || (got != nil && *got != *tt.want) {
+			t.Errorf("NormalizeWIPLimit(%v) = %v, %v, want %v", tt.in, got, err, tt.want)
+		}
+	}
+}

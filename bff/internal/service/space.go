@@ -32,6 +32,8 @@ type SpaceService interface {
 	CreateStatus(spaceID int, name string, category string) (domain.WorkflowStatus, error)
 	RenameStatus(id int, name string) (domain.WorkflowStatus, error)
 	ReorderStatuses(spaceID int, ids []int) error
+	// SetStatusWIPLimit はステータスの列の最大件数を変える。nil と 0 は制限なし
+	SetStatusWIPLimit(id int, limit *int) (domain.WorkflowStatus, error)
 	// DeleteStatus で課題を別のステータスへ移したときは、actorID のユーザーの変更として履歴に記録する
 	DeleteStatus(id int, moveToID int, actorID int) error
 }

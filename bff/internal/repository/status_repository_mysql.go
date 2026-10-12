@@ -14,7 +14,7 @@ func NewStatusMySQLRepository(db *sql.DB) StatusRepository {
 	return &statusMySQLRepository{db: db}
 }
 
-const selectStatuses = `SELECT id, space_id, name, category, position, legacy_key FROM statuses`
+const selectStatuses = `SELECT id, space_id, name, category, position, legacy_key, wip_limit FROM statuses`
 
 func (r *statusMySQLRepository) FindAll() ([]domain.WorkflowStatus, error) {
 	return r.query(selectStatuses + ` ORDER BY space_id, position, id`)
@@ -35,8 +35,13 @@ func (r *statusMySQLRepository) query(query string, args ...any) ([]domain.Workf
 	for rows.Next() {
 		var s domain.WorkflowStatus
 		var category, legacyKey string
-		if err := rows.Scan(&s.ID, &s.SpaceID, &s.Name, &category, &s.Position, &legacyKey); err != nil {
+		var wipLimit sql.NullInt64
+		if err := rows.Scan(&s.ID, &s.SpaceID, &s.Name, &category, &s.Position, &legacyKey, &wipLimit); err != nil {
 			return nil, err
+		}
+		if wipLimit.Valid {
+			limit := int(wipLimit.Int64)
+			s.WIPLimit = &limit
 		}
 		s.Category = domain.StatusCategory(category)
 		s.LegacyKey = domain.Status(legacyKey)
@@ -93,6 +98,14 @@ func (r *statusMySQLRepository) Create(status domain.WorkflowStatus) (int, error
 
 func (r *statusMySQLRepository) Rename(id int, name string) error {
 	result, err := r.db.Exec(`UPDATE statuses SET name = ? WHERE id = ?`, name, id)
+	if err != nil {
+		return err
+	}
+	return requireAffected(result, "status", id)
+}
+
+func (r *statusMySQLRepository) SetWIPLimit(id int, limit *int) error {
+	result, err := r.db.Exec(`UPDATE statuses SET wip_limit = ? WHERE id = ?`, limit, id)
 	if err != nil {
 		return err
 	}

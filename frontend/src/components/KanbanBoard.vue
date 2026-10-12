@@ -105,7 +105,7 @@
               :key="column.key"
               :class="[
                 'flex justify-between items-center gap-2 px-5 py-4 rounded-lg text-white shadow-md',
-                STATUS_CATEGORY_HEADER_CLASS[column.category]
+                column.overLimit ? 'bg-red-600' : STATUS_CATEGORY_HEADER_CLASS[column.category]
               ]"
             >
               <h3 class="m-0 min-w-0 truncate text-xl font-bold tracking-wide" :title="column.title">{{ column.title }}</h3>
@@ -118,7 +118,15 @@
                 >
                   {{ formatStoryPoints(storyPointsOf(column)) }} pt
                 </span>
-                <span class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ countOf(column) }}</span>
+                <!-- 最大件数のある列は「件数 / 最大」。超えたら列を赤くする -->
+                <span
+                  v-if="column.wipLimit"
+                  class="bg-white text-black px-3 py-1.5 rounded-full text-sm font-bold whitespace-nowrap"
+                  :title="`列の課題 ${column.wipCount} 件 / 最大 ${column.wipLimit} 件（サブタスクを除き、絞り込みに関係なく数える）${column.overLimit ? '。最大件数を超えています' : ''}`"
+                >
+                  {{ column.wipCount }} / {{ column.wipLimit }}
+                </span>
+                <span v-else class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ countOf(column) }}</span>
               </div>
             </div>
           </div>
@@ -306,7 +314,8 @@ const issuesVersion = useState('issuesVersion', () => 0);
 const confirmDialog = ref(null);
 
 // ボードの列。スペースを選んでいればそのワークフローのステータス（並び順）、すべてのスペースではカテゴリの 3 列。
-// statusId が null の列はカテゴリでまとめた列
+// statusId が null の列はカテゴリでまとめた列。wipLimit は列の最大件数（null は制限なし。カテゴリの列にはない）、
+// wipCount は列の課題の件数（サブタスクを除き、絞り込みに関係なく数える）、overLimit は最大件数を超えているか
 const columns = computed(() => {
   if (selectedSpaceId.value === null) {
     return STATUS_CATEGORIES.map(category => ({
@@ -316,12 +325,19 @@ const columns = computed(() => {
       statusId: null
     }));
   }
-  return statusesOfSpace(statuses.value, selectedSpaceId.value).map(status => ({
-    key: `status-${status.ID}`,
-    title: status.Name,
-    category: status.Category,
-    statusId: status.ID
-  }));
+  return statusesOfSpace(statuses.value, selectedSpaceId.value).map(status => {
+    const wipLimit = status.WIPLimit ?? null;
+    const wipCount = wipLimit ? spaceTodos.value.filter(todo => !todo.ParentID && todo.StatusID === status.ID).length : 0;
+    return {
+      key: `status-${status.ID}`,
+      title: status.Name,
+      category: status.Category,
+      statusId: status.ID,
+      wipLimit,
+      wipCount,
+      overLimit: !!wipLimit && wipCount > wipLimit
+    };
+  });
 });
 
 const columnGridStyle = computed(() => ({ gridTemplateColumns: `repeat(${columns.value.length}, minmax(0, 1fr))` }));

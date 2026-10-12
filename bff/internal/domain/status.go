@@ -31,6 +31,8 @@ type WorkflowStatus struct {
 	// LegacyKey はワークフローの導入前の固定のステータス（Open など）。既定の 4 ステータスだけが持ち、追加したステータスは空。
 	// API の Todo.Status（互換用）と、status 文字列での指定に使う
 	LegacyKey Status `json:"-"`
+	// WIPLimit は列の最大件数（Jira のカンバンの列制約）。nil は制限なし。超えてもボードの表示が変わるだけで、移動は止めない
+	WIPLimit *int
 }
 
 // DefaultWorkflow はスペースを作ったときの既定のステータス（導入前の 4 ステータス）を並び順に返す
@@ -98,6 +100,23 @@ func FirstInCategory(statuses []WorkflowStatus, category StatusCategory) (Workfl
 const statusNameMax = 50
 
 var ErrInvalidStatusName = errors.New("ステータスの名前は 1〜50 文字で入力してください")
+
+// wipLimitMax は列の最大件数の上限
+const wipLimitMax = 999
+
+var ErrInvalidWIPLimit = errors.New("最大件数は 1〜999 の整数で入力してください")
+
+// NormalizeWIPLimit は列の最大件数を検証する。nil と 0 は制限なし（nil）にする。範囲外なら ErrInvalidWIPLimit
+func NormalizeWIPLimit(limit *int) (*int, error) {
+	if limit == nil || *limit == 0 {
+		return nil, nil
+	}
+	if *limit < 0 || *limit > wipLimitMax {
+		return nil, ErrInvalidWIPLimit
+	}
+	v := *limit
+	return &v, nil
+}
 
 // NormalizeStatusName は前後の空白を除いたステータス名を返す。空や長すぎる名前は ErrInvalidStatusName
 func NormalizeStatusName(name string) (string, error) {

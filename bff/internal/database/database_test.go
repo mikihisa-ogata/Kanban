@@ -69,7 +69,7 @@ func TestMigrate(t *testing.T) {
 		"issue_history":  {"id", "todo_id", "field", "old_value", "new_value", "created_at", "user_id"},
 		"attachments":    {"id", "todo_id", "file_name", "content_type", "size", "storage_name", "created_at"},
 		"worklogs":       {"id", "todo_id", "minutes", "started_at", "note", "created_at", "updated_at"},
-		"statuses":       {"id", "space_id", "name", "category", "position", "legacy_key"},
+		"statuses":       {"id", "space_id", "name", "category", "position", "legacy_key", "wip_limit"},
 		"users":          {"id", "display_name", "email", "password_hash", "avatar_color", "created_at"},
 		"sessions":       {"token_hash", "user_id", "created_at", "expires_at"},
 		"watchers":       {"todo_id", "user_id", "created_at"},

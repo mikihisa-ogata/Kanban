@@ -75,6 +75,62 @@ func TestWorkflow_CreateRenameReorder(t *testing.T) {
 	}
 }
 
+func TestWorkflow_SetWIPLimit(t *testing.T) {
+	r := setupSpaceRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"Title":"開発","Key":"DEV"}`, http.StatusCreated)
+	statuses := statusesOf(t, r, 1)
+	if statuses[1].WIPLimit != nil {
+		t.Fatalf("default WIPLimit = %v, want nil", *statuses[1].WIPLimit)
+	}
+	path := fmt.Sprintf("/statuses/%d/wip-limit", statuses[1].ID)
+
+	wipLimitOf := func() *int {
+		t.Helper()
+		for _, s := range statusesOf(t, r, 1) {
+			if s.ID == statuses[1].ID {
+				return s.WIPLimit
+			}
+		}
+		t.Fatal("status not found")
+		return nil
+	}
+
+	// 設定すると GET /statuses に出る。同じ値をもう一度設定しても成功する
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":3}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":3}`, http.StatusOK)
+	if got := wipLimitOf(); got == nil || *got != 3 {
+		t.Errorf("WIPLimit = %v, want 3", got)
+	}
+	// ほかのステータスは変わらない
+	if other := statusesOf(t, r, 1)[0].WIPLimit; other != nil {
+		t.Errorf("other WIPLimit = %v, want nil", *other)
+	}
+	// 名前を変えても最大件数は残る
+	mustStatus(t, r, http.MethodPut, fmt.Sprintf("/statuses/%d", statuses[1].ID), `{"name":"作業中"}`, http.StatusOK)
+	if got := wipLimitOf(); got == nil || *got != 3 {
+		t.Errorf("WIPLimit after rename = %v, want 3", got)
+	}
+
+	// null・0 は制限なし
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":null}`, http.StatusOK)
+	if got := wipLimitOf(); got != nil {
+		t.Errorf("WIPLimit after null = %v, want nil", *got)
+	}
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":5}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":0}`, http.StatusOK)
+	if got := wipLimitOf(); got != nil {
+		t.Errorf("WIPLimit after 0 = %v, want nil", *got)
+	}
+
+	// 範囲外・整数でない値は 400、未割り当てのワークフローは 400、存在しないステータスは 404
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":-1}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":1000}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":"3"}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, path, `{"wipLimit":1.5}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, fmt.Sprintf("/statuses/%d/wip-limit", statusesOf(t, r, 0)[0].ID), `{"wipLimit":3}`, http.StatusBadRequest)
+	mustStatus(t, r, http.MethodPut, "/statuses/9999/wip-limit", `{"wipLimit":3}`, http.StatusNotFound)
+}
+
 func TestWorkflow_DeleteStatus(t *testing.T) {
 	r := setupSpaceRouter(t)
 	mustStatus(t, r, http.MethodPost, "/spaces", `{"Title":"開発","Key":"DEV"}`, http.StatusCreated)

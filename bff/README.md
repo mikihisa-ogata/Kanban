@@ -567,14 +567,14 @@ DELETE /comments/:id
 GET /statuses
 ```
 
-すべてのワークフローのステータス（ボードの列）を、スペース・並び順の順に返します。`SpaceID` が `0` のものは、スペース未割り当ての課題のワークフローです。スペースを作ると、そのスペースに既定の 4 ステータスを作ります。スペースを削除すると、そのスペースのステータスも削除します（課題は未割り当てのワークフローへ移ります）。
+すべてのワークフローのステータス（ボードの列）を、スペース・並び順の順に返します。`SpaceID` が `0` のものは、スペース未割り当ての課題のワークフローです。`WIPLimit` は列の最大件数（WIP 制限）で、`null` は制限なしです。スペースを作ると、そのスペースに既定の 4 ステータスを作ります。スペースを削除すると、そのスペースのステータスも削除します（課題は未割り当てのワークフローへ移ります）。
 
 ```json
 [
-  { "ID": 1, "SpaceID": 0, "Name": "オープン", "Category": "ToDo", "Position": 1 },
-  { "ID": 2, "SpaceID": 0, "Name": "進行中", "Category": "InProgress", "Position": 2 },
-  { "ID": 3, "SpaceID": 0, "Name": "待ち状況", "Category": "InProgress", "Position": 3 },
-  { "ID": 4, "SpaceID": 0, "Name": "クローズ", "Category": "Done", "Position": 4 }
+  { "ID": 1, "SpaceID": 0, "Name": "オープン", "Category": "ToDo", "Position": 1, "WIPLimit": null },
+  { "ID": 2, "SpaceID": 0, "Name": "進行中", "Category": "InProgress", "Position": 2, "WIPLimit": 3 },
+  { "ID": 3, "SpaceID": 0, "Name": "待ち状況", "Category": "InProgress", "Position": 3, "WIPLimit": null },
+  { "ID": 4, "SpaceID": 0, "Name": "クローズ", "Category": "Done", "Position": 4, "WIPLimit": null }
 ]
 ```
 
@@ -584,13 +584,15 @@ GET /statuses
 POST   /spaces/:id/statuses          {"name": "レビュー", "category": "InProgress"}
 PUT    /spaces/:id/statuses/order    {"statusIds": [5, 6, 13, 7, 8]}
 PUT    /statuses/:id                 {"name": "コードレビュー"}
+PUT    /statuses/:id/wip-limit       {"wipLimit": 3}
 DELETE /statuses/:id?moveTo=8
 ```
 
-スペース（`:id`）のワークフローのステータスを追加・並べ替え・名前変更・削除します。スペース未割り当てのワークフロー（`SpaceID` 0）は変更できません（400）。
+スペース（`:id`）のワークフローのステータスを追加・並べ替え・名前変更・最大件数の設定・削除します。スペース未割り当てのワークフロー（`SpaceID` 0）は変更できません（400）。
 
 - `POST` はスペースの末尾にステータスを追加し、201 で追加したステータスを `status` に入れて返します。`category` は `ToDo`・`InProgress`・`Done` のいずれかです。
 - 名前は前後の空白を除いて 1〜50 文字で、同じスペースに同じ名前（大文字・小文字は区別しない）があれば 409 を返します。`PUT /statuses/:id` で変えられるのは名前だけです（カテゴリは課題の完了の扱いが変わるので変えられません）。
+- `PUT /statuses/:id/wip-limit` は列の最大件数（Jira のカンバンの列制約）を設定し、200 で変更後のステータスを `status` に入れて返します。`wipLimit` は 1〜999 の整数で、`null` か `0` で制限なしに戻します。範囲外や整数でない値は 400 です。最大件数を超えてもボードの表示が変わるだけで、課題の移動は止めません。
 - `PUT /spaces/:id/statuses/order` はボードの列の順です。スペースのステータスの ID をすべて 1 回ずつ指定します（過不足があれば 400）。
 - `DELETE` は、そのステータスの課題があれば `moveTo`（同じスペースの別のステータスの ID）へ移してから削除します。課題があるのに `moveTo` がなければ 409、`moveTo` が別のスペースのステータスや自分自身なら 400 を返します。移した課題のステータスの変化は変更履歴に残ります。ワークフローの最後のステータスは削除できません（400）。
 
@@ -646,7 +648,7 @@ DELETE /spaces/:id
 - `spaces.space_key` がスペースのキー、`todos.number` がスペース内の番号です。`issue_counters` にスペース（`space_id`。0 は未割り当て）ごとの採番済みの最大の番号を持ち、削除した番号を再利用しないようにしています。
 - 課題キーの導入前のデータベースでは、起動時に `Migrate` がキーのないスペースに名前から作ったキーを ID 順に付け、番号のない（`number` が 0 の）タスクにスペースごとに ID 順で番号を振ります。CSV から取り込んだデータも、`import-csv` が最後に `Migrate` を実行して同じように番号を付けます。
 - サブタスクの親課題は `todos.parent_id`（0 はサブタスクではない）です。
-- ワークフローのステータスは `statuses` に、スペース `space_id`（0 は未割り当て）・名前 `name`・カテゴリ `category`・並び順 `position`・導入前のステータス `legacy_key`（既定の 4 ステータスだけ）で保存し、課題は `todos.status_id` で指します。`todos.status` には互換用の値を書き込みます。ワークフローの導入前のデータベースでは、起動時に `Migrate` が各スペースと未割り当てに既定の 4 ステータス（オープン=To Do、進行中・待ち状況=In Progress、クローズ=Done）を作り、課題を同じスペースの同じステータスに対応付け、`done` をカテゴリに合わせます（何度実行しても同じ結果になります）。
+- ワークフローのステータスは `statuses` に、スペース `space_id`（0 は未割り当て）・名前 `name`・カテゴリ `category`・並び順 `position`・導入前のステータス `legacy_key`（既定の 4 ステータスだけ）・列の最大件数 `wip_limit`（`NULL` は制限なし）で保存し、課題は `todos.status_id` で指します。`todos.status` には互換用の値を書き込みます。ワークフローの導入前のデータベースでは、起動時に `Migrate` が各スペースと未割り当てに既定の 4 ステータス（オープン=To Do、進行中・待ち状況=In Progress、クローズ=Done）を作り、課題を同じスペースの同じステータスに対応付け、`done` をカテゴリに合わせます（何度実行しても同じ結果になります）。
 - 初期見積もり・残り時間は `todos.original_estimate`・`todos.remaining_estimate`（分、`NULL` は未設定）、作業ログは `worklogs` に課題 `todo_id`・作業時間 `minutes`（分）・開始日時 `started_at`・メモ `note`・記録日時 `created_at`・編集日時 `updated_at` で保存します。
 - 添付ファイルは `attachments` に、課題 `todo_id`・ファイル名 `file_name`・種類 `content_type`・バイト数 `size`・保存名 `storage_name`・添付日時 `created_at` で保存します。本体は `ATTACHMENTS_DIR` に `storage_name`（推測できないランダムな名前）で置きます。読み書きは `internal/repository` の添付ファイルの Repository だけが行います。
 - 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・変更者 `user_id`（0 はなし）・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。

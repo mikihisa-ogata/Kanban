@@ -123,6 +123,7 @@ func main() {
 	api.POST("/spaces/:id/statuses", spaceHandler.CreateStatus)
 	api.PUT("/spaces/:id/statuses/order", spaceHandler.ReorderStatuses)
 	api.PUT("/statuses/:id", spaceHandler.RenameStatus)
+	api.PUT("/statuses/:id/wip-limit", spaceHandler.SetStatusWIPLimit)
 	api.DELETE("/statuses/:id", spaceHandler.DeleteStatus)
 
 	if err := r.Run(":8080"); err != nil {

@@ -15,6 +15,8 @@ type StatusRepository interface {
 	Create(status domain.WorkflowStatus) (int, error)
 	// Rename はステータスの名前を変える。存在しなければ not found のエラーを返す
 	Rename(id int, name string) error
+	// SetWIPLimit はステータスの列の最大件数を変える（nil は制限なし）。存在しなければ not found のエラーを返す
+	SetWIPLimit(id int, limit *int) error
 	// Reorder はスペースのステータスを ids の順に並べ直す（ids はそのスペースのステータスの ID をすべて含む）
 	Reorder(spaceID int, ids []int) error
 	// Delete はステータスを削除する。存在しなければ not found のエラーを返す

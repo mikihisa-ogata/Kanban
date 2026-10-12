@@ -1,8 +1,10 @@
 <template>
   <div 
     :class="[
-      'bg-gray-50 rounded-xl p-3 min-w-0 flex flex-col transition-all duration-200 border-2 border-transparent shadow-md',
-      isDragOver ? 'bg-blue-50 border-blue-500 shadow-lg shadow-blue-300' : ''
+      'rounded-xl p-3 min-w-0 flex flex-col transition-all duration-200 border-2 shadow-md',
+      isDragOver
+        ? 'bg-blue-50 border-blue-500 shadow-lg shadow-blue-300'
+        : column.overLimit ? 'bg-red-50 border-red-400' : 'bg-gray-50 border-transparent'
     ]"
     @dragover.prevent="handleDragOver"
     @dragleave="handleDragLeave"

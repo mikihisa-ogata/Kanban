@@ -229,6 +229,33 @@ func (h *SpaceHandler) RenameStatus(c *gin.Context) {
 	})
 }
 
+// SetStatusWIPLimit はステータス（:id）の列の最大件数を変える。wipLimit が null か 0 なら制限なし
+func (h *SpaceHandler) SetStatusWIPLimit(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		WIPLimit *int `json:"wipLimit"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	status, err := h.service.SetStatusWIPLimit(id, req.WIPLimit)
+	if err != nil {
+		respondWorkflowError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "最大件数の変更に成功しました",
+		"status":  status,
+	})
+}
+
 // ReorderStatuses はスペース（:id）のステータスを statusIds の順に並べ直す
 func (h *SpaceHandler) ReorderStatuses(c *gin.Context) {
 	spaceID, ok := parseID(c)
@@ -288,6 +315,7 @@ func respondWorkflowError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrStatusNameDuplicate), errors.Is(err, service.ErrStatusInUse):
 		status = http.StatusConflict
 	case errors.Is(err, domain.ErrInvalidStatusName),
+		errors.Is(err, domain.ErrInvalidWIPLimit),
 		errors.Is(err, service.ErrInvalidStatusCategory),
 		errors.Is(err, service.ErrUnassignedWorkflow),
 		errors.Is(err, service.ErrInvalidMoveTarget),

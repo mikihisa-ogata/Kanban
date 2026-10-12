@@ -4,6 +4,7 @@
     <h3 class="m-0 mb-1 text-lg font-bold text-gray-900">ワークフロー</h3>
     <p class="m-0 mb-4 text-sm text-gray-600">
       ステータスはボードの列になります（上から順に左から並びます）。カテゴリが「完了」のステータスにした課題は完了扱いになります。
+      「最大」を入れると、列の課題がその件数を超えたときにボードの列が赤くなります（移動は止めません）。
     </p>
 
     <p v-if="loading" class="m-0 text-sm text-gray-400">読み込み中...</p>
@@ -56,6 +57,22 @@
           {{ statusCategoryLabel(status.Category) }}
         </span>
         <span class="shrink-0 w-14 text-right text-xs text-gray-500">{{ usage(status) }} 件</span>
+        <!-- 列の最大件数（WIP 制限）。空欄は制限なし。Enter かフォーカスを外すと保存 -->
+        <label class="shrink-0 flex items-center gap-1 text-xs text-gray-500">
+          最大
+          <input
+            :value="status.WIPLimit ?? ''"
+            type="number"
+            min="1"
+            max="999"
+            step="1"
+            placeholder="なし"
+            :aria-label="`${status.Name} の最大件数`"
+            class="w-16 px-2 py-1 border-2 border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+            @keydown.enter.prevent="$event.target.blur()"
+            @change="saveWipLimit(status, $event)"
+          />
+        </label>
         <button
           type="button"
           class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 text-lg leading-none cursor-pointer hover:bg-red-100 hover:text-red-500 disabled:opacity-30 disabled:cursor-default"
@@ -248,6 +265,23 @@ const handleRenameEnter = (event) => {
   if (isComposing(event)) return;
   event.preventDefault();
   saveRename();
+};
+
+// 列の最大件数。空欄か 0 で制限なしに戻す。整数でない値や範囲外は保存せず元に戻す
+const saveWipLimit = async (status, event) => {
+  const text = event.target.value.trim();
+  const limit = text === '' ? null : Number(text);
+  if (limit !== null && (!Number.isInteger(limit) || limit < 0 || limit > 999)) {
+    error.value = '最大件数は 1〜999 の整数で入力してください';
+    event.target.value = status.WIPLimit ?? '';
+    return;
+  }
+  const next = limit === 0 ? null : limit;
+  if (next === (status.WIPLimit ?? null)) {
+    event.target.value = status.WIPLimit ?? '';
+    return;
+  }
+  await run('最大件数の変更', () => statusesApi.setWipLimit(status.ID, next));
 };
 
 // 削除（使われていれば移し先を選ぶ。既定は同じカテゴリの別のステータス）

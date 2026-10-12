@@ -68,6 +68,25 @@ func (s *spaceService) RenameStatus(id int, name string) (domain.WorkflowStatus,
 	return s.findStatus(id)
 }
 
+// SetStatusWIPLimit はステータスの列の最大件数（WIP 制限）を変える。nil と 0 は制限なし
+func (s *spaceService) SetStatusWIPLimit(id int, limit *int) (domain.WorkflowStatus, error) {
+	status, err := s.findStatus(id)
+	if err != nil {
+		return domain.WorkflowStatus{}, err
+	}
+	if _, err := s.editableStatuses(status.SpaceID); err != nil {
+		return domain.WorkflowStatus{}, err
+	}
+	limit, err = domain.NormalizeWIPLimit(limit)
+	if err != nil {
+		return domain.WorkflowStatus{}, err
+	}
+	if err := s.statuses.repo.SetWIPLimit(id, limit); err != nil {
+		return domain.WorkflowStatus{}, err
+	}
+	return s.findStatus(id)
+}
+
 // ReorderStatuses はスペースのステータスを ids の順（ボードの列の順）に並べ直す
 func (s *spaceService) ReorderStatuses(spaceID int, ids []int) error {
 	statuses, err := s.editableStatuses(spaceID)
