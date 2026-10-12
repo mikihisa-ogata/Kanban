@@ -22,6 +22,10 @@
       >
         + 作成
       </button>
+      <!-- ログイン中のユーザーはブラウザ側でだけ取得するので、サーバーの描画には含めない -->
+      <ClientOnly>
+        <UserMenu v-if="currentUser" :user="currentUser" class="ml-auto" />
+      </ClientOnly>
     </header>
     <slot />
     <GlobalCreate />
@@ -30,9 +34,13 @@
 
 <script setup>
 import GlobalCreate from '~/components/GlobalCreate.vue';
+import UserMenu from '~/components/UserMenu.vue';
+import { useCurrentUser } from '~/composables/useCurrentUser';
 
 // サイドバー（スペース一覧）の開閉状態。SpaceShell と共有する
 const sidebarOpen = useState('sidebarOpen', () => false);
 // 課題の作成モーダルの開閉状態。GlobalCreate と共有する
 const createIssueOpen = useState('createIssueOpen', () => false);
+// ログイン中のユーザー（ヘッダー右上のアバター）
+const { user: currentUser } = useCurrentUser();
 </script>

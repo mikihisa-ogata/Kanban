@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8080';
+import { API_BASE_URL, apiFetch } from '~/api/client';
 
 // 1 ファイルの上限（bff の domain.AttachmentMaxSize と同じ 10MB）
 export const ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024;
@@ -6,7 +6,7 @@ export const ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024;
 export const attachmentsApi = {
   // 課題の添付ファイル一覧取得（添付順）
   async fetchByTodo(todoId) {
-    const response = await fetch(`${API_BASE_URL}/todos/${todoId}/attachments`);
+    const response = await apiFetch(`${API_BASE_URL}/todos/${todoId}/attachments`);
     if (!response.ok) {
       throw new Error('Failed to fetch attachments');
     }
@@ -18,7 +18,7 @@ export const attachmentsApi = {
   async upload(todoId, file) {
     const body = new FormData();
     body.append('file', file);
-    const response = await fetch(`${API_BASE_URL}/todos/${todoId}/attachments`, {
+    const response = await apiFetch(`${API_BASE_URL}/todos/${todoId}/attachments`, {
       method: 'POST',
       body
     });
@@ -36,7 +36,7 @@ export const attachmentsApi = {
 
   // 添付ファイル削除
   async delete(id) {
-    const response = await fetch(`${API_BASE_URL}/attachments/${id}`, {
+    const response = await apiFetch(`${API_BASE_URL}/attachments/${id}`, {
       method: 'DELETE'
     });
     if (!response.ok) {

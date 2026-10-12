@@ -1,9 +1,9 @@
-const API_BASE_URL = 'http://localhost:8080';
+import { API_BASE_URL, apiFetch } from '~/api/client';
 
 export const todosApi = {
   // タスク一覧取得
   async fetchAll() {
-    const response = await fetch(`${API_BASE_URL}/todos`);
+    const response = await apiFetch(`${API_BASE_URL}/todos`);
     if (!response.ok) {
       throw new Error('Failed to fetch todos');
     }
@@ -12,7 +12,7 @@ export const todosApi = {
   
   // 課題キー（例: KAN-12）でタスクを取得。存在しない場合は null を返す
   async fetchByKey(key) {
-    const response = await fetch(`${API_BASE_URL}/issues/${encodeURIComponent(key)}`);
+    const response = await apiFetch(`${API_BASE_URL}/issues/${encodeURIComponent(key)}`);
     if (response.status === 404) {
       return null;
     }
@@ -24,7 +24,7 @@ export const todosApi = {
 
   // タスク作成
   async create(todo) {
-    const response = await fetch(`${API_BASE_URL}/todos`, {
+    const response = await apiFetch(`${API_BASE_URL}/todos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(todo)
@@ -37,7 +37,7 @@ export const todosApi = {
   
   // タスク更新（更新後のタスクを todo に入れて返す。スペースを変えると課題キーが変わる）
   async update(id, todo) {
-    const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
+    const response = await apiFetch(`${API_BASE_URL}/todos/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(todo)
@@ -50,7 +50,7 @@ export const todosApi = {
   
   // タスクの並び替え（beforeId のタスクの直前へ移動。0 の場合は末尾へ移動）
   async move(id, beforeId) {
-    const response = await fetch(`${API_BASE_URL}/todos/${id}/move`, {
+    const response = await apiFetch(`${API_BASE_URL}/todos/${id}/move`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ beforeId })
@@ -63,7 +63,7 @@ export const todosApi = {
   
   // 課題の変更履歴取得（記録順＝古い順）
   async fetchHistory(id) {
-    const response = await fetch(`${API_BASE_URL}/todos/${id}/history`);
+    const response = await apiFetch(`${API_BASE_URL}/todos/${id}/history`);
     if (!response.ok) {
       throw new Error('Failed to fetch history');
     }
@@ -73,7 +73,7 @@ export const todosApi = {
   // 課題リンクを作成（relation は id の課題から見た名前。例: 'is blocked by'）。
   // 失敗したときは bff のメッセージ（同じリンクが既にある、など）をエラーにする
   async addLink(id, relation, targetId) {
-    const response = await fetch(`${API_BASE_URL}/todos/${id}/links`, {
+    const response = await apiFetch(`${API_BASE_URL}/todos/${id}/links`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ relation, targetId })
@@ -87,7 +87,7 @@ export const todosApi = {
 
   // 課題リンクを削除（両方の課題から消える）
   async deleteLink(linkId) {
-    const response = await fetch(`${API_BASE_URL}/links/${linkId}`, {
+    const response = await apiFetch(`${API_BASE_URL}/links/${linkId}`, {
       method: 'DELETE'
     });
     if (!response.ok) {
@@ -98,7 +98,7 @@ export const todosApi = {
 
   // タスク削除
   async delete(id) {
-    const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
+    const response = await apiFetch(`${API_BASE_URL}/todos/${id}`, {
       method: 'DELETE'
     });
     if (!response.ok) {

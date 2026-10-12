@@ -1,9 +1,9 @@
-const API_BASE_URL = 'http://localhost:8080';
+import { API_BASE_URL, apiFetch } from '~/api/client';
 
 export const spacesApi = {
   // スペース一覧取得
   async fetchAll() {
-    const response = await fetch(`${API_BASE_URL}/spaces`);
+    const response = await apiFetch(`${API_BASE_URL}/spaces`);
     if (!response.ok) {
       throw new Error('Failed to fetch spaces');
     }
@@ -13,7 +13,7 @@ export const spacesApi = {
   // スペース作成（key を省略すると名前から作る）。
   // キーの形式違反や重複のときは、サーバーのメッセージを持つ Error を投げる
   async create(space) {
-    const response = await fetch(`${API_BASE_URL}/spaces`, {
+    const response = await apiFetch(`${API_BASE_URL}/spaces`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(space)
@@ -27,7 +27,7 @@ export const spacesApi = {
 
   // スペース名から、既存と重複しないキーの候補を取得
   async suggestKey(title) {
-    const response = await fetch(`${API_BASE_URL}/spaces/key-suggestion?title=${encodeURIComponent(title)}`);
+    const response = await apiFetch(`${API_BASE_URL}/spaces/key-suggestion?title=${encodeURIComponent(title)}`);
     if (!response.ok) {
       throw new Error('Failed to suggest space key');
     }
@@ -37,7 +37,7 @@ export const spacesApi = {
 
   // スペースの名前とキーを変更。キーの形式違反や重複のときは、サーバーのメッセージを持つ Error を投げる
   async update(id, space) {
-    const response = await fetch(`${API_BASE_URL}/spaces/${id}`, {
+    const response = await apiFetch(`${API_BASE_URL}/spaces/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(space)
@@ -51,7 +51,7 @@ export const spacesApi = {
 
   // スペース削除
   async delete(id) {
-    const response = await fetch(`${API_BASE_URL}/spaces/${id}`, {
+    const response = await apiFetch(`${API_BASE_URL}/spaces/${id}`, {
       method: 'DELETE'
     });
     if (!response.ok) {

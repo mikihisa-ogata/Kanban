@@ -399,6 +399,24 @@ func schemaStatements() []string {
 			legacy_key VARCHAR(20) NOT NULL DEFAULT '',
 			INDEX idx_statuses_space (space_id, position)
 		) DEFAULT CHARSET = utf8mb4`,
+		// ユーザー。email は小文字に正規化して保存する。password_hash は bcrypt のハッシュ
+		`CREATE TABLE IF NOT EXISTS users (
+			id            INT AUTO_INCREMENT PRIMARY KEY,
+			display_name  VARCHAR(50) NOT NULL,
+			email         VARCHAR(255) NOT NULL,
+			password_hash VARCHAR(255) NOT NULL,
+			avatar_color  VARCHAR(7) NOT NULL,
+			created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE INDEX uq_users_email (email)
+		) DEFAULT CHARSET = utf8mb4`,
+		// ログインのセッション。token_hash は Cookie に入れるトークンの SHA-256（16 進数）で、トークンそのものは保存しない
+		`CREATE TABLE IF NOT EXISTS sessions (
+			token_hash CHAR(64) PRIMARY KEY,
+			user_id    INT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME NOT NULL,
+			INDEX idx_sessions_user (user_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

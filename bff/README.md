@@ -76,7 +76,47 @@ go run ./cmd/main.go
 
 添付ファイルの本体は、環境変数 `ATTACHMENTS_DIR` のディレクトリに保存します（未設定の場合は起動したディレクトリの `attachments/`。`bff/` で起動すれば `bff/attachments/`）。ディレクトリは最初の添付のときに作成します。`bff/attachments/` は `.gitignore` 済みです。データベースだけをバックアップ・移行すると添付ファイルの本体が欠けるので、このディレクトリも一緒に扱ってください。
 
+### 最初のユーザーを作る
+
+API はログインが必要です（ログインしていなければ 401 を返します）。ユーザーを追加する前のデータベースでも、起動すれば `users`・`sessions` テーブルを作るので、次の手順で最初のユーザーを作ります。
+
+1. bff を新しいコードで起動し直す（`go run ./cmd/main.go` を止めて起動し直す。Docker の場合は `docker compose up -d --build`。`docker compose down -v` はデータのボリュームが消えるので使わない）。
+2. フロントを起動し直す（`pnpm dev` を止めて起動し直す。ログイン画面などの新しいページを認識させるため）。
+3. http://localhost:3000 を開くとログイン画面に移るので、「サインアップ」から表示名・メールアドレス・パスワード（8 文字以上）を入れて登録する。登録するとそのままログインし、既存のボード・課題がそのまま見えます。
+
+既存のデータは、どのユーザーからも同じように見えます（ユーザーごとの権限はありません）。ユーザーの追加も同じくサインアップ画面から行います。
+
 ## API エンドポイント
+
+### 認証
+
+```
+POST /auth/signup   {"displayName": "山田 太郎", "email": "taro@example.com", "password": "8 文字以上"}
+POST /auth/login    {"email": "taro@example.com", "password": "..."}
+POST /auth/logout
+GET  /auth/me
+```
+
+認証はセッションの Cookie（`kanban_session`。HttpOnly・SameSite=Lax・有効期間 30 日）で行います。`/auth/*` 以外の API は、有効なセッションの Cookie がなければ 401（`{"error": "ログインしてください"}`）を返します。ブラウザからは資格情報付き（`fetch` の `credentials: 'include'`）で送ってください。CORS は `http://localhost:3000`・`http://localhost:5173` からの資格情報付きリクエストを許可しています。
+
+- `POST /auth/signup` はユーザーを作成してログインし、201 でユーザーを `user` に入れて返します（Cookie を付けます）。表示名が空・50 文字超、メールアドレスの形式が不正、パスワードが 8 文字未満・72 バイト超なら 400、メールアドレスが登録済みなら 409 を返します。
+- `POST /auth/login` はログインし、200 でユーザーを `user` に入れて返します（Cookie を付けます）。メールアドレスが登録されていない場合とパスワードが違う場合は、どちらも 401（`メールアドレスまたはパスワードが正しくありません`）を返します。
+- `POST /auth/logout` はセッションを削除して Cookie を消します。ログインしていなくても 200 を返します。
+- `GET /auth/me` はログイン中のユーザーを返します。ログインしていなければ 401 を返します。
+
+```json
+{
+  "ID": 1,
+  "DisplayName": "山田 太郎",
+  "Email": "taro@example.com",
+  "AvatarColor": "#0052CC",
+  "CreatedAt": "2026-10-12T01:00:00Z"
+}
+```
+
+- メールアドレスは前後の空白を除いて小文字にして保存します。大文字・小文字の違いだけのアドレスは同じユーザーです。
+- パスワードは bcrypt のハッシュにして保存し、レスポンスには含めません。セッションのトークンも SHA-256 のハッシュにして保存します。
+- `AvatarColor` はアバター（表示名の頭文字の丸）の色で、メールアドレスから決まります。
 
 ### 全TODOを取得
 
@@ -514,7 +554,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -530,6 +570,7 @@ DELETE /spaces/:id
 - 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
+- ユーザーは `users` に、表示名 `display_name`・メールアドレス `email`（小文字に正規化。一意）・パスワードのハッシュ `password_hash`（bcrypt）・アバターの色 `avatar_color`・作成日時 `created_at` で保存します。ログインのセッションは `sessions` に、トークンの SHA-256 `token_hash`・ユーザー `user_id`・作成日時 `created_at`・有効期限 `expires_at` で保存します。期限切れのセッションはログインのときに削除します。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。
 
 ### CSV からの移行
