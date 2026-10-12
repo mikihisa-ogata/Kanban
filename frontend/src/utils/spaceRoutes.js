@@ -2,6 +2,9 @@
 // space が null の場合は「すべてのスペース」のボード
 export const boardPath = (space) => (space ? `/spaces/${encodeURIComponent(space.Key)}/board` : '/board');
 
+// スペースのバックログ（未完了の課題を順位の順に並べた一覧）
+export const backlogPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/backlog`;
+
 export const settingsPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/settings`;
 
 // 課題の全画面ページ（Jira と同じく /browse/KAN-12）

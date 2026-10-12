@@ -37,7 +37,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { boardPath, settingsPath } from '../utils/spaceRoutes';
+import { boardPath, backlogPath, settingsPath } from '../utils/spaceRoutes';
 
 const props = defineProps({
   // 表示中のスペース。null の場合は「すべてのスペース」
@@ -52,15 +52,21 @@ const route = useRoute();
 const iconLabel = computed(() => (props.space ? (props.space.Key || props.space.Title).slice(0, 1) : '全'));
 const headerTitle = computed(() => (props.space ? `${props.space.Title}（${props.space.Key}）` : 'すべてのスペース'));
 
-// 左ナビのリンク。バックログやタイムラインなどは、それぞれのチケットで追加する
+// 左ナビのリンク。タイムラインなどは、それぞれのチケットで追加する。バックログはスペースごと（Jira のプロジェクトと同じ）
 const items = computed(() => {
-  const list = [
-    {
-      label: 'ボード',
-      to: boardPath(props.space),
-      icon: ['M3 4h18v16H3z', 'M9 4v16', 'M15 4v16']
-    }
-  ];
+  const list = [];
+  if (props.space) {
+    list.push({
+      label: 'バックログ',
+      to: backlogPath(props.space),
+      icon: ['M8 6h13', 'M8 12h13', 'M8 18h13', 'M3 6h.01', 'M3 12h.01', 'M3 18h.01']
+    });
+  }
+  list.push({
+    label: 'ボード',
+    to: boardPath(props.space),
+    icon: ['M3 4h18v16H3z', 'M9 4v16', 'M15 4v16']
+  });
   if (props.space) {
     list.push({
       label: '設定',
