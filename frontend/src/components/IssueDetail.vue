@@ -139,6 +139,34 @@
         <section class="border border-gray-200 rounded-lg">
           <h2 class="m-0 px-4 py-3 border-b border-gray-200 text-sm font-semibold text-gray-700">詳細</h2>
           <dl class="m-0 px-4 py-3 grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-3 items-center text-sm">
+            <!-- Jira と同じく、担当者は詳細欄の先頭。その下に「自分に割り当て」を置く -->
+            <dt class="self-start pt-1.5 text-gray-600 font-semibold"><label :for="fieldId('assignee')">担当者</label></dt>
+            <dd class="m-0 min-w-0">
+              <UserPicker
+                :id="fieldId('assignee')"
+                :user="task.Assignee"
+                empty-label="未割り当て"
+                @select="save({ assigneeId: $event || null })"
+              />
+              <button
+                v-if="currentUser && task.AssigneeID !== currentUser.ID"
+                type="button"
+                class="mt-0.5 bg-transparent border-0 p-0 text-xs font-semibold text-blue-600 cursor-pointer hover:underline"
+                @click="save({ assigneeId: currentUser.ID })"
+              >
+                自分に割り当て
+              </button>
+            </dd>
+
+            <dt class="text-gray-600 font-semibold"><label :for="fieldId('reporter')">報告者</label></dt>
+            <dd class="m-0 min-w-0">
+              <UserPicker
+                :id="fieldId('reporter')"
+                :user="task.Reporter"
+                @select="save({ reporterId: $event || null })"
+              />
+            </dd>
+
             <dt class="text-gray-600 font-semibold"><label :for="fieldId('issueType')">課題タイプ</label></dt>
             <dd class="m-0 min-w-0 flex items-center gap-2">
               <IssueTypeIcon :type="task.IssueType" />
@@ -325,6 +353,8 @@ import LinkSection from './LinkSection.vue';
 import ActivitySection from './ActivitySection.vue';
 import AttachmentSection from './AttachmentSection.vue';
 import TimeTrackingSection from './TimeTrackingSection.vue';
+import UserPicker from './UserPicker.vue';
+import { useCurrentUser } from '../composables/useCurrentUser';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
 import { PRIORITY_OPTIONS } from '../utils/priorities';
@@ -374,6 +404,9 @@ const props = defineProps({
 // worklogs-changed: 作業ログを記録・編集・削除した（呼び出し側で記録済み・残り時間を取り直す）
 // open: 別の課題（親課題・子課題・リンク相手）を開く（課題キー）
 const emit = defineEmits(['update', 'subtasks-changed', 'links-changed', 'comments-changed', 'worklogs-changed', 'open']);
+
+// ログイン中のユーザー（「自分に割り当て」に使う）
+const { user: currentUser } = useCurrentUser();
 
 const isSubtask = computed(() => props.task.IssueType === SUBTASK_ISSUE_TYPE);
 const epicTitle = computed(() => props.epics.find(epic => epic.ID === props.task.EpicID)?.Title ?? '');

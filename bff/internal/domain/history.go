@@ -25,17 +25,23 @@ const (
 	HistoryFieldEpic              = "epic"
 	HistoryFieldSpace             = "space"
 	HistoryFieldKey               = "key"
+	HistoryFieldAssignee          = "assignee" // 値は担当者の表示名
+	HistoryFieldReporter          = "reporter" // 値は報告者の表示名
 )
 
 // HistoryEntry は課題の変更履歴の 1 件。値は変更時点の表示用の文字列で、nil は「なし」。
 // ステータス（status）は Open などの値のまま、ストーリーポイント（storyPoints）は数値の文字列で持つので、
 // 日時と合わせて、ある時点のステータスとポイントを後から再計算できる
 type HistoryEntry struct {
-	ID        int
-	TodoID    int
-	Field     string
-	OldValue  *string
-	NewValue  *string
+	ID       int
+	TodoID   int
+	Field    string
+	OldValue *string
+	NewValue *string
+	// UserID は変更したユーザーの ID。0 はユーザー機能の追加前の記録（変更者なし）
+	UserID int
+	// User は変更したユーザーの概要。変更者なしなら nil。API の出力専用
+	User      *UserSummary
 	CreatedAt time.Time // 記録した日時（UTC）
 }
 
@@ -68,6 +74,8 @@ func DiffTodo(before, after Todo, names HistoryNames) []HistoryEntry {
 	add(HistoryFieldEpic, nameText(names.Epics, before.EpicID), nameText(names.Epics, after.EpicID))
 	add(HistoryFieldSpace, nameText(names.Spaces, before.SpaceID), nameText(names.Spaces, after.SpaceID))
 	add(HistoryFieldKey, text(before.Key), text(after.Key))
+	add(HistoryFieldAssignee, userText(before.AssigneeID, before.Assignee), userText(after.AssigneeID, after.Assignee))
+	add(HistoryFieldReporter, userText(before.ReporterID, before.Reporter), userText(after.ReporterID, after.Reporter))
 	return entries
 }
 
@@ -102,6 +110,18 @@ func nameText(names map[int]string, id int) *string {
 	}
 	if name, ok := names[id]; ok {
 		return &name
+	}
+	s := fmt.Sprintf("ID %d", id)
+	return &s
+}
+
+// userText はユーザーの表示名を返す。0 は nil（なし）、ユーザーが分からなければ「ID 3」のようにする
+func userText(id int, user *UserSummary) *string {
+	if id == 0 {
+		return nil
+	}
+	if user != nil {
+		return &user.DisplayName
 	}
 	s := fmt.Sprintf("ID %d", id)
 	return &s

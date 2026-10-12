@@ -43,7 +43,8 @@ func main() {
 	historyRepo := repository.NewHistoryMySQLRepository(db)
 	attachmentRepo := repository.NewAttachmentMySQLRepository(db, attachmentsDir())
 	statusRepo := repository.NewStatusMySQLRepository(db)
-	svc := service.NewTodoService(repo, epicRepo, spaceRepo, linkRepo, historyRepo, attachmentRepo, statusRepo)
+	userRepo := repository.NewUserMySQLRepository(db)
+	svc := service.NewTodoService(repo, epicRepo, spaceRepo, linkRepo, historyRepo, attachmentRepo, statusRepo, userRepo)
 	h := handler.NewTodoHandler(svc)
 	epicSvc := service.NewEpicService(epicRepo, repo, spaceRepo, historyRepo, statusRepo)
 	epicHandler := handler.NewEpicHandler(epicSvc)
@@ -57,8 +58,9 @@ func main() {
 	worklogHandler := handler.NewWorklogHandler(worklogSvc)
 	spaceSvc := service.NewSpaceService(spaceRepo, epicRepo, repo, historyRepo, statusRepo)
 	spaceHandler := handler.NewSpaceHandler(spaceSvc)
-	authSvc := service.NewAuthService(repository.NewUserMySQLRepository(db), repository.NewSessionMySQLRepository(db))
+	authSvc := service.NewAuthService(userRepo, repository.NewSessionMySQLRepository(db))
 	authHandler := handler.NewAuthHandler(authSvc)
+	userHandler := handler.NewUserHandler(service.NewUserService(userRepo))
 
 	r.POST("/auth/signup", authHandler.Signup)
 	r.POST("/auth/login", authHandler.Login)
@@ -67,6 +69,8 @@ func main() {
 
 	// ここから下の API はログインが必要（未ログインなら 401）
 	api := r.Group("/", authHandler.RequireLogin)
+	api.GET("/users", userHandler.GetUsers)
+
 	api.GET("/todos", h.GetTodos)
 	api.POST("/todos", h.CreateTodo)
 	api.PUT("/todos/:id", h.UpdateTodo)

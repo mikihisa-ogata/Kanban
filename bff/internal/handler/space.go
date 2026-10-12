@@ -161,7 +161,7 @@ func (h *SpaceHandler) DeleteSpace(c *gin.Context) {
 		return
 	}
 
-	err = h.service.DeleteSpace(id)
+	err = h.service.DeleteSpace(id, actorID(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -269,7 +269,7 @@ func (h *SpaceHandler) DeleteStatus(c *gin.Context) {
 		}
 		moveTo = n
 	}
-	if err := h.service.DeleteStatus(id, moveTo); err != nil {
+	if err := h.service.DeleteStatus(id, moveTo, actorID(c)); err != nil {
 		respondWorkflowError(c, err)
 		return
 	}

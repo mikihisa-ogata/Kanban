@@ -55,7 +55,7 @@ func (h *WorklogHandler) AddWorklog(c *gin.Context) {
 		return
 	}
 
-	worklog, err := h.service.AddWorklog(todoID, req.TimeSpent, startedAt, req.Note, remaining)
+	worklog, err := h.service.AddWorklog(todoID, req.TimeSpent, startedAt, req.Note, remaining, actorID(c))
 	if err != nil {
 		respondWorklogError(c, err)
 		return
@@ -78,7 +78,7 @@ func (h *WorklogHandler) UpdateWorklog(c *gin.Context) {
 		return
 	}
 
-	worklog, err := h.service.UpdateWorklog(id, req.TimeSpent, startedAt, req.Note, remaining)
+	worklog, err := h.service.UpdateWorklog(id, req.TimeSpent, startedAt, req.Note, remaining, actorID(c))
 	if err != nil {
 		respondWorklogError(c, err)
 		return
@@ -96,7 +96,7 @@ func (h *WorklogHandler) DeleteWorklog(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.DeleteWorklog(id); err != nil {
+	if err := h.service.DeleteWorklog(id, actorID(c)); err != nil {
 		respondWorklogError(c, err)
 		return
 	}

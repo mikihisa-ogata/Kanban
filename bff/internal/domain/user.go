@@ -35,6 +35,13 @@ type User struct {
 	CreatedAt    time.Time // 作成日時（UTC）
 }
 
+// UserSummary は課題の担当者・報告者、コメントの投稿者、履歴の変更者として出すユーザーの概要。API の出力専用
+type UserSummary struct {
+	ID          int
+	DisplayName string
+	AvatarColor string
+}
+
 // avatarColors はアバターの色の候補（Atlassian Design System のアクセントカラー）を返す
 func avatarColors() []string {
 	return []string{

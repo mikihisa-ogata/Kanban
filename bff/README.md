@@ -118,6 +118,14 @@ GET  /auth/me
 - パスワードは bcrypt のハッシュにして保存し、レスポンスには含めません。セッションのトークンも SHA-256 のハッシュにして保存します。
 - `AvatarColor` はアバター（表示名の頭文字の丸）の色で、メールアドレスから決まります。
 
+### ユーザー一覧
+
+```
+GET /users
+```
+
+すべてのユーザーを表示名の順の配列で返します（担当者・報告者を選ぶ候補）。各要素の形式は `GET /auth/me` と同じです（パスワードのハッシュは含みません）。
+
 ### 全TODOを取得
 
 ```
@@ -149,6 +157,10 @@ GET /todos
     "SpaceID": 0,
     "Number": 3,
     "Key": "TASK-3",
+    "AssigneeID": 2,
+    "ReporterID": 1,
+    "Assignee": { "ID": 2, "DisplayName": "佐藤 花子", "AvatarColor": "#00875A" },
+    "Reporter": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" },
     "CommentCount": 2,
     "Links": [
       {
@@ -182,6 +194,8 @@ GET /todos
 - `PUT` でスペースを変えると、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースの次の番号になります（キーが変わります）。エピックのスペース変更やスペースの削除で子タスクのスペースが変わった場合も同じです。古いキーは残りません。
 
 `OriginalEstimate`（初期見積もり）と `RemainingEstimate`（残り時間）は分の整数で、未設定は `null` です。`TimeSpent` は作業ログの合計（分）です（リクエストに含めても無視します）。
+
+`AssigneeID` は担当者、`ReporterID` は報告者のユーザー ID で、`0` はなし（未割り当て）です。`Assignee`・`Reporter` はそのユーザーの概要（表示名とアバターの色）で、なしなら `null` です。報告者は課題を作成したユーザーになります。ユーザー機能の追加前に作られた課題は、どちらもなしです。
 
 `CommentCount` はその課題のコメント数です（リクエストに含めても無視します）。
 
@@ -217,9 +231,12 @@ POST /todos
   "ParentID": 0,
   "Description": "タスクの説明（省略可）",
   "EpicID": 0,
-  "SpaceID": 0
+  "SpaceID": 0,
+  "AssigneeID": 2
 }
 ```
+
+`AssigneeID`（省略可）は担当者のユーザー ID で、省略か `0` は未割り当てです。存在しないユーザーなら 400 を返します。報告者はリクエストしたユーザー（ログイン中のユーザー）になります。
 
 **レスポンス（201）:** 作成したタスクを `todo` に入れて返します（形式は `GET /todos` の要素と同じ。採番した課題キー `Key` を含む）。
 
@@ -251,9 +268,13 @@ PUT /todos/:id
   "StoryPoints": null,
   "Description": "タスクの説明（省略すると空になる）",
   "EpicID": 0,
-  "SpaceID": 0
+  "SpaceID": 0,
+  "AssigneeID": 2,
+  "ReporterID": 1
 }
 ```
+
+`AssigneeID`・`ReporterID` は担当者・報告者のユーザー ID です。省略すると今のまま、`null` か `0` でなし（未割り当て）にします。存在しないユーザーや、ID でない値は 400 を返します。
 
 **レスポンス（200）:** 更新後のタスクを `todo` に入れて返します（形式は `GET /todos` の要素と同じ）。スペースを変えた場合は、新しい課題キーになっています。
 
@@ -424,11 +445,13 @@ GET /todos/:id/history
 
 ```json
 [
-  { "ID": 1, "TodoID": 3, "Field": "created", "OldValue": null, "NewValue": null, "CreatedAt": "2026-10-11T01:00:00Z" },
-  { "ID": 2, "TodoID": 3, "Field": "status", "OldValue": "オープン", "NewValue": "進行中", "CreatedAt": "2026-10-11T01:05:00Z" },
-  { "ID": 3, "TodoID": 3, "Field": "storyPoints", "OldValue": "3", "NewValue": "5", "CreatedAt": "2026-10-11T01:05:00Z" }
+  { "ID": 1, "TodoID": 3, "Field": "created", "OldValue": null, "NewValue": null, "UserID": 1, "User": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" }, "CreatedAt": "2026-10-11T01:00:00Z" },
+  { "ID": 2, "TodoID": 3, "Field": "status", "OldValue": "オープン", "NewValue": "進行中", "UserID": 1, "User": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" }, "CreatedAt": "2026-10-11T01:05:00Z" },
+  { "ID": 3, "TodoID": 3, "Field": "storyPoints", "OldValue": "3", "NewValue": "5", "UserID": 0, "User": null, "CreatedAt": "2026-10-11T01:05:00Z" }
 ]
 ```
+
+`UserID` は変更したユーザーの ID、`User` はその概要です。ユーザー機能の追加前の記録は `UserID` が `0`、`User` が `null`（変更者なし）です。
 
 課題の作成（`Field` が `created`）と、項目の変更を 1 項目 1 件で記録します。値は変更時点の文字列で、`null` は「なし」です。同じ内容のままの更新は記録しません。
 
@@ -445,6 +468,7 @@ GET /todos/:id/history
 | `deadline` | `2026-03-31` 形式 |
 | `epic` / `space` | 変更時点のエピック・スペースの名前 |
 | `key` | 課題キー（スペースの変更で変わる） |
+| `assignee` / `reporter` | 変更時点の担当者・報告者の表示名（`null` はなし） |
 
 `PUT /todos/:id` のほか、エピックのスペース変更・エピックやスペースの削除・親課題の移動で課題が変わった場合も記録します。ステータスとストーリーポイントは値と日時を残すので、ある時点のステータスとポイントを後から再計算できます。
 
@@ -465,6 +489,8 @@ DELETE /comments/:id
     "ID": 1,
     "TodoID": 3,
     "Body": "**確認しました**",
+    "AuthorID": 2,
+    "Author": { "ID": 2, "DisplayName": "佐藤 花子", "AvatarColor": "#00875A" },
     "CreatedAt": "2026-10-11T01:00:00Z",
     "UpdatedAt": "2026-10-11T01:05:00Z"
   }
@@ -475,7 +501,7 @@ DELETE /comments/:id
 - `CreatedAt` は投稿日時、`UpdatedAt` は最後に編集した日時です（UTC の RFC 3339 形式）。編集していないコメントの `UpdatedAt` は `null` です。
 - `POST` は 201 で作成したコメントを、`PUT` は 200 で編集後のコメントを `comment` に入れて返します。
 - 課題やコメントが存在しなければ 404 を返します。
-- 投稿者はまだ持ちません（ユーザー機能の追加後に付けます）。
+- `AuthorID` は投稿者（投稿したときにログインしていたユーザー）の ID、`Author` はその概要です。ユーザー機能の追加前のコメントは `AuthorID` が `0`、`Author` が `null`（投稿者なし）です。
 
 ### ワークフローのステータス
 
@@ -565,8 +591,9 @@ DELETE /spaces/:id
 - ワークフローのステータスは `statuses` に、スペース `space_id`（0 は未割り当て）・名前 `name`・カテゴリ `category`・並び順 `position`・導入前のステータス `legacy_key`（既定の 4 ステータスだけ）で保存し、課題は `todos.status_id` で指します。`todos.status` には互換用の値を書き込みます。ワークフローの導入前のデータベースでは、起動時に `Migrate` が各スペースと未割り当てに既定の 4 ステータス（オープン=To Do、進行中・待ち状況=In Progress、クローズ=Done）を作り、課題を同じスペースの同じステータスに対応付け、`done` をカテゴリに合わせます（何度実行しても同じ結果になります）。
 - 初期見積もり・残り時間は `todos.original_estimate`・`todos.remaining_estimate`（分、`NULL` は未設定）、作業ログは `worklogs` に課題 `todo_id`・作業時間 `minutes`（分）・開始日時 `started_at`・メモ `note`・記録日時 `created_at`・編集日時 `updated_at` で保存します。
 - 添付ファイルは `attachments` に、課題 `todo_id`・ファイル名 `file_name`・種類 `content_type`・バイト数 `size`・保存名 `storage_name`・添付日時 `created_at` で保存します。本体は `ATTACHMENTS_DIR` に `storage_name`（推測できないランダムな名前）で置きます。読み書きは `internal/repository` の添付ファイルの Repository だけが行います。
-- 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
-- コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
+- 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・変更者 `user_id`（0 はなし）・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
+- コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿者 `author_id`（0 はなし）・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
+- 課題の担当者・報告者は `todos.assignee_id`・`todos.reporter_id`（`users.id`。0 はなし）です。これらの列と `comments.author_id`・`issue_history.user_id` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の行は 0 = なし）。
 - 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。

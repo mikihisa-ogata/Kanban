@@ -50,7 +50,7 @@ func (h *CommentHandler) CreateComment(c *gin.Context) {
 		return
 	}
 
-	comment, err := h.service.CreateComment(todoID, req.Body)
+	comment, err := h.service.CreateComment(todoID, req.Body, actorID(c))
 	if err != nil {
 		respondCommentError(c, err)
 		return

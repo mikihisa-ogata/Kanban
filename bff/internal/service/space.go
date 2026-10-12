@@ -23,7 +23,8 @@ type SpaceService interface {
 	UpdateSpace(id int, title string, key string) error
 	// SuggestSpaceKey は名前から、既存のスペースと重複しないキーの候補を返す
 	SuggestSpaceKey(title string) (string, error)
-	DeleteSpace(id int) error
+	// DeleteSpace はスペースを削除する。課題の変更は actorID のユーザーの変更として履歴に記録する
+	DeleteSpace(id int, actorID int) error
 	// GetStatuses はすべてのワークフローのステータス（未割り当ての SpaceID 0 を含む）を、スペース・並び順の順に返す
 	GetStatuses() ([]domain.WorkflowStatus, error)
 	// CreateStatus・RenameStatus・ReorderStatuses・DeleteStatus はスペースのワークフローを編集する（workflow.go）。
@@ -31,7 +32,8 @@ type SpaceService interface {
 	CreateStatus(spaceID int, name string, category string) (domain.WorkflowStatus, error)
 	RenameStatus(id int, name string) (domain.WorkflowStatus, error)
 	ReorderStatuses(spaceID int, ids []int) error
-	DeleteStatus(id int, moveToID int) error
+	// DeleteStatus で課題を別のステータスへ移したときは、actorID のユーザーの変更として履歴に記録する
+	DeleteStatus(id int, moveToID int, actorID int) error
 }
 
 type spaceService struct {
@@ -153,7 +155,7 @@ func (s *spaceService) takenSpaceKeys(excludeID int) (map[string]bool, error) {
 
 // DeleteSpace はスペースを削除し、属するエピックとタスクはスペース未割り当てに戻す
 // （エピックとタスクの紐付けは残る）
-func (s *spaceService) DeleteSpace(id int) error {
+func (s *spaceService) DeleteSpace(id int, actorID int) error {
 	// 履歴に削除したスペースの名前と、課題の今の課題キーを残すため、削除の前に読む
 	names, err := s.history.names()
 	if err != nil {
@@ -187,7 +189,7 @@ func (s *spaceService) DeleteSpace(id int) error {
 		}
 		unlinked := todo
 		unlinked.SpaceID = 0
-		if err := updateWithHistory(s.todoRepo, s.history, s.statuses, names, todo, unlinked); err != nil {
+		if err := updateWithHistory(s.todoRepo, s.history.by(actorID), s.statuses, names, todo, unlinked); err != nil {
 			return fmt.Errorf("failed to unlink todo %d from space %d: %w", todo.ID, id, err)
 		}
 	}

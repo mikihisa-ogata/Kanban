@@ -61,6 +61,38 @@ func findUser(row *sql.Row) (*domain.User, error) {
 	return &user, nil
 }
 
+func (r *userMySQLRepository) FindAll() ([]domain.User, error) {
+	rows, err := r.db.Query(selectUsers + ` ORDER BY display_name, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := []domain.User{}
+	for rows.Next() {
+		var user domain.User
+		if err := rows.Scan(&user.ID, &user.DisplayName, &user.Email, &user.PasswordHash, &user.AvatarColor, &user.CreatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
+}
+
+// nullUser は LEFT JOIN で読んだユーザーの表示名と色。ユーザーがなければどちらも NULL
+type nullUser struct {
+	name  sql.NullString
+	color sql.NullString
+}
+
+// summary はユーザーの概要を返す。id が 0 か、ユーザーがなければ nil を返す
+func (u nullUser) summary(id int) *domain.UserSummary {
+	if id == 0 || !u.name.Valid {
+		return nil
+	}
+	return &domain.UserSummary{ID: id, DisplayName: u.name.String, AvatarColor: u.color.String}
+}
+
 type sessionMySQLRepository struct {
 	db *sql.DB
 }

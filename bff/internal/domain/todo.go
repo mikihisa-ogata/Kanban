@@ -85,7 +85,14 @@ type Todo struct {
 	// RemainingEstimate は残り時間（分）。nil は未設定。作業ログを記録すると減る
 	RemainingEstimate *int
 	// TimeSpent は作業ログの合計（分）。API の出力専用
-	TimeSpent    int
+	TimeSpent int
+	// AssigneeID は担当者のユーザー ID、ReporterID は報告者のユーザー ID。0 はなし（未割り当て）。
+	// 報告者は作成したユーザーになる。ユーザー機能の追加前の課題はどちらも 0
+	AssigneeID int
+	ReporterID int
+	// Assignee・Reporter は担当者・報告者の概要。なしなら nil。API の出力専用
+	Assignee     *UserSummary
+	Reporter     *UserSummary
 	EpicID       int         // 0 の場合はエピック未割り当て
 	Description  string      // 任意。空文字の場合は説明なし
 	SpaceID      int         // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース

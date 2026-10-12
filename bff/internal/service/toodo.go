@@ -36,6 +36,22 @@ var ErrLinkDuplicate = errors.New("同じリンクが既にあります")
 
 var ErrLinkNotFound = errors.New("課題リンクが見つかりません")
 
+var ErrUserNotFound = errors.New("指定されたユーザーが存在しません")
+
+var ErrInvalidUserID = errors.New("担当者・報告者はユーザーの ID か null で指定してください")
+
+// UserUpdate は更新での担当者・報告者の指定。Set が false なら今のまま、ID が 0 ならなし（未割り当て）にする
+type UserUpdate struct {
+	Set bool
+	ID  int
+}
+
+// PeopleUpdate は更新での担当者と報告者の指定
+type PeopleUpdate struct {
+	Assignee UserUpdate
+	Reporter UserUpdate
+}
+
 // DurationUpdate は更新での時間（初期見積もり・残り時間）の指定。
 // Set が false なら今の値のまま、Value が空文字なら未設定にし、それ以外は「1w 2d 3h 30m」形式として読む
 type DurationUpdate struct {
@@ -75,13 +91,16 @@ type TodoService interface {
 	GetTodoByKey(key string) (domain.Todo, error)
 	// CreateTodo はタスクを作成し、採番した課題キーを含む作成後のタスクを返す。課題タイプが空なら Task、優先度が空なら Medium にする
 	// ストーリーポイントが nil なら未設定にする。
-	// parentID を指定するとその課題のサブタスクを作る（課題タイプは Subtask、スペースとエピックは親と同じ）
-	CreateTodo(title string, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error)
+	// parentID を指定するとその課題のサブタスクを作る（課題タイプは Subtask、スペースとエピックは親と同じ）。
+	// 担当者は assigneeID（0 は未割り当て）、報告者は作成した actorID のユーザーにする。担当者がいなければ ErrUserNotFound を返す
+	CreateTodo(title string, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int, assigneeID int, actorID int) (domain.Todo, error)
 	// UpdateTodo はタスクを更新し、更新後のタスクを返す（スペースを変えると課題キーが変わる）。
 	// 課題タイプ・優先度が空、ラベルが nil、ストーリーポイントの Set が false なら今の値のままにする。
 	// サブタスクのスペースとエピックは親と同じにする。親のスペースやエピックを変えると、サブタスクも同じものに移す。
-	// 残り時間が未設定のまま初期見積もりを設定すると、残り時間は「初期見積もり − 記録済みの作業時間」にする
-	UpdateTodo(id int, title string, done bool, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error)
+	// 残り時間が未設定のまま初期見積もりを設定すると、残り時間は「初期見積もり − 記録済みの作業時間」にする。
+	// 担当者・報告者は people の指定がなければ今のまま。指定したユーザーがいなければ ErrUserNotFound を返す。
+	// 変更は actorID のユーザーの変更として履歴に記録する
+	UpdateTodo(id int, title string, done bool, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int, people PeopleUpdate, actorID int) (domain.Todo, error)
 	// DeleteTodo はタスクを削除する。サブタスクがあれば一緒に削除し、それらの課題リンク・添付ファイルも削除する
 	DeleteTodo(id int) error
 	MoveTodo(id int, beforeID int) error
@@ -100,12 +119,13 @@ type todoService struct {
 	spaceRepo      repository.SpaceRepository
 	linkRepo       repository.IssueLinkRepository
 	attachmentRepo repository.AttachmentRepository
+	userRepo       repository.UserRepository
 	history        historyRecorder
 	statuses       statusResolver
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository, st repository.StatusRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a,
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository, st repository.StatusRepository, u repository.UserRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a, userRepo: u,
 		history: historyRecorder{history: h, epics: e, spaces: s}, statuses: statusResolver{repo: st}}
 }
 
@@ -279,7 +299,7 @@ func (s *todoService) GetTodoByKey(key string) (domain.Todo, error) {
 	return s.withLinks(*todo)
 }
 
-func (s *todoService) CreateTodo(title string, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int) (domain.Todo, error) {
+func (s *todoService) CreateTodo(title string, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int, assigneeID int, actorID int) (domain.Todo, error) {
 	todoType := domain.IssueType(issueType)
 	if parentID != 0 {
 		// サブタスクは親と同じスペース・エピックに置く
@@ -318,6 +338,9 @@ func (s *todoService) CreateTodo(title string, deadline string, status StatusInp
 	if storyPoints != nil && !domain.ValidStoryPoints(*storyPoints) {
 		return domain.Todo{}, ErrInvalidStoryPoints
 	}
+	if err := s.validateUser(assigneeID); err != nil {
+		return domain.Todo{}, err
+	}
 
 	// ステータスの指定がなければ、スペースのワークフローのカテゴリ To Do の先頭にする
 	workflowStatus, err := s.statuses.resolve(spaceID, status, nil)
@@ -333,6 +356,8 @@ func (s *todoService) CreateTodo(title string, deadline string, status StatusInp
 		Labels:      todoLabels,
 		StoryPoints: storyPoints,
 		ParentID:    parentID,
+		AssigneeID:  assigneeID,
+		ReporterID:  actorID,
 		EpicID:      epicID,
 		Description: description,
 		SpaceID:     spaceID,
@@ -342,13 +367,13 @@ func (s *todoService) CreateTodo(title string, deadline string, status StatusInp
 	if err != nil {
 		return domain.Todo{}, err
 	}
-	if err := s.history.recordCreated(id); err != nil {
+	if err := s.history.by(actorID).recordCreated(id); err != nil {
 		return domain.Todo{}, err
 	}
 	return s.findWithLinks(id)
 }
 
-func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int) (domain.Todo, error) {
+func (s *todoService) UpdateTodo(id int, title string, done bool, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints StoryPointsUpdate, estimates EstimatesUpdate, epicID int, description string, spaceID int, people PeopleUpdate, actorID int) (domain.Todo, error) {
 	current, err := s.repo.FindByID(id)
 	if err != nil {
 		return domain.Todo{}, err
@@ -398,6 +423,19 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 	if todoPoints != nil && !domain.ValidStoryPoints(*todoPoints) {
 		return domain.Todo{}, ErrInvalidStoryPoints
 	}
+	assigneeID, reporterID := current.AssigneeID, current.ReporterID
+	if people.Assignee.Set {
+		if err := s.validateUser(people.Assignee.ID); err != nil {
+			return domain.Todo{}, err
+		}
+		assigneeID = people.Assignee.ID
+	}
+	if people.Reporter.Set {
+		if err := s.validateUser(people.Reporter.ID); err != nil {
+			return domain.Todo{}, err
+		}
+		reporterID = people.Reporter.ID
+	}
 	original, remaining := current.OriginalEstimate, current.RemainingEstimate
 	if estimates.Original.Set {
 		if original, err = estimates.Original.parse(); err != nil {
@@ -431,6 +469,8 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 		Priority:    todoPriority,
 		Labels:      todoLabels,
 		StoryPoints: todoPoints,
+		AssigneeID:  assigneeID,
+		ReporterID:  reporterID,
 		EpicID:      epicID,
 		Description: description,
 		SpaceID:     spaceID,
@@ -446,11 +486,11 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 	if err != nil {
 		return domain.Todo{}, err
 	}
-	if err := s.history.recordChanges(names, current, updated); err != nil {
+	if err := s.history.by(actorID).recordChanges(names, current, updated); err != nil {
 		return domain.Todo{}, err
 	}
 	if current.SpaceID != spaceID || current.EpicID != epicID {
-		if err := s.moveSubtasks(names, id, epicID, spaceID); err != nil {
+		if err := s.moveSubtasks(names, id, epicID, spaceID, actorID); err != nil {
 			return domain.Todo{}, err
 		}
 	}
@@ -477,7 +517,7 @@ func (s *todoService) findParent(id int) (domain.Todo, error) {
 
 // moveSubtasks は親課題のサブタスクを、親と同じスペース・エピックに移す（スペースが変わると課題キーも変わる）。
 // 移したサブタスクの変更も履歴に記録する
-func (s *todoService) moveSubtasks(names domain.HistoryNames, parentID int, epicID int, spaceID int) error {
+func (s *todoService) moveSubtasks(names domain.HistoryNames, parentID int, epicID int, spaceID int, actorID int) error {
 	todos, err := s.repo.FindAll()
 	if err != nil {
 		return err
@@ -488,7 +528,7 @@ func (s *todoService) moveSubtasks(names domain.HistoryNames, parentID int, epic
 		}
 		moved := todo
 		moved.EpicID, moved.SpaceID = epicID, spaceID
-		if err := updateWithHistory(s.repo, s.history, s.statuses, names, todo, moved); err != nil {
+		if err := updateWithHistory(s.repo, s.history.by(actorID), s.statuses, names, todo, moved); err != nil {
 			return fmt.Errorf("failed to move subtask %d: %w", todo.ID, err)
 		}
 	}
@@ -521,6 +561,21 @@ func (s *todoService) DeleteTodo(id int) error {
 // MoveTodo はタスクを beforeID のタスクの直前へ移動する。beforeID が 0 の場合は末尾へ移動する
 func (s *todoService) MoveTodo(id int, beforeID int) error {
 	return s.repo.Move(id, beforeID)
+}
+
+// validateUser は担当者・報告者に指定したユーザーが存在することを確かめる。0（なし）は常に有効
+func (s *todoService) validateUser(id int) error {
+	if id == 0 {
+		return nil
+	}
+	user, err := s.userRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+	return nil
 }
 
 // validateEpicAndSpace はスペースとエピックが存在し、エピックがタスクと同じスペースに属することを確かめる

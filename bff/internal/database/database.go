@@ -182,6 +182,12 @@ func addedColumns() []column {
 		{"todos", "remaining_estimate", "INT NULL"},
 		// ワークフローのステータス（statuses.id）。0 は未対応付け（assignMissingStatusIDs で埋める）
 		{"todos", "status_id", "INT NOT NULL DEFAULT 0"},
+		// 担当者・報告者（users.id）。0 はなし。追加前の課題はどちらもなし
+		{"todos", "assignee_id", "INT NOT NULL DEFAULT 0"},
+		{"todos", "reporter_id", "INT NOT NULL DEFAULT 0"},
+		// コメントの投稿者・履歴の変更者（users.id）。0 はなし（追加前の記録）
+		{"comments", "author_id", "INT NOT NULL DEFAULT 0"},
+		{"issue_history", "user_id", "INT NOT NULL DEFAULT 0"},
 	}
 }
 
@@ -345,8 +351,7 @@ func schemaStatements() []string {
 			UNIQUE INDEX uq_issue_links (link_type, source_id, target_id),
 			INDEX idx_issue_links_target (target_id)
 		) DEFAULT CHARSET = utf8mb4`,
-		// 課題へのコメント。updated_at は最後に編集した日時（NULL は未編集）。
-		// 投稿者はユーザー機能の追加後に列を足す
+		// 課題へのコメント。updated_at は最後に編集した日時（NULL は未編集）。投稿者 author_id は addedColumns で足す
 		`CREATE TABLE IF NOT EXISTS comments (
 			id         INT AUTO_INCREMENT PRIMARY KEY,
 			todo_id    INT NOT NULL,

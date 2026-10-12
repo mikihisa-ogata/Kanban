@@ -5,11 +5,27 @@ import (
 	"todo-api/internal/repository"
 )
 
-// historyRecorder は課題の作成と変更を変更履歴に記録する。課題を変えるサービスはすべてこれを通して記録する
+// historyRecorder は課題の作成と変更を変更履歴に記録する。課題を変えるサービスはすべてこれを通して記録する。
+// 変更したユーザーは by で指定する（指定しなければ変更者なし）
 type historyRecorder struct {
 	history repository.HistoryRepository
 	epics   repository.EpicRepository
 	spaces  repository.SpaceRepository
+	userID  int
+}
+
+// by は userID のユーザーの変更として記録する historyRecorder を返す
+func (r historyRecorder) by(userID int) historyRecorder {
+	r.userID = userID
+	return r
+}
+
+// add は変更者を付けて履歴を記録する
+func (r historyRecorder) add(entries []domain.HistoryEntry) error {
+	for i := range entries {
+		entries[i].UserID = r.userID
+	}
+	return r.history.Add(entries)
 }
 
 // names は今のエピックとスペースの名前を返す。エピックやスペースを削除する場合は、削除の前に読んでおく
@@ -34,12 +50,12 @@ func (r historyRecorder) names() (domain.HistoryNames, error) {
 
 // recordCreated は課題の作成を記録する
 func (r historyRecorder) recordCreated(todoID int) error {
-	return r.history.Add([]domain.HistoryEntry{{TodoID: todoID, Field: domain.HistoryFieldCreated}})
+	return r.add([]domain.HistoryEntry{{TodoID: todoID, Field: domain.HistoryFieldCreated}})
 }
 
 // recordChanges は before から after への変更を項目ごとに記録する。変更がなければ何もしない
 func (r historyRecorder) recordChanges(names domain.HistoryNames, before, after domain.Todo) error {
-	return r.history.Add(domain.DiffTodo(before, after, names))
+	return r.add(domain.DiffTodo(before, after, names))
 }
 
 // updateWithHistory は before の課題を after の内容で更新し、変わった項目を履歴に記録する。

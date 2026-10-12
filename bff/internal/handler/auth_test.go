@@ -25,7 +25,8 @@ func newAuthRouter(t *testing.T) (*gin.Engine, *sql.DB) {
 	todo := NewTodoHandler(service.NewTodoService(
 		repository.NewTodoMySQLRepository(db), repository.NewEpicMySQLRepository(db), repository.NewSpaceMySQLRepository(db),
 		repository.NewIssueLinkMySQLRepository(db), repository.NewHistoryMySQLRepository(db),
-		repository.NewAttachmentMySQLRepository(db, t.TempDir()), repository.NewStatusMySQLRepository(db)))
+		repository.NewAttachmentMySQLRepository(db, t.TempDir()), repository.NewStatusMySQLRepository(db),
+		repository.NewUserMySQLRepository(db)))
 
 	r := gin.New()
 	r.POST("/auth/signup", h.Signup)

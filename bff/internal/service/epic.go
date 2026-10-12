@@ -13,8 +13,9 @@ var ErrEpicNotFound = errors.New("指定されたエピックが存在しませ�
 type EpicService interface {
 	GetEpics() ([]domain.Epic, error)
 	CreateEpic(title string, spaceID int) error
-	UpdateEpic(id int, title string, spaceID int) error
-	DeleteEpic(id int) error
+	// UpdateEpic・DeleteEpic で子タスクが変わったときは、actorID のユーザーの変更として履歴に記録する
+	UpdateEpic(id int, title string, spaceID int, actorID int) error
+	DeleteEpic(id int, actorID int) error
 }
 
 type epicService struct {
@@ -41,7 +42,7 @@ func (s *epicService) CreateEpic(title string, spaceID int) error {
 }
 
 // UpdateEpic はエピックを更新する。スペースが変わった場合は子タスクも同じスペースへ移す
-func (s *epicService) UpdateEpic(id int, title string, spaceID int) error {
+func (s *epicService) UpdateEpic(id int, title string, spaceID int, actorID int) error {
 	if err := validateSpace(s.spaceRepo, spaceID); err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func (s *epicService) UpdateEpic(id int, title string, spaceID int) error {
 		}
 		moved := todo
 		moved.SpaceID = spaceID
-		if err := updateWithHistory(s.todoRepo, s.history, s.statuses, names, todo, moved); err != nil {
+		if err := updateWithHistory(s.todoRepo, s.history.by(actorID), s.statuses, names, todo, moved); err != nil {
 			return fmt.Errorf("failed to move todo %d to space %d: %w", todo.ID, spaceID, err)
 		}
 	}
@@ -84,7 +85,7 @@ func (s *epicService) UpdateEpic(id int, title string, spaceID int) error {
 }
 
 // DeleteEpic はエピックを削除し、紐づく子タスクはエピック未割り当てに戻す
-func (s *epicService) DeleteEpic(id int) error {
+func (s *epicService) DeleteEpic(id int, actorID int) error {
 	// 履歴に削除したエピックの名前を残すため、削除の前に読む
 	names, err := s.history.names()
 	if err != nil {
@@ -105,7 +106,7 @@ func (s *epicService) DeleteEpic(id int) error {
 		}
 		unlinked := todo
 		unlinked.EpicID = 0
-		if err := updateWithHistory(s.todoRepo, s.history, s.statuses, names, todo, unlinked); err != nil {
+		if err := updateWithHistory(s.todoRepo, s.history.by(actorID), s.statuses, names, todo, unlinked); err != nil {
 			return fmt.Errorf("failed to unlink todo %d from epic %d: %w", todo.ID, id, err)
 		}
 	}

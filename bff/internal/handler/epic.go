@@ -84,7 +84,7 @@ func (h *EpicHandler) UpdateEpic(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateEpic(id, req.Title, req.SpaceID)
+	err = h.service.UpdateEpic(id, req.Title, req.SpaceID, actorID(c))
 	if errors.Is(err, service.ErrEpicNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": err.Error(),
@@ -119,7 +119,7 @@ func (h *EpicHandler) DeleteEpic(c *gin.Context) {
 		return
 	}
 
-	err = h.service.DeleteEpic(id)
+	err = h.service.DeleteEpic(id, actorID(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),

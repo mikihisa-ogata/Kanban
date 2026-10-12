@@ -12,10 +12,14 @@ const commentBodyMax = 10000
 
 var ErrInvalidComment = errors.New("コメントは空にできず、10000 文字以内にしてください")
 
-// Comment は課題へのコメント。投稿者はユーザー機能の追加後に持たせる
+// Comment は課題へのコメント
 type Comment struct {
-	ID        int
-	TodoID    int
+	ID     int
+	TodoID int
+	// AuthorID は投稿者のユーザー ID。0 はユーザー機能の追加前のコメント（投稿者なし）
+	AuthorID int
+	// Author は投稿者の概要。投稿者なしなら nil。API の出力専用
+	Author    *UserSummary
 	Body      string     // Markdown
 	CreatedAt time.Time  // 投稿日時（UTC）
 	UpdatedAt *time.Time // 最後に編集した日時（UTC）。nil は編集していない

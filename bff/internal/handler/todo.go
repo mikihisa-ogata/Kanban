@@ -78,6 +78,8 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		EpicID      int      `json:"epicId"`
 		Description string   `json:"description"`
 		SpaceID     int      `json:"spaceId"`
+		// 担当者のユーザー ID。省略か 0 は未割り当て。報告者は作成したユーザーになる
+		AssigneeID int `json:"assigneeId"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -87,7 +89,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.service.CreateTodo(req.Title, req.Deadline, service.StatusInput{ID: req.StatusID, Legacy: req.Status}, req.IssueType, req.Priority, req.Labels, req.StoryPoints, req.ParentID, req.EpicID, req.Description, req.SpaceID)
+	todo, err := h.service.CreateTodo(req.Title, req.Deadline, service.StatusInput{ID: req.StatusID, Legacy: req.Status}, req.IssueType, req.Priority, req.Labels, req.StoryPoints, req.ParentID, req.EpicID, req.Description, req.SpaceID, req.AssigneeID, actorID(c))
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -135,6 +137,9 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		EpicID            int             `json:"epicId"`
 		Description       string          `json:"description"`
 		SpaceID           int             `json:"spaceId"`
+		// 担当者・報告者のユーザー ID。省略は今のまま、null か 0 はなし（未割り当て）にする
+		AssigneeID json.RawMessage `json:"assigneeId"`
+		ReporterID json.RawMessage `json:"reporterId"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -167,8 +172,24 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
+	assignee, err := parseUserUpdate(req.AssigneeID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	reporter, err := parseUserUpdate(req.ReporterID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
 	todo, err := h.service.UpdateTodo(id, req.Title, req.Done, req.Deadline, service.StatusInput{ID: req.StatusID, Legacy: req.Status}, req.IssueType, req.Priority, req.Labels, storyPoints,
-		service.EstimatesUpdate{Original: original, Remaining: remaining}, req.EpicID, req.Description, req.SpaceID)
+		service.EstimatesUpdate{Original: original, Remaining: remaining}, req.EpicID, req.Description, req.SpaceID,
+		service.PeopleUpdate{Assignee: assignee, Reporter: reporter}, actorID(c))
 	if isTodoValidationError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -379,6 +400,21 @@ func parseStoryPointsUpdate(raw json.RawMessage) (service.StoryPointsUpdate, err
 	return service.StoryPointsUpdate{Set: true, Value: value}, nil
 }
 
+// parseUserUpdate は担当者・報告者の指定を読む。省略は「今のまま」、null か 0 は「なし」、正の整数はそのユーザー
+func parseUserUpdate(raw json.RawMessage) (service.UserUpdate, error) {
+	if len(raw) == 0 {
+		return service.UserUpdate{}, nil
+	}
+	var id *int
+	if err := json.Unmarshal(raw, &id); err != nil || (id != nil && *id < 0) {
+		return service.UserUpdate{}, service.ErrInvalidUserID
+	}
+	if id == nil {
+		return service.UserUpdate{Set: true}, nil
+	}
+	return service.UserUpdate{Set: true, ID: *id}, nil
+}
+
 // isTodoValidationError はリクエストの内容が不正なことによるエラーかを返す
 func isTodoValidationError(err error) bool {
 	return errors.Is(err, service.ErrEpicNotFound) ||
@@ -393,5 +429,6 @@ func isTodoValidationError(err error) bool {
 		errors.Is(err, service.ErrSubtaskType) ||
 		errors.Is(err, domain.ErrInvalidDuration) ||
 		errors.Is(err, service.ErrStatusNotFound) ||
-		errors.Is(err, service.ErrInvalidStatus)
+		errors.Is(err, service.ErrInvalidStatus) ||
+		errors.Is(err, service.ErrUserNotFound)
 }

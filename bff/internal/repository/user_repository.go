@@ -18,6 +18,8 @@ type UserRepository interface {
 	FindByID(id int) (*domain.User, error)
 	// FindByEmail はメールアドレス（正規化済み）のユーザーを返す。存在しなければ nil を返す
 	FindByEmail(email string) (*domain.User, error)
+	// FindAll はすべてのユーザーを表示名の順に返す
+	FindAll() ([]domain.User, error)
 }
 
 type SessionRepository interface {

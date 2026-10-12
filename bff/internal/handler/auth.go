@@ -122,6 +122,12 @@ func CurrentUser(c *gin.Context) (domain.User, bool) {
 	return u, ok
 }
 
+// actorID は操作したユーザー（ログイン中のユーザー）の ID を返す。ログインが不要なルートでは 0
+func actorID(c *gin.Context) int {
+	user, _ := CurrentUser(c)
+	return user.ID
+}
+
 func sessionToken(c *gin.Context) string {
 	token, _ := c.Cookie(SessionCookieName)
 	return token

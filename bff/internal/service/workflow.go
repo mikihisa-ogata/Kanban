@@ -89,7 +89,7 @@ func (s *spaceService) ReorderStatuses(spaceID int, ids []int) error {
 
 // DeleteStatus はステータスを削除する。そのステータスの課題があれば moveToID のステータス（同じスペースの別のステータス）へ移してから消す。
 // 課題があるのに moveToID が 0 なら ErrStatusInUse を返す
-func (s *spaceService) DeleteStatus(id int, moveToID int) error {
+func (s *spaceService) DeleteStatus(id int, moveToID int, actorID int) error {
 	status, err := s.findStatus(id)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (s *spaceService) DeleteStatus(id int, moveToID int) error {
 		for _, todo := range using {
 			moved := todo
 			applyStatus(&moved, target)
-			if err := updateWithHistory(s.todoRepo, s.history, s.statuses, names, todo, moved); err != nil {
+			if err := updateWithHistory(s.todoRepo, s.history.by(actorID), s.statuses, names, todo, moved); err != nil {
 				return fmt.Errorf("failed to move todo %d to status %d: %w", todo.ID, moveToID, err)
 			}
 		}

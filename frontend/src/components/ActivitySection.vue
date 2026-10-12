@@ -79,7 +79,12 @@
         <!-- コメント -->
         <template v-if="item.kind === 'comment'">
           <div class="flex items-center gap-2 text-xs text-gray-500">
-            <span class="font-semibold text-gray-600">コメント</span>
+            <!-- 投稿者（ユーザー機能の追加前のコメントは投稿者なし） -->
+            <template v-if="item.comment.Author">
+              <UserAvatar :user="item.comment.Author" size="sm" />
+              <span class="font-semibold text-gray-800">{{ item.comment.Author.DisplayName }}</span>
+            </template>
+            <span v-else class="font-semibold text-gray-600">コメント</span>
             <!-- 日時は相対表示し、ホバーで絶対日時を出す -->
             <time :datetime="item.comment.CreatedAt" :title="formatDateTime(item.comment.CreatedAt)">{{ formatRelativeTime(item.comment.CreatedAt, now) }}</time>
             <span v-if="item.comment.UpdatedAt" :title="`編集: ${formatDateTime(item.comment.UpdatedAt)}`">・編集済み</span>
@@ -167,6 +172,11 @@
         <!-- 変更履歴（同じ操作で変わった項目はまとめて出す） -->
         <template v-else>
           <div class="flex items-center gap-2 text-xs text-gray-500">
+            <!-- 変更したユーザー（ユーザー機能の追加前の記録は変更者なし） -->
+            <template v-if="item.user">
+              <UserAvatar :user="item.user" size="sm" />
+              <span class="font-semibold text-gray-800">{{ item.user.DisplayName }}</span>
+            </template>
             <span class="font-semibold text-gray-600">{{ item.created ? '課題を作成しました' : '変更しました' }}</span>
             <time :datetime="item.time" :title="formatDateTime(item.time)">{{ formatRelativeTime(item.time, now) }}</time>
           </div>
@@ -217,6 +227,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import MarkdownEditor from './MarkdownEditor.vue';
 import MarkdownView from './MarkdownView.vue';
+import UserAvatar from './UserAvatar.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import WorklogDialog from './WorklogDialog.vue';
 import { commentsApi } from '../api/comments';
@@ -264,16 +275,19 @@ const tabs = computed(() => [
   { value: 'history', label: '履歴' }
 ]);
 
-// 同じ日時・同じ操作で記録された変更履歴を 1 件にまとめる（作成は単独で出す）
+// 同じ日時・同じユーザーの操作で記録された変更履歴を 1 件にまとめる（作成は単独で出す）
 const historyItems = computed(() => {
   const groups = [];
   for (const entry of history.value) {
     const created = entry.Field === 'created';
     const last = groups[groups.length - 1];
-    if (!created && last && !last.created && last.time === entry.CreatedAt) {
+    if (!created && last && !last.created && last.time === entry.CreatedAt && last.userId === entry.UserID) {
       last.changes.push(entry);
     } else {
-      groups.push({ kind: 'history', key: `history-${entry.ID}`, time: entry.CreatedAt, id: entry.ID, created, changes: created ? [] : [entry] });
+      groups.push({
+        kind: 'history', key: `history-${entry.ID}`, time: entry.CreatedAt, id: entry.ID, created,
+        userId: entry.UserID, user: entry.User, changes: created ? [] : [entry]
+      });
     }
   }
   return groups;

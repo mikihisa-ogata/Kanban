@@ -65,15 +65,15 @@ func TestMigrate(t *testing.T) {
 		"labels":         {"id", "name"},
 		"todo_labels":    {"todo_id", "label_id"},
 		"issue_links":    {"id", "link_type", "source_id", "target_id", "created_at"},
-		"comments":       {"id", "todo_id", "body", "created_at", "updated_at"},
-		"issue_history":  {"id", "todo_id", "field", "old_value", "new_value", "created_at"},
+		"comments":       {"id", "todo_id", "body", "created_at", "updated_at", "author_id"},
+		"issue_history":  {"id", "todo_id", "field", "old_value", "new_value", "created_at", "user_id"},
 		"attachments":    {"id", "todo_id", "file_name", "content_type", "size", "storage_name", "created_at"},
 		"worklogs":       {"id", "todo_id", "minutes", "started_at", "note", "created_at", "updated_at"},
 		"statuses":       {"id", "space_id", "name", "category", "position", "legacy_key"},
 		"users":          {"id", "display_name", "email", "password_hash", "avatar_color", "created_at"},
 		"sessions":       {"token_hash", "user_id", "created_at", "expires_at"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
-		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id"},
+		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id", "assignee_id", "reporter_id"},
 	}
 	for table, columns := range want {
 		rows, err := db.Query(

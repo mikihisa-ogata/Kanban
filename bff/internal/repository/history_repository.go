@@ -5,6 +5,6 @@ import "todo-api/internal/domain"
 type HistoryRepository interface {
 	// FindByTodo は課題の変更履歴を記録順（古い順）に返す
 	FindByTodo(todoID int) ([]domain.HistoryEntry, error)
-	// Add は変更履歴を記録する。記録日時は現在日時にする
+	// Add は変更履歴を記録する。変更者は各 entry の UserID、記録日時は現在日時にする
 	Add(entries []domain.HistoryEntry) error
 }

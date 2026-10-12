@@ -12,8 +12,8 @@ var ErrCommentNotFound = errors.New("コメントが見つかりません")
 type CommentService interface {
 	// GetComments は課題のコメントを投稿順（古い順）に返す。課題がなければ ErrIssueNotFound を返す
 	GetComments(todoID int) ([]domain.Comment, error)
-	// CreateComment は課題にコメントを投稿し、作成したコメントを返す。課題がなければ ErrIssueNotFound を返す
-	CreateComment(todoID int, body string) (domain.Comment, error)
+	// CreateComment は課題に authorID のユーザーとしてコメントを投稿し、作成したコメントを返す。課題がなければ ErrIssueNotFound を返す
+	CreateComment(todoID int, body string, authorID int) (domain.Comment, error)
 	// UpdateComment はコメントの本文を変え、変更後のコメントを返す。なければ ErrCommentNotFound を返す
 	UpdateComment(id int, body string) (domain.Comment, error)
 	// DeleteComment はコメントを削除する。なければ ErrCommentNotFound を返す
@@ -36,14 +36,14 @@ func (s *commentService) GetComments(todoID int) ([]domain.Comment, error) {
 	return s.commentRepo.FindByTodo(todoID)
 }
 
-func (s *commentService) CreateComment(todoID int, body string) (domain.Comment, error) {
+func (s *commentService) CreateComment(todoID int, body string, authorID int) (domain.Comment, error) {
 	if err := domain.ValidateCommentBody(body); err != nil {
 		return domain.Comment{}, err
 	}
 	if err := requireTodo(s.todoRepo, todoID); err != nil {
 		return domain.Comment{}, err
 	}
-	id, err := s.commentRepo.Create(domain.Comment{TodoID: todoID, Body: body})
+	id, err := s.commentRepo.Create(domain.Comment{TodoID: todoID, Body: body, AuthorID: authorID})
 	if err != nil {
 		return domain.Comment{}, err
 	}

@@ -21,7 +21,7 @@
         {{ label }}
       </span>
     </div>
-    <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下）。ストーリーポイントと優先度は右下 -->
+    <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下）。ストーリーポイント・優先度・担当者のアバターは右下 -->
     <div class="mt-3 flex items-center gap-1.5">
       <IssueTypeIcon :type="task.IssueType" />
       <span v-if="task.Key" class="font-mono text-xs font-semibold text-gray-500">{{ task.Key }}</span>
@@ -70,6 +70,12 @@
         {{ formatStoryPoints(task.StoryPoints) }}
       </span>
       <PriorityIcon :priority="task.Priority" :class="task.StoryPoints != null ? '' : 'ml-auto'" />
+      <UserAvatar
+        v-if="task.Assignee"
+        :user="task.Assignee"
+        size="sm"
+        :title="`担当者: ${task.Assignee.DisplayName}`"
+      />
     </div>
     <div v-if="task.Done" class="mt-3 pt-3 border-t border-gray-200 flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
       <span class="text-sm">✓</span>
@@ -82,6 +88,7 @@
 import { defineProps, defineEmits, computed, inject } from 'vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
+import UserAvatar from './UserAvatar.vue';
 import { formatStoryPoints } from '../utils/storyPoints';
 import { openBlockers } from '../utils/issueLinks';
 
