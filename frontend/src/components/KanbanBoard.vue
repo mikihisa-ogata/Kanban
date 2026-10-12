@@ -16,6 +16,75 @@
     <div v-else class="py-8">
       <h2 class="m-0 px-8 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
 
+      <!-- クイックフィルターと検索（Jira のボード上部）。条件は URL のクエリに持つ -->
+      <div class="flex flex-wrap items-center gap-2 px-8 mt-4">
+        <input
+          v-model="searchText"
+          type="search"
+          placeholder="ボードを検索"
+          aria-label="ボードを検索（要約・課題キー）"
+          class="w-56 px-3 py-1.5 border-2 border-transparent rounded-md text-sm text-gray-900 bg-white/90 focus:outline-none focus:bg-white focus:border-blue-500"
+        />
+        <!-- 担当者のアバター。押すとその担当者の課題に絞り込む（複数可） -->
+        <div v-if="assigneeOptions.length" class="flex items-center pl-1" role="group" aria-label="担当者で絞り込む">
+          <button
+            v-for="option in assigneeOptions"
+            :key="option.id"
+            type="button"
+            :class="[
+              '-ml-1 p-0 border-0 rounded-full bg-transparent cursor-pointer ring-2 transition-transform hover:-translate-y-0.5 hover:z-10',
+              filters.assignees.includes(option.id) ? 'ring-blue-600 z-10' : 'ring-white/80'
+            ]"
+            :title="option.user.DisplayName"
+            :aria-label="option.user.DisplayName"
+            :aria-pressed="filters.assignees.includes(option.id)"
+            @click="toggleAssignee(option.id)"
+          >
+            <UserAvatar :user="option.user" />
+          </button>
+        </div>
+        <button
+          v-for="toggle in quickToggles"
+          :key="toggle.key"
+          type="button"
+          :class="[
+            'px-3 py-1.5 border-0 rounded-md text-sm font-semibold cursor-pointer',
+            filters[toggle.key] ? 'bg-blue-50 text-blue-700' : 'bg-white/90 text-gray-700 hover:bg-white'
+          ]"
+          :aria-pressed="filters[toggle.key]"
+          @click="updateFilters({ [toggle.key]: !filters[toggle.key] })"
+        >
+          {{ toggle.label }}
+        </button>
+        <FilterMenu
+          label="ラベル"
+          :options="labelOptions"
+          :model-value="filters.labels"
+          empty-text="ラベルの付いた課題がありません"
+          @update:model-value="updateFilters({ labels: $event })"
+        />
+        <FilterMenu
+          label="課題タイプ"
+          :options="ISSUE_TYPE_OPTIONS"
+          :model-value="filters.types"
+          @update:model-value="updateFilters({ types: $event })"
+        />
+        <FilterMenu
+          label="エピック"
+          :options="epicOptions"
+          :model-value="filters.epics"
+          @update:model-value="updateFilters({ epics: $event })"
+        />
+        <button
+          v-if="filtering"
+          type="button"
+          class="px-3 py-1.5 border-0 rounded-md bg-transparent text-sm font-semibold text-white underline-offset-2 cursor-pointer hover:underline"
+          @click="clearFilters"
+        >
+          フィルターをクリア
+        </button>
+      </div>
+
       <!-- 画面が狭いときに画面端で見切れるよう、左右の余白は外側ではなくスクロール領域の内側に持たせる -->
       <div class="overflow-x-auto px-8 pb-6 mt-6">
         <!-- 列はスペースのワークフローのステータス。すべてのスペースではカテゴリの 3 列。列が多いときは横にスクロールする -->
@@ -43,6 +112,10 @@
               </div>
             </div>
           </div>
+
+          <p v-if="filtering && !lanes.length" class="m-0 px-3 py-6 text-center text-white font-semibold">
+            条件に一致する課題はありません
+          </p>
 
           <EpicLane
             v-for="lane in lanes"
@@ -168,6 +241,8 @@ import IssueDetail from './IssueDetail.vue';
 import EpicLane from './EpicLane.vue';
 import SpaceShell from './SpaceShell.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
+import FilterMenu from './FilterMenu.vue';
+import UserAvatar from './UserAvatar.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
@@ -175,6 +250,9 @@ import { statusesApi } from '../api/statuses';
 import { STATUS_CATEGORIES, STATUS_CATEGORY_HEADER_CLASS, statusesOfSpace, firstStatusInCategory, isInColumn, isDoneCategory } from '../utils/statuses';
 import { rememberLastBoard, issuePath } from '../utils/spaceRoutes';
 import { formatStoryPoints, sumStoryPoints } from '../utils/storyPoints';
+import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
+import { NONE, parseFilters, withFilters, isFiltering, matchesFilters } from '../utils/boardFilters';
+import { useCurrentUser } from '../composables/useCurrentUser';
 
 const props = defineProps({
   // 表示するスペースのキー（URL の /spaces/:key/board）。null の場合は全スペースを表示する
@@ -263,6 +341,89 @@ const visibleTodos = computed(() =>
   todos.value.filter(todo => !todo.ParentID && (selectedSpaceId.value === null || todo.SpaceID === selectedSpaceId.value))
 );
 
+// クイックフィルターの条件（URL のクエリから読む）
+const filters = computed(() => parseFilters(route.query));
+const filtering = computed(() => isFiltering(filters.value));
+const { user: currentUser } = useCurrentUser();
+
+// 条件の一部を変えて URL に書き戻す。履歴を増やさないよう replace にする
+const updateFilters = (changes) => {
+  navigateTo({ query: withFilters(route.query, { ...filters.value, ...changes }) }, { replace: true });
+};
+
+const clearFilters = () => {
+  searchText.value = '';
+  navigateTo({ query: withFilters(route.query, parseFilters({})) }, { replace: true });
+};
+
+// 検索欄は入力のたびに URL を書き換えないよう、少し待ってから反映する
+const searchText = ref(filters.value.text);
+let searchTimer = null;
+watch(searchText, (text) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    if (text !== filters.value.text) updateFilters({ text });
+  }, 250);
+});
+// 戻る・進むなどで URL が変わったら検索欄も合わせる
+watch(() => filters.value.text, (text) => {
+  if (text !== searchText.value) {
+    clearTimeout(searchTimer);
+    searchText.value = text;
+  }
+});
+
+const toggleAssignee = (id) => {
+  const { assignees } = filters.value;
+  updateFilters({ assignees: assignees.includes(id) ? assignees.filter(a => a !== id) : [...assignees, id] });
+};
+
+const quickToggles = [
+  { key: 'mine', label: '自分の課題のみ' },
+  { key: 'recent', label: '最近更新したもの' }
+];
+
+// 絞り込みの候補。担当者・ラベルはボードの課題に出てくるもの、エピックはボードのエピック
+const assigneeOptions = computed(() => {
+  const users = new Map();
+  let hasUnassigned = false;
+  for (const todo of visibleTodos.value) {
+    if (todo.Assignee) users.set(todo.Assignee.ID, todo.Assignee);
+    else hasUnassigned = true;
+  }
+  const options = [...users.values()]
+    .sort((a, b) => a.DisplayName.localeCompare(b.DisplayName))
+    .map(user => ({ id: user.ID, user }));
+  if (hasUnassigned) {
+    options.push({ id: NONE, user: { DisplayName: '未割り当て', AvatarColor: '#A5ADBA' } });
+  }
+  return options;
+});
+
+const labelOptions = computed(() =>
+  [...new Set(visibleTodos.value.flatMap(todo => todo.Labels || []))]
+    .sort((a, b) => a.localeCompare(b))
+    .map(label => ({ value: label, label }))
+);
+
+const epicOptions = computed(() => [
+  ...visibleEpics.value.map(epic => ({ value: epic.ID, label: epic.Title })),
+  { value: NONE, label: 'エピックなし' }
+]);
+
+// 絞り込んだあとのボードの課題
+const filteredTodos = computed(() => {
+  if (!filtering.value) return visibleTodos.value;
+  const options = { currentUserId: currentUser.value?.ID ?? 0, now: Date.now() };
+  return visibleTodos.value.filter(todo => matchesFilters(todo, filters.value, options));
+});
+
+// レーン（エピック。0 はエピックなし）に並ぶ課題
+const tasksOfLane = (list, epicId) =>
+  epicId === 0
+    ? list.filter(todo => !visibleEpics.value.some(epic => epic.ID === todo.EpicID))
+    : list.filter(todo => todo.EpicID === epicId);
+
 const subtasksOf = (task) => todos.value.filter(todo => todo.ParentID === task.ID);
 const parentOf = (task) => (task.ParentID ? todos.value.find(todo => todo.ID === task.ParentID) || null : null);
 
@@ -286,26 +447,28 @@ const lanes = computed(() => {
     const space = spaces.value.find(s => s.ID === spaceId);
     return space ? space.Title : '';
   };
-  return [
+  const all = [
     ...visibleEpics.value.map(epic => ({
       epic,
-      tasks: visibleTodos.value.filter(todo => todo.EpicID === epic.ID),
+      tasks: tasksOfLane(filteredTodos.value, epic.ID),
       spaceTitle: spaceTitleOf(epic.SpaceID)
     })),
     {
       epic: null,
-      tasks: visibleTodos.value.filter(todo => !visibleEpics.value.some(epic => epic.ID === todo.EpicID)),
+      tasks: tasksOfLane(filteredTodos.value, 0),
       spaceTitle: ''
     }
   ];
+  // 絞り込み中は、一致する課題のないレーンを出さない
+  return filtering.value ? all.filter(lane => lane.tasks.length) : all;
 });
 
-// 列ごとのタスク件数（選択中のスペース内）
-const countOf = (column) => visibleTodos.value.filter(todo => isInColumn(todo, column)).length;
+// 列ごとのタスク件数（選択中のスペース内。絞り込み中は一致する課題だけ）
+const countOf = (column) => filteredTodos.value.filter(todo => isInColumn(todo, column)).length;
 
 // 列ごとのストーリーポイントの合計（選択中のスペース内。未設定のタスクは数えない）
-const storyPointsOf = (column) => sumStoryPoints(visibleTodos.value.filter(todo => isInColumn(todo, column)));
-const hasStoryPoints = (column) => visibleTodos.value.some(todo => isInColumn(todo, column) && todo.StoryPoints != null);
+const storyPointsOf = (column) => sumStoryPoints(filteredTodos.value.filter(todo => isInColumn(todo, column)));
+const hasStoryPoints = (column) => filteredTodos.value.some(todo => isInColumn(todo, column) && todo.StoryPoints != null);
 
 // タスク作成フォームの初期スペース（エピックのレーンから開いたときはそのエピックのスペース）
 const modalInitialSpaceId = computed(() => {
@@ -613,7 +776,7 @@ const handleDrop = async ({ taskId, column, epicId, beforeId }) => {
     }
 
     if (beforeId !== null) {
-      await todosApi.move(taskId, beforeId);
+      await todosApi.move(taskId, resolveBeforeId({ taskId, column, epicId, beforeId }));
     }
     
     await fetchTodos(); // リストを再取得
@@ -622,6 +785,17 @@ const handleDrop = async ({ taskId, column, epicId, beforeId }) => {
     console.error('Failed to update todo:', err);
     await resyncTodos();
   }
+};
+
+// 絞り込み中に列の末尾へ落としたときは、全体の末尾ではなく、見えている最後の課題の直後に置く。
+// 表示していない課題との前後を崩さないため（見えている課題の直前に落としたときは、その ID のままでよい）
+const resolveBeforeId = ({ taskId, column, epicId, beforeId }) => {
+  if (beforeId !== 0 || !filtering.value) return beforeId;
+  const cell = tasksOfLane(visibleTodos.value, epicId).filter(todo => todo.ID !== taskId && isInColumn(todo, column));
+  const shownIds = new Set(tasksOfLane(filteredTodos.value, epicId).map(todo => todo.ID));
+  const lastShown = cell.findLastIndex(todo => shownIds.has(todo.ID));
+  if (lastShown === -1) return 0;
+  return cell[lastShown + 1]?.ID ?? 0;
 };
 
 // タスクを削除
