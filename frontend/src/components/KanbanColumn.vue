@@ -22,6 +22,7 @@
       <div v-if="dropIndex === tasks.length" class="h-1 -mt-2.5 mb-1.5 rounded-full bg-blue-500"></div>
       <!-- +ボタン -->
       <button
+        v-if="canAdd"
         @click="$emit('add-task', column)"
         class="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 border-2 border-dashed border-gray-400 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200"
       >
@@ -44,6 +45,11 @@ const props = defineProps({
   tasks: {
     type: Array,
     required: true
+  },
+  // 「+ タスクを追加」を出すか（親課題のレーンでは、サブタスクは課題の詳細から作るので出さない）
+  canAdd: {
+    type: Boolean,
+    default: true
   }
 });
 

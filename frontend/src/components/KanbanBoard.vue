@@ -83,6 +83,16 @@
         >
           フィルターをクリア
         </button>
+        <!-- スイムレーンの種類（Jira の「グループ化」）。スペースごとにブラウザに覚える -->
+        <label class="ml-auto flex items-center gap-2 text-sm font-semibold text-white">
+          グループ化
+          <select
+            v-model="swimlane"
+            class="px-2 py-1.5 border-0 rounded-md bg-white/90 text-sm font-semibold text-gray-800 cursor-pointer hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option v-for="option in SWIMLANE_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </label>
       </div>
 
       <!-- 画面が狭いときに画面端で見切れるよう、左右の余白は外側ではなくスクロール領域の内側に持たせる -->
@@ -117,14 +127,14 @@
             条件に一致する課題はありません
           </p>
 
-          <EpicLane
+          <SwimLane
             v-for="lane in lanes"
-            :key="lane.epic ? lane.epic.ID : 0"
-            :epic="lane.epic"
-            :tasks="lane.tasks"
+            :key="lane.key"
+            :lane="lane"
+            :collapsed="collapsedLanes.has(lane.key)"
             :columns="columns"
             :grid-style="columnGridStyle"
-            :space-title="lane.spaceTitle"
+            @toggle-collapse="toggleLane(lane.key)"
             @drop="handleDrop"
             @delete-task="handleDeleteTodo"
             @add-task="openModal"
@@ -238,7 +248,7 @@
 import { ref, computed, watch, onMounted, provide } from 'vue';
 import TaskForm from './TaskForm.vue';
 import IssueDetail from './IssueDetail.vue';
-import EpicLane from './EpicLane.vue';
+import SwimLane from './SwimLane.vue';
 import SpaceShell from './SpaceShell.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import FilterMenu from './FilterMenu.vue';
@@ -336,9 +346,58 @@ const visibleEpics = computed(() =>
     : epics.value.filter(epic => epic.SpaceID === selectedSpaceId.value)
 );
 
-// 選択中のスペースに属するタスク。サブタスクはカードにせず、親課題の詳細と件数で見せる
+// スイムレーンの種類（Jira の「グループ化」）
+const SWIMLANE_OPTIONS = [
+  { value: 'epic', label: 'エピック' },
+  { value: 'assignee', label: '担当者' },
+  { value: 'subtask', label: 'サブタスク' },
+  { value: 'none', label: 'なし' }
+];
+const swimlane = ref('epic');
+
+// スイムレーンの種類はスペースごとにブラウザに覚える（保存できなくても動く）
+const swimlaneStorageKey = () => `kanban.swimlane.${props.spaceKey ?? ''}`;
+const loadSwimlane = () => {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(swimlaneStorageKey());
+  } catch {
+    // 読めなければ既定のエピックにする
+  }
+  swimlane.value = SWIMLANE_OPTIONS.some(option => option.value === saved) ? saved : 'epic';
+};
+watch(swimlane, (value) => {
+  try {
+    localStorage.setItem(swimlaneStorageKey(), value);
+  } catch {
+    // 保存できなくても、この画面の間は切り替えたままにする
+  }
+});
+watch(() => props.spaceKey, loadSwimlane);
+
+// 折りたたんでいるレーン（lanes の key）
+const collapsedLanes = ref(new Set());
+const toggleLane = (key) => {
+  const next = new Set(collapsedLanes.value);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  collapsedLanes.value = next;
+};
+
+// 選択中のスペースに属する課題（サブタスクを含む）
+const spaceTodos = computed(() =>
+  todos.value.filter(todo => selectedSpaceId.value === null || todo.SpaceID === selectedSpaceId.value)
+);
+
+// サブタスクを持つ親課題の ID（スイムレーンが「サブタスク」のときはレーンの見出しにする）
+const parentIds = computed(() => new Set(spaceTodos.value.filter(todo => todo.ParentID).map(todo => todo.ParentID)));
+
+// ボードのカードにする課題。サブタスクはカードにせず、親課題の詳細と件数で見せる。
+// スイムレーンが「サブタスク」のときだけ、サブタスクをカードにし、その親課題はレーンの見出しにする
 const visibleTodos = computed(() =>
-  todos.value.filter(todo => !todo.ParentID && (selectedSpaceId.value === null || todo.SpaceID === selectedSpaceId.value))
+  swimlane.value === 'subtask'
+    ? spaceTodos.value.filter(todo => !parentIds.value.has(todo.ID))
+    : spaceTodos.value.filter(todo => !todo.ParentID)
 );
 
 // クイックフィルターの条件（URL のクエリから読む）
@@ -418,12 +477,6 @@ const filteredTodos = computed(() => {
   return visibleTodos.value.filter(todo => matchesFilters(todo, filters.value, options));
 });
 
-// レーン（エピック。0 はエピックなし）に並ぶ課題
-const tasksOfLane = (list, epicId) =>
-  epicId === 0
-    ? list.filter(todo => !visibleEpics.value.some(epic => epic.ID === todo.EpicID))
-    : list.filter(todo => todo.EpicID === epicId);
-
 const subtasksOf = (task) => todos.value.filter(todo => todo.ParentID === task.ID);
 const parentOf = (task) => (task.ParentID ? todos.value.find(todo => todo.ID === task.ParentID) || null : null);
 
@@ -440,25 +493,60 @@ const subtaskProgress = computed(() => {
 });
 provide('subtaskProgress', subtaskProgress);
 
-// エピックごとのレーン。最後にエピック未割り当てのタスクのレーンを置く
-const lanes = computed(() => {
-  const spaceTitleOf = (spaceId) => {
-    if (selectedSpaceId.value !== null) return '';
-    const space = spaces.value.find(s => s.ID === spaceId);
-    return space ? space.Title : '';
-  };
-  const all = [
-    ...visibleEpics.value.map(epic => ({
-      epic,
-      tasks: tasksOfLane(filteredTodos.value, epic.ID),
-      spaceTitle: spaceTitleOf(epic.SpaceID)
-    })),
-    {
-      epic: null,
-      tasks: tasksOfLane(filteredTodos.value, 0),
-      spaceTitle: ''
+// スイムレーンの定義。match はそのレーンに並ぶ課題かどうか
+const laneDefinitions = computed(() => {
+  switch (swimlane.value) {
+    // 担当者ごと（表示名の順）。最後に未割り当てのレーンを置く
+    case 'assignee': {
+      const users = new Map();
+      for (const todo of visibleTodos.value) {
+        if (todo.Assignee) users.set(todo.Assignee.ID, todo.Assignee);
+      }
+      return [
+        ...[...users.values()]
+          .sort((a, b) => a.DisplayName.localeCompare(b.DisplayName))
+          .map(user => ({ key: `assignee-${user.ID}`, kind: 'assignee', user, assigneeId: user.ID, match: todo => todo.Assignee?.ID === user.ID })),
+        { key: 'assignee-0', kind: 'assignee', user: null, assigneeId: 0, match: todo => !todo.Assignee }
+      ];
     }
-  ];
+    // サブタスクを持つ親課題ごと（課題の並び順）。最後にサブタスクのない課題のレーンを置く
+    case 'subtask':
+      return [
+        ...spaceTodos.value
+          .filter(todo => parentIds.value.has(todo.ID))
+          .map(parent => ({ key: `parent-${parent.ID}`, kind: 'parent', parent, match: todo => todo.ParentID === parent.ID })),
+        { key: 'others', kind: 'others', match: todo => !todo.ParentID }
+      ];
+    case 'none':
+      return [{ key: 'none', kind: 'none', match: () => true }];
+    // エピックごと。最後にエピック未割り当てのタスクのレーンを置く
+    default: {
+      const spaceTitleOf = (spaceId) => {
+        if (selectedSpaceId.value !== null) return '';
+        const space = spaces.value.find(s => s.ID === spaceId);
+        return space ? space.Title : '';
+      };
+      return [
+        ...visibleEpics.value.map(epic => ({
+          key: `epic-${epic.ID}`,
+          kind: 'epic',
+          epic,
+          spaceTitle: spaceTitleOf(epic.SpaceID),
+          match: todo => todo.EpicID === epic.ID
+        })),
+        { key: 'epic-0', kind: 'epic', epic: null, match: todo => !visibleEpics.value.some(epic => epic.ID === todo.EpicID) }
+      ];
+    }
+  }
+});
+
+// スイムレーン。tasks は表示する（絞り込んだ）課題、allTasks は絞り込む前の課題
+const lanes = computed(() => {
+  const all = laneDefinitions.value.map(lane => ({
+    ...lane,
+    tasks: filteredTodos.value.filter(lane.match),
+    allTasks: visibleTodos.value.filter(lane.match)
+  }));
   // 絞り込み中は、一致する課題のないレーンを出さない
   return filtering.value ? all.filter(lane => lane.tasks.length) : all;
 });
@@ -685,11 +773,11 @@ const handleCreateTodoFromModal = async (formData) => {
   closeModal();
 };
 
-// モーダルを開く（開いた列のステータスとレーンのエピックを初期値にする）
-const openModal = ({ column, epicId }) => {
+// モーダルを開く（開いた列のステータスと、エピックのレーンならそのエピックを初期値にする）
+const openModal = ({ column, lane }) => {
   modalInitialStatusId.value = column.statusId ?? 0;
   modalInitialCategory.value = column.category;
-  modalInitialEpicId.value = epicId;
+  modalInitialEpicId.value = lane.kind === 'epic' && lane.epic ? lane.epic.ID : 0;
   showModalForm.value = true;
 };
 
@@ -736,21 +824,24 @@ const handleUpdateTodoFromModal = async (payload) => {
   }
 };
 
-// ドラッグ&ドロップでステータスと並び順を更新（別のエピックのレーンへ落としたらエピックも変える）
+// ドラッグ&ドロップでステータスと並び順を更新。別のレーンへ落としたら、そのレーンのエピック・担当者に変える
 // beforeId はドロップ先の直後のタスクの ID（0 は末尾、null は並び順を変えない）
-const handleDrop = async ({ taskId, column, epicId, beforeId }) => {
+const handleDrop = async ({ taskId, column, lane, beforeId }) => {
   try {
     error.value = '';
     const task = todos.value.find(t => t.ID === taskId);
     if (!task) {
       throw new Error('タスクが見つかりません');
     }
-    
+
     // 「エピックなし」のレーンには、選択中のスペースで表示していないエピックのタスクも並ぶので、そのまま残す
-    const isSameLane = epicId === 0
-      ? !visibleEpics.value.some(e => e.ID === task.EpicID)
-      : task.EpicID === epicId;
-    const newEpicId = isSameLane ? task.EpicID : epicId;
+    const isSameLane = lane.match(task);
+    // サブタスクの親課題は変えられない（Jira と同じく、ドラッグでは別の親課題へ移せない）
+    if (!isSameLane && (lane.kind === 'parent' || lane.kind === 'others')) {
+      error.value = 'サブタスクの親課題はドラッグでは変えられません';
+      return;
+    }
+    const newEpicId = !isSameLane && lane.kind === 'epic' ? (lane.epic ? lane.epic.ID : 0) : task.EpicID;
     // タスクはエピックと同じスペースに置く
     const epic = epics.value.find(e => e.ID === newEpicId);
     const newSpaceId = epic ? epic.SpaceID : task.SpaceID;
@@ -771,14 +862,16 @@ const handleDrop = async ({ taskId, column, epicId, beforeId }) => {
         issueType: task.IssueType,
         priority: task.Priority,
         epicId: newEpicId,
-        spaceId: newSpaceId
+        spaceId: newSpaceId,
+        // 担当者のレーンへ移したときだけ担当者を変える（省略すると今のまま）
+        ...(!isSameLane && lane.kind === 'assignee' ? { assigneeId: lane.assigneeId } : {})
       });
     }
 
     if (beforeId !== null) {
-      await todosApi.move(taskId, resolveBeforeId({ taskId, column, epicId, beforeId }));
+      await todosApi.move(taskId, resolveBeforeId({ taskId, column, lane, beforeId }));
     }
-    
+
     await fetchTodos(); // リストを再取得
   } catch (err) {
     error.value = 'タスクの更新に失敗しました: ' + err.message;
@@ -789,10 +882,10 @@ const handleDrop = async ({ taskId, column, epicId, beforeId }) => {
 
 // 絞り込み中に列の末尾へ落としたときは、全体の末尾ではなく、見えている最後の課題の直後に置く。
 // 表示していない課題との前後を崩さないため（見えている課題の直前に落としたときは、その ID のままでよい）
-const resolveBeforeId = ({ taskId, column, epicId, beforeId }) => {
+const resolveBeforeId = ({ taskId, column, lane, beforeId }) => {
   if (beforeId !== 0 || !filtering.value) return beforeId;
-  const cell = tasksOfLane(visibleTodos.value, epicId).filter(todo => todo.ID !== taskId && isInColumn(todo, column));
-  const shownIds = new Set(tasksOfLane(filteredTodos.value, epicId).map(todo => todo.ID));
+  const cell = lane.allTasks.filter(todo => todo.ID !== taskId && isInColumn(todo, column));
+  const shownIds = new Set(lane.tasks.map(todo => todo.ID));
   const lastShown = cell.findLastIndex(todo => shownIds.has(todo.ID));
   if (lastShown === -1) return 0;
   return cell[lastShown + 1]?.ID ?? 0;
@@ -825,6 +918,7 @@ const handleDeleteTodo = async (taskId) => {
 
 // コンポーネントマウント時にタスクを取得
 onMounted(() => {
+  loadSwimlane();
   fetchTodos();
   fetchEpics();
   fetchSpaces();
