@@ -303,8 +303,10 @@ func (s *todoService) GetTodoByKey(key string) (domain.Todo, error) {
 
 func (s *todoService) CreateTodo(title string, deadline string, status StatusInput, issueType string, priority string, labels []string, storyPoints *float64, parentID int, epicID int, description string, spaceID int, assigneeID int, actorID int) (domain.Todo, error) {
 	todoType := domain.IssueType(issueType)
+	// 親課題のない課題はバックログに作る
+	sprintID := 0
 	if parentID != 0 {
-		// サブタスクは親と同じスペース・エピックに置く
+		// サブタスクは親と同じスペース・エピック・スプリントに置く
 		parent, err := s.findParent(parentID)
 		if err != nil {
 			return domain.Todo{}, err
@@ -314,6 +316,7 @@ func (s *todoService) CreateTodo(title string, deadline string, status StatusInp
 		}
 		todoType = domain.IssueTypeSubtask
 		epicID, spaceID = parent.EpicID, parent.SpaceID
+		sprintID = parent.SprintID
 	} else if todoType == domain.IssueTypeSubtask {
 		return domain.Todo{}, ErrSubtaskType
 	}
@@ -360,6 +363,7 @@ func (s *todoService) CreateTodo(title string, deadline string, status StatusInp
 		ParentID:    parentID,
 		AssigneeID:  assigneeID,
 		ReporterID:  actorID,
+		SprintID:    sprintID,
 		EpicID:      epicID,
 		Description: description,
 		SpaceID:     spaceID,

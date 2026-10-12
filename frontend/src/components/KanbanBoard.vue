@@ -14,7 +14,20 @@
     </div>
 
     <div v-else class="py-8">
-      <h2 class="m-0 px-8 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
+      <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-8">
+        <h2 class="m-0 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
+        <!-- 開始中のスプリント（ボードにはその課題だけを出す）と、終了日までの残り日数 -->
+        <p v-if="currentSprint" class="m-0 text-sm font-semibold text-white" :title="currentSprint.Goal ? `ゴール: ${currentSprint.Goal}` : ''">
+          {{ currentSprint.Name }}
+          <span v-if="sprintPeriodLabel(currentSprint)" class="ml-1 font-normal opacity-80">{{ sprintPeriodLabel(currentSprint) }}</span>
+          <span
+            v-if="currentSprint.EndDate"
+            :class="['ml-2 px-2 py-0.5 rounded-full text-xs', remainingDays(currentSprint) < 0 ? 'bg-red-600' : 'bg-white/25']"
+          >
+            {{ remainingDaysLabel(currentSprint) }}
+          </span>
+        </p>
+      </div>
 
       <!-- クイックフィルターと検索（Jira のボード上部）。条件は URL のクエリに持つ -->
       <div class="flex flex-wrap items-center gap-2 px-8 mt-4">
@@ -271,6 +284,8 @@ import { formatStoryPoints, sumStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
 import { NONE, parseFilters, withFilters, isFiltering, matchesFilters } from '../utils/boardFilters';
 import { useCurrentUser } from '../composables/useCurrentUser';
+import { sprintsApi } from '../api/sprints';
+import { SPRINT_ACTIVE, remainingDays, remainingDaysLabel, sprintPeriodLabel } from '../utils/sprints';
 
 const props = defineProps({
   // 表示するスペースのキー（URL の /spaces/:key/board）。null の場合は全スペースを表示する
@@ -400,9 +415,22 @@ const toggleLane = (key) => {
   collapsedLanes.value = next;
 };
 
-// 選択中のスペースに属する課題（サブタスクを含む）
+// スペースごとの開始中のスプリント（スペースの ID → スプリント）
+const sprints = ref([]);
+const activeSprints = computed(() => new Map(
+  sprints.value.filter(sprint => sprint.State === SPRINT_ACTIVE).map(sprint => [sprint.SpaceID, sprint])
+));
+// 表示中のスペースの開始中のスプリント（すべてのスペースのボードでは出さない）
+const currentSprint = computed(() => (selectedSpaceId.value === null ? null : activeSprints.value.get(selectedSpaceId.value) ?? null));
+
+// 選択中のスペースに属する課題（サブタスクを含む）。開始中のスプリントがあるスペースは、そのスプリントの課題だけ（Jira のスクラムボード）。
+// スプリントがなければすべての課題を出す
 const spaceTodos = computed(() =>
-  todos.value.filter(todo => selectedSpaceId.value === null || todo.SpaceID === selectedSpaceId.value)
+  todos.value.filter(todo => {
+    if (selectedSpaceId.value !== null && todo.SpaceID !== selectedSpaceId.value) return false;
+    const sprint = activeSprints.value.get(todo.SpaceID);
+    return !sprint || todo.SprintID === sprint.ID;
+  })
 );
 
 // サブタスクを持つ親課題の ID（スイムレーンが「サブタスク」のときはレーンの見出しにする）
@@ -636,6 +664,16 @@ const fetchSpaces = async () => {
   }
 };
 
+// スプリントを取得（開始中のスプリントの課題だけをボードに出す）
+const fetchSprints = async () => {
+  try {
+    sprints.value = await sprintsApi.fetchAll();
+  } catch (err) {
+    error.value = 'スプリントの取得に失敗しました: ' + err.message;
+    console.error('Failed to fetch sprints:', err);
+  }
+};
+
 // ワークフローのステータスを取得
 const fetchStatuses = async () => {
   try {
@@ -648,7 +686,7 @@ const fetchStatuses = async () => {
 
 // サイドバーでスペースを作成・削除したら取り直す（削除すると属するエピック・タスクのスペースも変わる。作るとワークフローができる）
 const handleSpacesChanged = async () => {
-  await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos(), fetchStatuses()]);
+  await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos(), fetchStatuses(), fetchSprints()]);
 };
 
 // ヘッダーの「作成」で作られた課題をボードに出す
@@ -759,11 +797,11 @@ const handleDeleteEpic = async (epicId) => {
   }
 };
 
-// タスクを作成
+// タスクを作成。開始中のスプリントがあるスペースでは、ボードから消えないようそのスプリントに入れる（Jira のスクラムボードと同じ）
 const handleCreateTodo = async (formData) => {
   try {
     error.value = '';
-    await todosApi.create({
+    const { todo } = await todosApi.create({
       title: formData.title,
       description: formData.description,
       deadline: formData.deadline,
@@ -776,6 +814,10 @@ const handleCreateTodo = async (formData) => {
       epicId: formData.epicId,
       spaceId: formData.spaceId
     });
+    const sprint = activeSprints.value.get(todo.SpaceID);
+    if (sprint) {
+      await sprintsApi.setTodoSprint(todo.ID, sprint.ID);
+    }
     await fetchTodos(); // リストを再取得
   } catch (err) {
     error.value = 'タスクの作成に失敗しました: ' + err.message;
@@ -936,6 +978,7 @@ const handleDeleteTodo = async (taskId) => {
 onMounted(() => {
   loadSwimlane();
   fetchTodos();
+  fetchSprints();
   fetchEpics();
   fetchSpaces();
   fetchStatuses();

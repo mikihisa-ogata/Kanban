@@ -75,7 +75,9 @@ func TestMigrate(t *testing.T) {
 		"watchers":       {"todo_id", "user_id", "created_at"},
 		"notifications":  {"id", "user_id", "todo_id", "actor_id", "kind", "detail", "read_at", "created_at"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
-		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id", "assignee_id", "reporter_id"},
+		"sprints":        {"id", "space_id", "name", "goal", "state", "start_date", "end_date", "completed_at", "created_at"},
+		"sprint_issues":  {"sprint_id", "todo_id", "story_points", "completed"},
+		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id", "assignee_id", "reporter_id", "sprint_id"},
 	}
 	for table, columns := range want {
 		rows, err := db.Query(

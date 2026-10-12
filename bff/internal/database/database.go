@@ -190,6 +190,8 @@ func addedColumns() []column {
 		{"issue_history", "user_id", "INT NOT NULL DEFAULT 0"},
 		// ステータスの列の最大件数（WIP 制限）。NULL は制限なし
 		{"statuses", "wip_limit", "INT NULL"},
+		// 課題のスプリント（sprints.id）。0 はバックログ（どのスプリントにも入っていない）
+		{"todos", "sprint_id", "INT NOT NULL DEFAULT 0"},
 	}
 }
 
@@ -445,6 +447,28 @@ func schemaStatements() []string {
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_notifications_user (user_id, id),
 			INDEX idx_notifications_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// スプリント。state は future・active・closed。start_date・end_date は期間（開始前は NULL のこともある）。
+		// completed_at は完了した日時（NULL は未完了）。課題は todos.sprint_id でスプリントに入る（0 はバックログ）
+		`CREATE TABLE IF NOT EXISTS sprints (
+			id           INT AUTO_INCREMENT PRIMARY KEY,
+			space_id     INT NOT NULL,
+			name         VARCHAR(100) NOT NULL,
+			goal         TEXT NOT NULL,
+			state        VARCHAR(10) NOT NULL,
+			start_date   DATE NULL,
+			end_date     DATE NULL,
+			completed_at DATETIME NULL,
+			created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_sprints_space (space_id, id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// スプリントを完了したときに記録した課題（サブタスクを除く）。story_points はその時点の値、completed は完了していたか
+		`CREATE TABLE IF NOT EXISTS sprint_issues (
+			sprint_id    INT NOT NULL,
+			todo_id      INT NOT NULL,
+			story_points DECIMAL(8,2) NULL,
+			completed    BOOLEAN NOT NULL,
+			PRIMARY KEY (sprint_id, todo_id)
 		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,

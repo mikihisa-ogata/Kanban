@@ -52,10 +52,27 @@ func (r *spaceMySQLRepository) Update(id int, space domain.Space) error {
 	return requireAffected(result, "space", id)
 }
 
+// Delete はスペースと、そのスプリント（完了したときの記録を含む）を削除する。
+// 課題のスプリントは、課題が未割り当てへ移るとき（todos の Update）にバックログへ戻る
 func (r *spaceMySQLRepository) Delete(id int) error {
-	result, err := r.db.Exec(`DELETE FROM spaces WHERE id = ?`, id)
+	tx, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
-	return requireAffected(result, "space", id)
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM sprint_issues WHERE sprint_id IN (SELECT id FROM sprints WHERE space_id = ?)`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM sprints WHERE space_id = ?`, id); err != nil {
+		return err
+	}
+	result, err := tx.Exec(`DELETE FROM spaces WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if err := requireAffected(result, "space", id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

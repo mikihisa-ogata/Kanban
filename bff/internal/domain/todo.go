@@ -91,8 +91,11 @@ type Todo struct {
 	AssigneeID int
 	ReporterID int
 	// Assignee・Reporter は担当者・報告者の概要。なしなら nil。API の出力専用
-	Assignee     *UserSummary
-	Reporter     *UserSummary
+	Assignee *UserSummary
+	Reporter *UserSummary
+	// SprintID は課題のスプリント（Sprint.ID）。0 はバックログ。サブタスクは親課題と同じスプリントになる。
+	// スペースを移ると 0（バックログ）に戻る（スプリントはスペースに属するため）
+	SprintID     int
 	EpicID       int         // 0 の場合はエピック未割り当て
 	Description  string      // 任意。空文字の場合は説明なし
 	SpaceID      int         // 0 の場合はスペース未割り当て。エピックに紐付く場合はエピックと同じスペース

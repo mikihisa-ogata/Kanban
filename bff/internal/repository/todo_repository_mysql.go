@@ -27,7 +27,7 @@ const selectTodos = `SELECT t.id, t.title, t.done, t.deadline, t.status, t.epic_
 		        t.original_estimate, t.remaining_estimate,
 		        (SELECT COALESCE(SUM(w.minutes), 0) FROM worklogs w WHERE w.todo_id = t.id),
 		        t.status_id, st.name, st.category,
-		        t.assignee_id, ua.display_name, ua.avatar_color, t.reporter_id, ur.display_name, ur.avatar_color
+		        t.assignee_id, ua.display_name, ua.avatar_color, t.reporter_id, ur.display_name, ur.avatar_color, t.sprint_id
 		 FROM todos t LEFT JOIN spaces s ON s.id = t.space_id LEFT JOIN statuses st ON st.id = t.status_id
 		 LEFT JOIN users ua ON ua.id = t.assignee_id LEFT JOIN users ur ON ur.id = t.reporter_id`
 
@@ -166,7 +166,7 @@ func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 		&todo.Number, &spaceKey, &issueType, &priority, &storyPoints, &todo.ParentID, &todo.CommentCount,
 		&originalEstimate, &remainingEstimate, &todo.TimeSpent,
 		&todo.StatusID, &statusName, &statusCategory,
-		&todo.AssigneeID, &assignee.name, &assignee.color, &todo.ReporterID, &reporter.name, &reporter.color); err != nil {
+		&todo.AssigneeID, &assignee.name, &assignee.color, &todo.ReporterID, &reporter.name, &reporter.color, &todo.SprintID); err != nil {
 		return domain.Todo{}, err
 	}
 	if storyPoints.Valid {
@@ -208,9 +208,9 @@ func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 	}
 	now := currentTime()
 	result, err := tx.Exec(
-		`INSERT INTO todos (title, done, deadline, status, status_id, issue_type, priority, story_points, original_estimate, remaining_estimate, parent_id, assignee_id, reporter_id, epic_id, description, space_id, number, position, created_at, updated_at)
-		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
-		todo.Title, todo.Done, deadline, string(todo.Status), todo.StatusID, issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.ParentID, todo.AssigneeID, todo.ReporterID, todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
+		`INSERT INTO todos (title, done, deadline, status, status_id, issue_type, priority, story_points, original_estimate, remaining_estimate, parent_id, assignee_id, reporter_id, sprint_id, epic_id, description, space_id, number, position, created_at, updated_at)
+		 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(position), 0) + 1, ?, ? FROM todos`,
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.StatusID, issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.ParentID, todo.AssigneeID, todo.ReporterID, todo.SprintID, todo.EpicID, todo.Description, todo.SpaceID, number, now, now)
 	if err != nil {
 		return 0, err
 	}
@@ -228,7 +228,8 @@ func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 }
 
 // Update はタスクを更新し、更新日時を現在日時にする（作成日時は変えない）。
-// スペースが変わった場合は、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースで番号を振り直す
+// スペースが変わった場合は、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースで番号を振り直す。
+// スプリントはスペースに属するので、スペースが変わったらバックログ（sprint_id 0）に戻す。それ以外ではスプリントは変えない（SetSprint で変える）
 func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	deadline, err := toNullDeadline(todo.Deadline)
 	if err != nil {
@@ -255,9 +256,9 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	}
 
 	_, err = tx.Exec(
-		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, status_id = ?, issue_type = ?, priority = ?, story_points = ?, original_estimate = ?, remaining_estimate = ?, assignee_id = ?, reporter_id = ?, epic_id = ?, description = ?, space_id = ?, number = ?, updated_at = ?
+		`UPDATE todos SET title = ?, done = ?, deadline = ?, status = ?, status_id = ?, issue_type = ?, priority = ?, story_points = ?, original_estimate = ?, remaining_estimate = ?, assignee_id = ?, reporter_id = ?, epic_id = ?, description = ?, space_id = ?, number = ?, sprint_id = IF(?, 0, sprint_id), updated_at = ?
 		 WHERE id = ?`,
-		todo.Title, todo.Done, deadline, string(todo.Status), todo.StatusID, issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.AssigneeID, todo.ReporterID, todo.EpicID, todo.Description, todo.SpaceID, number, currentTime(), id)
+		todo.Title, todo.Done, deadline, string(todo.Status), todo.StatusID, issueTypeOrDefault(todo.IssueType), priorityOrDefault(todo.Priority), todo.StoryPoints, todo.OriginalEstimate, todo.RemainingEstimate, todo.AssigneeID, todo.ReporterID, todo.EpicID, todo.Description, todo.SpaceID, number, spaceID != todo.SpaceID, currentTime(), id)
 	if err != nil {
 		return err
 	}

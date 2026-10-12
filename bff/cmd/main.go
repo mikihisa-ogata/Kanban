@@ -66,6 +66,7 @@ func main() {
 	userHandler := handler.NewUserHandler(service.NewUserService(userRepo))
 	notificationHandler := handler.NewNotificationHandler(service.NewNotificationService(notificationRepo))
 	watcherHandler := handler.NewWatcherHandler(service.NewWatcherService(watcherRepo, repo))
+	sprintHandler := handler.NewSprintHandler(service.NewSprintService(repository.NewSprintMySQLRepository(db), repo, spaceRepo))
 
 	r.POST("/auth/signup", authHandler.Signup)
 	r.POST("/auth/login", authHandler.Login)
@@ -125,6 +126,15 @@ func main() {
 	api.PUT("/statuses/:id", spaceHandler.RenameStatus)
 	api.PUT("/statuses/:id/wip-limit", spaceHandler.SetStatusWIPLimit)
 	api.DELETE("/statuses/:id", spaceHandler.DeleteStatus)
+
+	api.GET("/sprints", sprintHandler.GetSprints)
+	api.POST("/spaces/:id/sprints", sprintHandler.CreateSprint)
+	api.PUT("/sprints/:id", sprintHandler.UpdateSprint)
+	api.POST("/sprints/:id/start", sprintHandler.StartSprint)
+	api.POST("/sprints/:id/complete", sprintHandler.CompleteSprint)
+	api.DELETE("/sprints/:id", sprintHandler.DeleteSprint)
+	api.GET("/sprints/:id/issues", sprintHandler.GetSprintIssues)
+	api.PUT("/todos/:id/sprint", sprintHandler.SetTodoSprint)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
