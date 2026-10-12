@@ -55,12 +55,38 @@ func (r *todoMySQLRepository) FindAll() ([]domain.Todo, error) {
 	if err != nil {
 		return nil, err
 	}
+	versions, err := r.versionsByTodo(`SELECT todo_id, version_id FROM todo_versions`)
+	if err != nil {
+		return nil, err
+	}
 	for i := range todos {
 		if names, ok := labels[todos[i].ID]; ok {
 			todos[i].Labels = names
 		}
+		if ids, ok := versions[todos[i].ID]; ok {
+			todos[i].FixVersionIDs = ids
+		}
 	}
 	return todos, nil
+}
+
+// versionsByTodo は (todo_id, version_id) を返す query を実行し、タスクごとの修正バージョンの ID を ID 順にまとめる
+func (r *todoMySQLRepository) versionsByTodo(query string, args ...any) (map[int][]int, error) {
+	rows, err := r.db.Query(query+` ORDER BY version_id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	versions := map[int][]int{}
+	for rows.Next() {
+		var todoID, versionID int
+		if err := rows.Scan(&todoID, &versionID); err != nil {
+			return nil, err
+		}
+		versions[todoID] = append(versions[todoID], versionID)
+	}
+	return versions, rows.Err()
 }
 
 // labelsByTodo は (todo_id, ラベル名) を返す query を実行し、タスクごとのラベル名を名前順にまとめる
@@ -83,7 +109,7 @@ func (r *todoMySQLRepository) labelsByTodo(query string, args ...any) (map[int][
 	return labels, rows.Err()
 }
 
-// withLabels はタスクにラベルを読み込んで返す
+// withLabels はタスクにラベルと修正バージョンを読み込んで返す
 func (r *todoMySQLRepository) withLabels(todo domain.Todo) (domain.Todo, error) {
 	labels, err := r.labelsByTodo(
 		`SELECT tl.todo_id, l.name FROM todo_labels tl JOIN labels l ON l.id = tl.label_id WHERE tl.todo_id = ?`, todo.ID)
@@ -92,6 +118,13 @@ func (r *todoMySQLRepository) withLabels(todo domain.Todo) (domain.Todo, error) 
 	}
 	if names, ok := labels[todo.ID]; ok {
 		todo.Labels = names
+	}
+	versions, err := r.versionsByTodo(`SELECT todo_id, version_id FROM todo_versions WHERE todo_id = ?`, todo.ID)
+	if err != nil {
+		return domain.Todo{}, err
+	}
+	if ids, ok := versions[todo.ID]; ok {
+		todo.FixVersionIDs = ids
 	}
 	return todo, nil
 }
@@ -181,6 +214,7 @@ func scanTodo(row interface{ Scan(dest ...any) error }) (domain.Todo, error) {
 	todo.IssueType = domain.IssueType(issueType)
 	todo.Priority = domain.Priority(priority)
 	todo.Labels = []string{}
+	todo.FixVersionIDs = []int{}
 	todo.Key = issueKey(todo.SpaceID, spaceKey.String, todo.Number)
 	todo.Status = domain.Status(status)
 	if deadline.Valid {
@@ -229,7 +263,8 @@ func (r *todoMySQLRepository) Create(todo domain.Todo) (int, error) {
 
 // Update はタスクを更新し、更新日時を現在日時にする（作成日時は変えない）。
 // スペースが変わった場合は、Jira で課題を別のプロジェクトへ移したときと同じく、移動先のスペースで番号を振り直す。
-// スプリントはスペースに属するので、スペースが変わったらバックログ（sprint_id 0）に戻す。それ以外ではスプリントは変えない（SetSprint で変える）
+// スプリントと修正バージョンはスペースに属するので、スペースが変わったらバックログ（sprint_id 0）に戻し、修正バージョンを外す。
+// それ以外ではスプリント・修正バージョンは変えない（スプリント・バージョンの Repository で変える）
 func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	deadline, err := toNullDeadline(todo.Deadline)
 	if err != nil {
@@ -265,10 +300,15 @@ func (r *todoMySQLRepository) Update(id int, todo domain.Todo) error {
 	if err := setLabels(tx, id, todo.Labels); err != nil {
 		return err
 	}
+	if spaceID != todo.SpaceID {
+		if _, err := tx.Exec(`DELETE FROM todo_versions WHERE todo_id = ?`, id); err != nil {
+			return err
+		}
+	}
 	return tx.Commit()
 }
 
-// Delete はタスクとそのサブタスク、それらへのラベルの付与・課題リンク・コメント・変更履歴・作業ログ・ウォッチャー・通知を削除する（ラベル自体は残す）。
+// Delete はタスクとそのサブタスク、それらへのラベルの付与・課題リンク・コメント・変更履歴・作業ログ・ウォッチャー・通知・修正バージョンの付与を削除する（ラベル自体は残す）。
 // サブタスクは親なしでは存在できないので、親と同じトランザクションで消す
 func (r *todoMySQLRepository) Delete(id int) error {
 	tx, err := r.db.Begin()
@@ -284,7 +324,7 @@ func (r *todoMySQLRepository) Delete(id int) error {
 		id, id, id, id); err != nil {
 		return err
 	}
-	for _, table := range []string{"comments", "issue_history", "worklogs", "watchers", "notifications"} {
+	for _, table := range []string{"comments", "issue_history", "worklogs", "watchers", "notifications", "todo_versions"} {
 		if _, err := tx.Exec(
 			"DELETE FROM "+table+" WHERE todo_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)",
 			id, id); err != nil {

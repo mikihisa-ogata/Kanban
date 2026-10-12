@@ -470,6 +470,25 @@ func schemaStatements() []string {
 			completed    BOOLEAN NOT NULL,
 			PRIMARY KEY (sprint_id, todo_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// バージョン（Jira のリリース）。status は unreleased・released・archived。start_date・release_date は NULL で未設定
+		`CREATE TABLE IF NOT EXISTS versions (
+			id           INT AUTO_INCREMENT PRIMARY KEY,
+			space_id     INT NOT NULL,
+			name         VARCHAR(100) NOT NULL,
+			description  TEXT NOT NULL,
+			status       VARCHAR(10) NOT NULL,
+			start_date   DATE NULL,
+			release_date DATE NULL,
+			created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_versions_space (space_id, id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// 課題の修正バージョン（課題とバージョンの多対多）
+		`CREATE TABLE IF NOT EXISTS todo_versions (
+			todo_id    INT NOT NULL,
+			version_id INT NOT NULL,
+			PRIMARY KEY (todo_id, version_id),
+			INDEX idx_todo_versions_version (version_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

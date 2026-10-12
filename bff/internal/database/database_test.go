@@ -77,6 +77,8 @@ func TestMigrate(t *testing.T) {
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
 		"sprints":        {"id", "space_id", "name", "goal", "state", "start_date", "end_date", "completed_at", "created_at"},
 		"sprint_issues":  {"sprint_id", "todo_id", "story_points", "completed"},
+		"versions":       {"id", "space_id", "name", "description", "status", "start_date", "release_date", "created_at"},
+		"todo_versions":  {"todo_id", "version_id"},
 		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id", "assignee_id", "reporter_id", "sprint_id"},
 	}
 	for table, columns := range want {

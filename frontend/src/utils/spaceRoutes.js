@@ -5,6 +5,10 @@ export const boardPath = (space) => (space ? `/spaces/${encodeURIComponent(space
 // スペースのバックログ（未完了の課題を順位の順に並べた一覧）
 export const backlogPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/backlog`;
 
+// スペースのリリース（バージョンの一覧）と、バージョンの詳細
+export const releasesPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/releases`;
+export const versionPath = (space, versionId) => `${releasesPath(space)}/${versionId}`;
+
 export const settingsPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/settings`;
 
 // 課題の全画面ページ（Jira と同じく /browse/KAN-12）

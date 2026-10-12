@@ -215,9 +215,12 @@ func TestSpaceMySQLRepository_CRUD(t *testing.T) {
 // todoWithoutTimes は日時以外の内容を比べるため、作成日時・更新日時を空にしたタスクを返す
 func todoWithoutTimes(todo domain.Todo) domain.Todo {
 	todo.CreatedAt, todo.UpdatedAt = time.Time{}, time.Time{}
-	// ラベルのないタスクは空の配列で返るので、期待値（nil）と比べられるようにする
+	// ラベル・修正バージョンのないタスクは空の配列で返るので、期待値（nil）と比べられるようにする
 	if len(todo.Labels) == 0 {
 		todo.Labels = nil
+	}
+	if len(todo.FixVersionIDs) == 0 {
+		todo.FixVersionIDs = nil
 	}
 	return todo
 }

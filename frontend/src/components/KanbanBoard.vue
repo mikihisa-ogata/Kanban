@@ -226,6 +226,7 @@
           @links-changed="fetchTodos"
           @comments-changed="fetchTodos"
           @worklogs-changed="fetchTodos"
+          @fix-versions-changed="fetchTodos"
           @open="openDetailByKey"
         >
           <template #actions>

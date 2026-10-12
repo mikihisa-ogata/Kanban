@@ -277,6 +277,11 @@
               </button>
             </dd>
 
+            <dt class="self-start pt-1.5 text-gray-600 font-semibold"><label :for="fieldId('fixVersions')">修正バージョン</label></dt>
+            <dd class="m-0 min-w-0">
+              <FixVersionField :id="fieldId('fixVersions')" :task="task" @changed="$emit('fix-versions-changed')" />
+            </dd>
+
             <template v-if="spaces.length">
               <dt class="text-gray-600 font-semibold"><label :for="fieldId('space')">スペース</label></dt>
               <dd class="m-0 min-w-0">
@@ -347,6 +352,7 @@ import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
 import LabelInput from './LabelInput.vue';
+import FixVersionField from './FixVersionField.vue';
 import MarkdownView from './MarkdownView.vue';
 import MarkdownEditor from './MarkdownEditor.vue';
 import SubtaskSection from './SubtaskSection.vue';
@@ -404,8 +410,9 @@ const props = defineProps({
 // links-changed: 課題リンクを追加・削除した（呼び出し側でこの課題とリンク相手を取り直す）
 // comments-changed: コメントを投稿・削除した（呼び出し側でコメント数を取り直す）
 // worklogs-changed: 作業ログを記録・編集・削除した（呼び出し側で記録済み・残り時間を取り直す）
+// fix-versions-changed: 修正バージョンを変えた（呼び出し側でこの課題を取り直す）
 // open: 別の課題（親課題・子課題・リンク相手）を開く（課題キー）
-const emit = defineEmits(['update', 'subtasks-changed', 'links-changed', 'comments-changed', 'worklogs-changed', 'open']);
+const emit = defineEmits(['update', 'subtasks-changed', 'links-changed', 'comments-changed', 'worklogs-changed', 'fix-versions-changed', 'open']);
 
 // ログイン中のユーザー（「自分に割り当て」に使う）
 const { user: currentUser } = useCurrentUser();
