@@ -219,6 +219,7 @@ GET /todos
     "ReporterID": 1,
     "SprintID": 0,
     "FixVersionIDs": [2],
+    "ComponentIDs": [4],
     "Assignee": { "ID": 2, "DisplayName": "佐藤 花子", "AvatarColor": "#00875A" },
     "Reporter": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" },
     "CommentCount": 2,
@@ -258,6 +259,8 @@ GET /todos
 `SprintID` は課題のスプリント（`GET /sprints` を参照）で、`0` はバックログ（どのスプリントにも入っていない）です。変えるには `PUT /todos/:id/sprint` を使います（`PUT /todos/:id` では変わりません）。
 
 `FixVersionIDs` は課題の修正バージョン（`GET /versions` を参照）の ID 順の配列で、なければ `[]` です。変えるには `PUT /todos/:id/fix-versions` を使います（`PUT /todos/:id` では変わりません）。
+
+`ComponentIDs` は課題のコンポーネント（`GET /components` を参照）の ID 順の配列で、なければ `[]` です。変えるには `PUT /todos/:id/components` を使います（`PUT /todos/:id` では変わりません）。
 
 `AssigneeID` は担当者、`ReporterID` は報告者のユーザー ID で、`0` はなし（未割り当て）です。`Assignee`・`Reporter` はそのユーザーの概要（表示名とアバターの色）で、なしなら `null` です。報告者は課題を作成したユーザーになります。ユーザー機能の追加前に作られた課題は、どちらもなしです。
 
@@ -665,6 +668,34 @@ Jira のリリース（修正バージョン）です。バージョンはスペ
 - `PUT /todos/:id/fix-versions` は課題の修正バージョンを `versionIds` に置き換えます（`[]` ですべて外す）。バージョンは課題と同じスペースのものに限り（違えば 400）、アーカイブしたバージョンは新しくは付けられません（既に付いているものは残せます。400）。課題・バージョンが存在しなければ 404 です。
 - 課題のスペースが変わると、バージョンはスペースに属するので修正バージョンから外れます。スペースを削除すると、そのバージョンも削除します。
 
+### コンポーネント
+
+```
+GET    /components
+POST   /spaces/:id/components  {"name": "フロントエンド", "description": "画面まわり", "defaultAssigneeId": 2}
+PUT    /components/:id         {"name": "フロントエンド", "description": "画面まわり", "defaultAssigneeId": 0}
+DELETE /components/:id
+PUT    /todos/:id/components   {"componentIds": [4, 5]}
+```
+
+Jira のコンポーネント（スペース内の機能区分）です。コンポーネントはスペースに属し、既定の担当者を持てます。課題は複数のコンポーネントに入れられます（課題の `ComponentIDs`）。
+
+```json
+[
+  {
+    "ID": 4, "SpaceID": 1, "Name": "フロントエンド", "Description": "画面まわり",
+    "DefaultAssigneeID": 2, "DefaultAssignee": { "ID": 2, "DisplayName": "佐藤 花子", "AvatarColor": "#00875A" },
+    "CreatedAt": "2026-10-12T12:00:00Z"
+  }
+]
+```
+
+- `GET /components` はすべてのコンポーネントを、スペース・名前順に返します。`DefaultAssigneeID` は既定の担当者のユーザー ID（`0` はなし）、`DefaultAssignee` はその概要（なしは `null`）です。
+- `POST /spaces/:id/components` はコンポーネントを作り、201 で `component` に入れて返します。`PUT /components/:id` は名前・説明・既定の担当者を変えます（`defaultAssigneeId` の `0` か省略でなし）。名前は前後の空白を除いて 1〜100 文字で、同じスペースに同じ名前（大文字・小文字は区別しない）があれば 409 です。説明は 1000 文字以内、存在しないユーザーは 400 です。スペース未割り当て（`:id` が 0）は 400、存在しないスペース・コンポーネントは 404 です。
+- `DELETE /components/:id` はコンポーネントを削除し、課題からも外します。
+- `PUT /todos/:id/components` は課題のコンポーネントを `componentIds` に置き換え（`[]` ですべて外す）、変更後の課題を `todo` に入れて返します。課題の担当者が未割り当てなら、新しく付けたコンポーネントのうち ID 順で最初に既定の担当者を持つものの、その人を担当者にします（変更履歴に残り、担当者はウォッチャーになります）。担当者がいる課題では担当者を変えません。コンポーネントは課題と同じスペースのものに限り（違えば 400）、課題・コンポーネントが存在しなければ 404 です。
+- 課題のスペースが変わると、コンポーネントはスペースに属するので外れます。スペースを削除すると、そのコンポーネントも削除します。
+
 ### エピック
 
 ```
@@ -709,7 +740,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions`・`watchers`・`notifications`・`sprints`・`sprint_issues`・`versions`・`todo_versions` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions`・`watchers`・`notifications`・`sprints`・`sprint_issues`・`versions`・`todo_versions`・`components`・`todo_components` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -728,6 +759,7 @@ DELETE /spaces/:id
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
 - スプリントは `sprints` に、スペース `space_id`・名前 `name`・ゴール `goal`・状態 `state`（`future`・`active`・`closed`）・期間 `start_date`・`end_date`（`DATE`、`NULL` は未設定）・完了した日時 `completed_at`（`NULL` は未完了）・作成日時 `created_at` で保存し、課題は `todos.sprint_id`（0 はバックログ）で指します。完了したときの記録は `sprint_issues` に、スプリント `sprint_id`・課題 `todo_id`・その時点のストーリーポイント `story_points`・完了していたか `completed` で保存します。`todos.sprint_id` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の課題は 0 = バックログ）。
 - バージョンは `versions` に、スペース `space_id`・名前 `name`・説明 `description`・状態 `status`（`unreleased`・`released`・`archived`）・開始日 `start_date`・リリース日 `release_date`（`DATE`、`NULL` は未設定）・作成日時 `created_at` で保存します。課題の修正バージョンは多対多を `todo_versions`（`todo_id`・`version_id`）で表します。課題やバージョンを削除すると `todo_versions` の行も削除します。
+- コンポーネントは `components` に、スペース `space_id`・名前 `name`・説明 `description`・既定の担当者 `default_assignee_id`（`users.id`。0 はなし）・作成日時 `created_at` で保存します。課題のコンポーネントは多対多を `todo_components`（`todo_id`・`component_id`）で表します。課題やコンポーネントを削除すると `todo_components` の行も削除します。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - ユーザーは `users` に、表示名 `display_name`・メールアドレス `email`（小文字に正規化。一意）・パスワードのハッシュ `password_hash`（bcrypt）・アバターの色 `avatar_color`・作成日時 `created_at` で保存します。ログインのセッションは `sessions` に、トークンの SHA-256 `token_hash`・ユーザー `user_id`・作成日時 `created_at`・有効期限 `expires_at` で保存します。期限切れのセッションはログインのときに削除します。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。

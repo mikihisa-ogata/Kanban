@@ -482,6 +482,23 @@ func schemaStatements() []string {
 			created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_versions_space (space_id, id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// コンポーネント（Jira の機能区分）。default_assignee_id は既定の担当者（users.id。0 はなし）
+		`CREATE TABLE IF NOT EXISTS components (
+			id                  INT AUTO_INCREMENT PRIMARY KEY,
+			space_id            INT NOT NULL,
+			name                VARCHAR(100) NOT NULL,
+			description         TEXT NOT NULL,
+			default_assignee_id INT NOT NULL DEFAULT 0,
+			created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_components_space (space_id, id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// 課題のコンポーネント（課題とコンポーネントの多対多）
+		`CREATE TABLE IF NOT EXISTS todo_components (
+			todo_id      INT NOT NULL,
+			component_id INT NOT NULL,
+			PRIMARY KEY (todo_id, component_id),
+			INDEX idx_todo_components_component (component_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		// 課題の修正バージョン（課題とバージョンの多対多）
 		`CREATE TABLE IF NOT EXISTS todo_versions (
 			todo_id    INT NOT NULL,

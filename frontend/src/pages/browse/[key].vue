@@ -29,6 +29,7 @@
           @links-changed="handleLinksChanged"
           @worklogs-changed="fetchIssue"
           @fix-versions-changed="fetchIssue"
+          @components-changed="fetchIssue"
           @open="navigateTo(issuePath($event))"
         />
       </div>

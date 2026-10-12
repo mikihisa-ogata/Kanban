@@ -32,6 +32,7 @@ type testRepos struct {
 	watcher    repository.WatcherRepository
 	sprint     repository.SprintRepository
 	version    repository.VersionRepository
+	component  repository.ComponentRepository
 	// notification は通知。history は main と同じく、記録するとウォッチャーへ通知を作る
 	notification repository.NotificationRepository
 	// attachmentsDir は添付ファイルの保存先（テストごとの一時ディレクトリ）
@@ -59,6 +60,7 @@ func newTestRepos(t *testing.T) testRepos {
 		watcher:        watchers,
 		sprint:         repository.NewSprintMySQLRepository(db),
 		version:        repository.NewVersionMySQLRepository(db),
+		component:      repository.NewComponentMySQLRepository(db),
 		notification:   notifications,
 		history:        service.WithNotifications(repository.NewHistoryMySQLRepository(db), watchers, notifications),
 		attachmentsDir: dir,

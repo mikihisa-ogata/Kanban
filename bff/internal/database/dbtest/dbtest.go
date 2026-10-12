@@ -48,7 +48,7 @@ func Open(t *testing.T, suffix string) *sql.DB {
 	if err := database.Migrate(db); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"todos", "epics", "spaces", "issue_counters", "labels", "todo_labels", "issue_links", "comments", "issue_history", "attachments", "worklogs", "statuses", "users", "sessions", "watchers", "notifications", "sprints", "sprint_issues", "versions", "todo_versions"} {
+	for _, table := range []string{"todos", "epics", "spaces", "issue_counters", "labels", "todo_labels", "issue_links", "comments", "issue_history", "attachments", "worklogs", "statuses", "users", "sessions", "watchers", "notifications", "sprints", "sprint_issues", "versions", "todo_versions", "components", "todo_components"} {
 		if _, err := db.Exec("TRUNCATE TABLE " + table); err != nil {
 			t.Fatal(err)
 		}

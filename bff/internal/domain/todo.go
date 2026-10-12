@@ -81,8 +81,11 @@ type Todo struct {
 	// FixVersionIDs は修正バージョン（Version.ID）。バージョンの ID 順で、なければ空の配列。
 	// スペースを移ると外れる（バージョンはスペースに属するため）
 	FixVersionIDs []int
-	StoryPoints   *float64 // ストーリーポイント（見積もり）。nil は未設定
-	ParentID      int      // サブタスクの親課題の ID。0 はサブタスクではない
+	// ComponentIDs はコンポーネント（Component.ID）。コンポーネントの ID 順で、なければ空の配列。
+	// スペースを移ると外れる（コンポーネントはスペースに属するため）
+	ComponentIDs []int
+	StoryPoints  *float64 // ストーリーポイント（見積もり）。nil は未設定
+	ParentID     int      // サブタスクの親課題の ID。0 はサブタスクではない
 	// OriginalEstimate は初期見積もり（分）。nil は未設定
 	OriginalEstimate *int
 	// RemainingEstimate は残り時間（分）。nil は未設定。作業ログを記録すると減る

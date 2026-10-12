@@ -52,7 +52,7 @@ func (r *spaceMySQLRepository) Update(id int, space domain.Space) error {
 	return requireAffected(result, "space", id)
 }
 
-// Delete はスペースと、そのスプリント（完了したときの記録を含む）・バージョン（課題への付与を含む）を削除する。
+// Delete はスペースと、そのスプリント（完了したときの記録を含む）・バージョン・コンポーネント（課題への付与を含む）を削除する。
 // 課題のスプリントは、課題が未割り当てへ移るとき（todos の Update）にバックログへ戻る
 func (r *spaceMySQLRepository) Delete(id int) error {
 	tx, err := r.db.Begin()
@@ -71,6 +71,12 @@ func (r *spaceMySQLRepository) Delete(id int) error {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM versions WHERE space_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM todo_components WHERE component_id IN (SELECT id FROM components WHERE space_id = ?)`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM components WHERE space_id = ?`, id); err != nil {
 		return err
 	}
 	result, err := tx.Exec(`DELETE FROM spaces WHERE id = ?`, id)

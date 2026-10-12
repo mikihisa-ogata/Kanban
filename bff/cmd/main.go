@@ -68,6 +68,7 @@ func main() {
 	watcherHandler := handler.NewWatcherHandler(service.NewWatcherService(watcherRepo, repo))
 	sprintHandler := handler.NewSprintHandler(service.NewSprintService(repository.NewSprintMySQLRepository(db), repo, spaceRepo))
 	versionHandler := handler.NewVersionHandler(service.NewVersionService(repository.NewVersionMySQLRepository(db), repo, spaceRepo))
+	componentHandler := handler.NewComponentHandler(service.NewComponentService(repository.NewComponentMySQLRepository(db), repo, epicRepo, spaceRepo, userRepo, watcherRepo, historyRepo, statusRepo))
 
 	r.POST("/auth/signup", authHandler.Signup)
 	r.POST("/auth/login", authHandler.Login)
@@ -143,6 +144,12 @@ func main() {
 	api.POST("/versions/:id/release", versionHandler.ReleaseVersion)
 	api.DELETE("/versions/:id", versionHandler.DeleteVersion)
 	api.PUT("/todos/:id/fix-versions", versionHandler.SetTodoVersions)
+
+	api.GET("/components", componentHandler.GetComponents)
+	api.POST("/spaces/:id/components", componentHandler.CreateComponent)
+	api.PUT("/components/:id", componentHandler.UpdateComponent)
+	api.DELETE("/components/:id", componentHandler.DeleteComponent)
+	api.PUT("/todos/:id/components", componentHandler.SetTodoComponents)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)

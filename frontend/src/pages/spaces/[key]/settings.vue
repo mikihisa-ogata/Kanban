@@ -78,6 +78,8 @@
             @changed="fetchWorkflow"
           />
 
+          <ComponentSection class="mt-6" :space="space" :todos="todos" />
+
           <!-- スペースの削除 -->
           <section class="mt-6 bg-white rounded-2xl px-8 py-6 shadow-xl">
             <h3 class="m-0 mb-2 text-lg font-bold text-gray-900">スペースを削除</h3>
@@ -112,6 +114,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import ConfirmDialog from '~/components/ConfirmDialog.vue';
 import SpaceShell from '~/components/SpaceShell.vue';
 import WorkflowSection from '~/components/WorkflowSection.vue';
+import ComponentSection from '~/components/ComponentSection.vue';
 import { spacesApi } from '~/api/spaces';
 import { statusesApi } from '~/api/statuses';
 import { todosApi } from '~/api/todos';
