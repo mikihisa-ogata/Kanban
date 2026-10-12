@@ -12,7 +12,8 @@ var ErrCommentNotFound = errors.New("コメントが見つかりません")
 type CommentService interface {
 	// GetComments は課題のコメントを投稿順（古い順）に返す。課題がなければ ErrIssueNotFound を返す
 	GetComments(todoID int) ([]domain.Comment, error)
-	// CreateComment は課題に authorID のユーザーとしてコメントを投稿し、作成したコメントを返す。課題がなければ ErrIssueNotFound を返す
+	// CreateComment は課題に authorID のユーザーとしてコメントを投稿し、作成したコメントを返す。課題がなければ ErrIssueNotFound を返す。
+	// 投稿者は自動でウォッチャーになり、ほかのウォッチャーに通知する
 	CreateComment(todoID int, body string, authorID int) (domain.Comment, error)
 	// UpdateComment はコメントの本文を変え、変更後のコメントを返す。なければ ErrCommentNotFound を返す
 	UpdateComment(id int, body string) (domain.Comment, error)
@@ -21,12 +22,14 @@ type CommentService interface {
 }
 
 type commentService struct {
-	commentRepo repository.CommentRepository
-	todoRepo    repository.TodoRepository
+	commentRepo   repository.CommentRepository
+	todoRepo      repository.TodoRepository
+	watchers      repository.WatcherRepository
+	notifications repository.NotificationRepository
 }
 
-func NewCommentService(c repository.CommentRepository, t repository.TodoRepository) CommentService {
-	return &commentService{commentRepo: c, todoRepo: t}
+func NewCommentService(c repository.CommentRepository, t repository.TodoRepository, w repository.WatcherRepository, n repository.NotificationRepository) CommentService {
+	return &commentService{commentRepo: c, todoRepo: t, watchers: w, notifications: n}
 }
 
 func (s *commentService) GetComments(todoID int) ([]domain.Comment, error) {
@@ -45,6 +48,12 @@ func (s *commentService) CreateComment(todoID int, body string, authorID int) (d
 	}
 	id, err := s.commentRepo.Create(domain.Comment{TodoID: todoID, Body: body, AuthorID: authorID})
 	if err != nil {
+		return domain.Comment{}, err
+	}
+	if err := s.watchers.Add(todoID, authorID); err != nil {
+		return domain.Comment{}, err
+	}
+	if err := notifyWatchers(s.watchers, s.notifications, todoID, authorID, domain.NotificationCommented, domain.CommentExcerpt(body)); err != nil {
 		return domain.Comment{}, err
 	}
 	return s.findComment(id)

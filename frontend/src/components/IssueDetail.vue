@@ -40,6 +40,7 @@
       </button>
       <span v-if="copied" class="text-xs font-semibold text-emerald-600">コピーしました</span>
       <div class="ml-auto flex items-center gap-1">
+        <WatchButton :task="task" />
         <slot name="actions" />
       </div>
     </div>
@@ -354,6 +355,7 @@ import ActivitySection from './ActivitySection.vue';
 import AttachmentSection from './AttachmentSection.vue';
 import TimeTrackingSection from './TimeTrackingSection.vue';
 import UserPicker from './UserPicker.vue';
+import WatchButton from './WatchButton.vue';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';

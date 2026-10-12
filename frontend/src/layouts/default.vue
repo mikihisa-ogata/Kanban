@@ -24,7 +24,10 @@
       </button>
       <!-- ログイン中のユーザーはブラウザ側でだけ取得するので、サーバーの描画には含めない -->
       <ClientOnly>
-        <UserMenu v-if="currentUser" :user="currentUser" class="ml-auto" />
+        <div v-if="currentUser" class="ml-auto flex items-center gap-3">
+          <NotificationBell />
+          <UserMenu :user="currentUser" />
+        </div>
       </ClientOnly>
     </header>
     <slot />
@@ -35,6 +38,7 @@
 <script setup>
 import GlobalCreate from '~/components/GlobalCreate.vue';
 import UserMenu from '~/components/UserMenu.vue';
+import NotificationBell from '~/components/NotificationBell.vue';
 import { useCurrentUser } from '~/composables/useCurrentUser';
 
 // サイドバー（スペース一覧）の開閉状態。SpaceShell と共有する

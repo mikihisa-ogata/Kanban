@@ -18,8 +18,8 @@ func newPeopleRouter(t *testing.T) (*gin.Engine, testRepos) {
 	gin.SetMode(gin.TestMode)
 	repos := newTestRepos(t)
 	auth := NewAuthHandler(service.NewAuthService(repos.user, repos.session))
-	todo := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status, repos.user))
-	comment := NewCommentHandler(service.NewCommentService(repos.comment, repos.todo))
+	todo := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status, repos.user, repos.watcher))
+	comment := NewCommentHandler(service.NewCommentService(repos.comment, repos.todo, repos.watcher, repos.notification))
 	users := NewUserHandler(service.NewUserService(repos.user))
 
 	r := gin.New()

@@ -422,6 +422,28 @@ func schemaStatements() []string {
 			expires_at DATETIME NOT NULL,
 			INDEX idx_sessions_user (user_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// 課題のウォッチャー（課題の更新を追いかけるユーザー）
+		`CREATE TABLE IF NOT EXISTS watchers (
+			todo_id    INT NOT NULL,
+			user_id    INT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (todo_id, user_id),
+			INDEX idx_watchers_user (user_id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// アプリ内通知。user_id が受け取るユーザー、actor_id が変更・コメントしたユーザー。
+		// kind は updated・commented、detail は変わった項目名（「,」区切り）かコメントの冒頭。read_at は既読にした日時（NULL は未読）
+		`CREATE TABLE IF NOT EXISTS notifications (
+			id         INT AUTO_INCREMENT PRIMARY KEY,
+			user_id    INT NOT NULL,
+			todo_id    INT NOT NULL,
+			actor_id   INT NOT NULL,
+			kind       VARCHAR(20) NOT NULL,
+			detail     TEXT NOT NULL,
+			read_at    DATETIME NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_notifications_user (user_id, id),
+			INDEX idx_notifications_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

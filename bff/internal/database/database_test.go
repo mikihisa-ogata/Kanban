@@ -72,6 +72,8 @@ func TestMigrate(t *testing.T) {
 		"statuses":       {"id", "space_id", "name", "category", "position", "legacy_key"},
 		"users":          {"id", "display_name", "email", "password_hash", "avatar_color", "created_at"},
 		"sessions":       {"token_hash", "user_id", "created_at", "expires_at"},
+		"watchers":       {"todo_id", "user_id", "created_at"},
+		"notifications":  {"id", "user_id", "todo_id", "actor_id", "kind", "detail", "read_at", "created_at"},
 		"epics":          {"id", "title", "space_id", "created_at", "updated_at"},
 		"todos":          {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id", "assignee_id", "reporter_id"},
 	}

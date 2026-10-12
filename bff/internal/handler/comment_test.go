@@ -17,7 +17,7 @@ func newCommentRouter(t *testing.T) *gin.Engine {
 	t.Helper()
 	db := newTestRepos(t)
 	r := newTodoRouter(db)
-	h := NewCommentHandler(service.NewCommentService(db.comment, db.todo))
+	h := NewCommentHandler(service.NewCommentService(db.comment, db.todo, db.watcher, db.notification))
 	r.GET("/todos/:id/comments", h.GetComments)
 	r.POST("/todos/:id/comments", h.CreateComment)
 	r.PUT("/comments/:id", h.UpdateComment)
@@ -110,7 +110,7 @@ func TestCommentHandler_Errors(t *testing.T) {
 func TestCommentHandler_DeleteTodoDeletesComments(t *testing.T) {
 	db := newTestRepos(t)
 	r := newTodoRouter(db)
-	h := NewCommentHandler(service.NewCommentService(db.comment, db.todo))
+	h := NewCommentHandler(service.NewCommentService(db.comment, db.todo, db.watcher, db.notification))
 	r.POST("/todos/:id/comments", h.CreateComment)
 
 	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"parent"}`, http.StatusCreated)

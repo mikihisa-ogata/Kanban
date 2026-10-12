@@ -126,6 +126,55 @@ GET /users
 
 すべてのユーザーを表示名の順の配列で返します（担当者・報告者を選ぶ候補）。各要素の形式は `GET /auth/me` と同じです（パスワードのハッシュは含みません）。
 
+### ウォッチと通知
+
+```
+GET    /todos/:id/watchers
+POST   /todos/:id/watch
+DELETE /todos/:id/watch
+GET    /notifications
+POST   /notifications/:id/read
+POST   /notifications/read-all
+```
+
+- `GET /todos/:id/watchers` は課題（`:id`）のウォッチャーを、表示名の順にユーザーの概要（`ID`・`DisplayName`・`AvatarColor`）の配列で返します。
+- `POST /todos/:id/watch` はログイン中のユーザーをウォッチャーにし、`DELETE` は外します。どちらもウォッチャーの配列を返します。課題がなければ 404 です。
+- 課題を作成したユーザー・担当者・コメントしたユーザーは、自動でウォッチャーになります。
+
+ウォッチ中の課題が他のユーザーに変更・コメントされると、そのユーザー以外のウォッチャーに通知を作ります。
+
+- 変更は、変更履歴を記録する操作すべてが対象です（`PUT /todos/:id` のほか、ドラッグでの移動、エピックやスペースの削除、作業ログによる残り時間の調整など）。
+- 1 回の操作で変わった項目は 1 件の通知にまとめます。
+- 新しい担当者には、割り当てられたことも通知します。
+
+`GET /notifications` はログイン中のユーザーへの通知を、新しい順に最大 50 件と未読の数で返します。
+
+```json
+{
+  "Unread": 1,
+  "Notifications": [
+    {
+      "ID": 3,
+      "UserID": 2,
+      "TodoID": 1,
+      "IssueKey": "KAN-1",
+      "IssueTitle": "ログイン画面を作る",
+      "ActorID": 1,
+      "Actor": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" },
+      "Kind": "updated",
+      "Detail": "status,assignee",
+      "Read": false,
+      "CreatedAt": "2026-10-12T03:00:00Z"
+    }
+  ]
+}
+```
+
+- `Kind` は `updated`（変更）か `commented`（コメント）です。
+- `Detail` は、`updated` なら変わった項目名（変更履歴の `Field`）を `,` でつないだものです（`statusCategory`・`key` は含めません）。`commented` ならコメントの冒頭です（空白をまとめ、100 文字を超えると `…` で切ります）。
+- `IssueKey`・`IssueTitle` は取得した時点の課題キーと要約です。課題を削除すると、その課題の通知とウォッチャーも削除します。
+- `POST /notifications/:id/read` は通知を既読にします。ログイン中のユーザーへの通知でなければ 404 です。`POST /notifications/read-all` はすべて既読にします。
+
 ### 全TODOを取得
 
 ```
@@ -580,7 +629,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions`・`watchers`・`notifications` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -593,6 +642,7 @@ DELETE /spaces/:id
 - 添付ファイルは `attachments` に、課題 `todo_id`・ファイル名 `file_name`・種類 `content_type`・バイト数 `size`・保存名 `storage_name`・添付日時 `created_at` で保存します。本体は `ATTACHMENTS_DIR` に `storage_name`（推測できないランダムな名前）で置きます。読み書きは `internal/repository` の添付ファイルの Repository だけが行います。
 - 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・変更者 `user_id`（0 はなし）・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
 - コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿者 `author_id`（0 はなし）・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
+- ウォッチャーは `watchers`（`todo_id`・`user_id`・`created_at`）、通知は `notifications` に保存します。通知の列は、受け取るユーザー `user_id`・課題 `todo_id`・変更したユーザー `actor_id`・種類 `kind`・内容 `detail`・既読にした日時 `read_at`（`NULL` は未読）・`created_at` です。通知は、サービス層の `WithNotifications` で包んだ変更履歴の Repository が、記録に合わせて作ります。
 - 課題の担当者・報告者は `todos.assignee_id`・`todos.reporter_id`（`users.id`。0 はなし）です。これらの列と `comments.author_id`・`issue_history.user_id` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の行は 0 = なし）。
 - 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。

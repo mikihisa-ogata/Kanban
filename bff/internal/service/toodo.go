@@ -120,12 +120,13 @@ type todoService struct {
 	linkRepo       repository.IssueLinkRepository
 	attachmentRepo repository.AttachmentRepository
 	userRepo       repository.UserRepository
+	watchers       repository.WatcherRepository
 	history        historyRecorder
 	statuses       statusResolver
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository, st repository.StatusRepository, u repository.UserRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a, userRepo: u,
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository, st repository.StatusRepository, u repository.UserRepository, w repository.WatcherRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a, userRepo: u, watchers: w,
 		history: historyRecorder{history: h, epics: e, spaces: s}, statuses: statusResolver{repo: st}}
 }
 
@@ -370,6 +371,13 @@ func (s *todoService) CreateTodo(title string, deadline string, status StatusInp
 	if err := s.history.by(actorID).recordCreated(id); err != nil {
 		return domain.Todo{}, err
 	}
+	// 作成者と担当者は自動でウォッチャーになる
+	if err := s.watchers.Add(id, actorID); err != nil {
+		return domain.Todo{}, err
+	}
+	if err := s.watchers.Add(id, assigneeID); err != nil {
+		return domain.Todo{}, err
+	}
 	return s.findWithLinks(id)
 }
 
@@ -485,6 +493,12 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 	updated, err := s.findWithLinks(id)
 	if err != nil {
 		return domain.Todo{}, err
+	}
+	// 新しい担当者は自動でウォッチャーになる。履歴の記録より先に加え、割り当てられたことも通知する
+	if assigneeID != current.AssigneeID {
+		if err := s.watchers.Add(id, assigneeID); err != nil {
+			return domain.Todo{}, err
+		}
 	}
 	if err := s.history.by(actorID).recordChanges(names, current, updated); err != nil {
 		return domain.Todo{}, err

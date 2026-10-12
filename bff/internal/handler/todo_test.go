@@ -29,6 +29,9 @@ type testRepos struct {
 	status     repository.StatusRepository
 	user       repository.UserRepository
 	session    repository.SessionRepository
+	watcher    repository.WatcherRepository
+	// notification は通知。history は main と同じく、記録するとウォッチャーへ通知を作る
+	notification repository.NotificationRepository
 	// attachmentsDir は添付ファイルの保存先（テストごとの一時ディレクトリ）
 	attachmentsDir string
 }
@@ -38,18 +41,22 @@ func newTestRepos(t *testing.T) testRepos {
 	t.Helper()
 	db := dbtest.Open(t, "handler")
 	dir := t.TempDir()
+	watchers := repository.NewWatcherMySQLRepository(db)
+	notifications := repository.NewNotificationMySQLRepository(db)
 	return testRepos{
 		todo:           repository.NewTodoMySQLRepository(db),
 		epic:           repository.NewEpicMySQLRepository(db),
 		space:          repository.NewSpaceMySQLRepository(db),
 		link:           repository.NewIssueLinkMySQLRepository(db),
 		comment:        repository.NewCommentMySQLRepository(db),
-		history:        repository.NewHistoryMySQLRepository(db),
 		attachment:     repository.NewAttachmentMySQLRepository(db, dir),
 		worklog:        repository.NewWorklogMySQLRepository(db),
 		status:         repository.NewStatusMySQLRepository(db),
 		user:           repository.NewUserMySQLRepository(db),
 		session:        repository.NewSessionMySQLRepository(db),
+		watcher:        watchers,
+		notification:   notifications,
+		history:        service.WithNotifications(repository.NewHistoryMySQLRepository(db), watchers, notifications),
 		attachmentsDir: dir,
 	}
 }
@@ -61,7 +68,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 
 func newTodoRouter(repos testRepos) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status, repos.user))
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status, repos.user, repos.watcher))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)
