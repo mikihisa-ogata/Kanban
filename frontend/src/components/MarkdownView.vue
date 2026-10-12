@@ -8,6 +8,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { renderMarkdown } from '../utils/markdown';
+import { useCurrentUser } from '../composables/useCurrentUser';
 
 const props = defineProps({
   source: {
@@ -21,7 +22,10 @@ onMounted(() => {
   mounted.value = true;
 });
 
-const html = computed(() => (mounted.value ? renderMarkdown(props.source) : null));
+// 自分へのメンションは目立つ色にする
+const { user: currentUser } = useCurrentUser();
+
+const html = computed(() => (mounted.value ? renderMarkdown(props.source, { currentUserId: currentUser.value?.ID ?? 0 }) : null));
 </script>
 
 <style scoped>
@@ -125,6 +129,19 @@ const html = computed(() => (mounted.value ? renderMarkdown(props.source) : null
 .markdown-body :deep(th) {
   background: var(--color-gray-50, #f9fafb);
   font-weight: 600;
+}
+.markdown-body :deep(.mention) {
+  padding: 0 0.3rem;
+  border-radius: 0.75rem;
+  background: var(--color-gray-200, #e5e7eb);
+  color: var(--color-gray-800, #1f2937);
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* Jira と同じく、自分へのメンションは青い背景で目立たせる */
+.markdown-body :deep(.mention-self) {
+  background: var(--color-blue-600, #2563eb);
+  color: #fff;
 }
 .markdown-body :deep(hr) {
   margin: 1rem 0;

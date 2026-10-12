@@ -62,7 +62,7 @@
                 <span class="font-semibold">{{ notification.Actor ? notification.Actor.DisplayName : '誰か' }}</span>
                 が
                 <span class="font-mono font-semibold">{{ notification.IssueKey }}</span>
-                {{ notification.Kind === 'commented' ? 'にコメントしました' : 'を変更しました' }}
+                {{ KIND_TEXTS[notification.Kind] ?? 'を変更しました' }}
               </span>
               <span class="block mt-0.5 text-xs text-gray-600 truncate">{{ notification.IssueTitle }}</span>
               <span class="block mt-0.5 text-xs text-gray-500 line-clamp-2 break-words">{{ describe(notification) }}</span>
@@ -107,9 +107,16 @@ const now = ref(Date.now());
 
 const visible = computed(() => (unreadOnly.value ? notifications.value.filter(n => !n.Read) : notifications.value));
 
-// 変わった項目名（「,」区切り）は表示名にし、コメントは冒頭を「」で囲む
+// 通知の種類ごとの文（「山田 太郎 が KAN-1 ○○」の ○○）
+const KIND_TEXTS = {
+  updated: 'を変更しました',
+  commented: 'にコメントしました',
+  mentioned: 'であなたをメンションしました'
+};
+
+// 変わった項目名（「,」区切り）は表示名にし、コメント・メンションは本文の冒頭を「」で囲む
 const describe = (notification) => {
-  if (notification.Kind === 'commented') {
+  if (notification.Kind === 'commented' || notification.Kind === 'mentioned') {
     return `「${notification.Detail}」`;
   }
   return notification.Detail.split(',').filter(Boolean).map(historyFieldLabel).join('、');

@@ -14,10 +14,12 @@ const (
 	NotificationUpdated NotificationKind = "updated"
 	// NotificationCommented はウォッチ中の課題にコメントが付いたこと。Detail はコメントの冒頭
 	NotificationCommented NotificationKind = "commented"
+	// NotificationMentioned はコメントか説明でメンションされたこと。Detail はその本文の冒頭
+	NotificationMentioned NotificationKind = "mentioned"
 )
 
-// commentExcerptMax は通知に載せるコメントの冒頭の最大文字数
-const commentExcerptMax = 100
+// excerptMax は通知に載せる本文の冒頭の最大文字数
+const excerptMax = 100
 
 // Notification はユーザー（UserID）へのアプリ内通知
 type Notification struct {
@@ -54,11 +56,11 @@ func ChangedFields(entries []HistoryEntry) string {
 	return strings.Join(fields, ",")
 }
 
-// CommentExcerpt は通知に載せるコメントの冒頭を返す。空白と改行は 1 つの空白にまとめ、長ければ「…」で切る
-func CommentExcerpt(body string) string {
-	text := strings.Join(strings.Fields(body), " ")
-	if utf8.RuneCountInString(text) <= commentExcerptMax {
+// Excerpt は通知に載せるコメント・説明の冒頭を返す。メンションは「@表示名」にし、空白と改行は 1 つの空白にまとめ、長ければ「…」で切る
+func Excerpt(body string) string {
+	text := strings.Join(strings.Fields(PlainMentions(body)), " ")
+	if utf8.RuneCountInString(text) <= excerptMax {
 		return text
 	}
-	return string([]rune(text)[:commentExcerptMax]) + "…"
+	return string([]rune(text)[:excerptMax]) + "…"
 }

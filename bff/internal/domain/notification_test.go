@@ -18,15 +18,18 @@ func TestChangedFields(t *testing.T) {
 	}
 }
 
-func TestCommentExcerpt(t *testing.T) {
-	if got := CommentExcerpt("  1行目\n\n2行目  "); got != "1行目 2行目" {
-		t.Errorf("CommentExcerpt() = %q", got)
+func TestExcerpt(t *testing.T) {
+	if got := Excerpt("  1行目\n\n2行目  "); got != "1行目 2行目" {
+		t.Errorf("Excerpt() = %q", got)
 	}
 	long := strings.Repeat("あ", 101)
-	if got := CommentExcerpt(long); got != strings.Repeat("あ", 100)+"…" {
-		t.Errorf("CommentExcerpt(long) = %q", got)
+	if got := Excerpt(long); got != strings.Repeat("あ", 100)+"…" {
+		t.Errorf("Excerpt(long) = %q", got)
 	}
-	if got := CommentExcerpt(strings.Repeat("あ", 100)); got != strings.Repeat("あ", 100) {
-		t.Errorf("CommentExcerpt(100) = %q", got)
+	if got := Excerpt(strings.Repeat("あ", 100)); got != strings.Repeat("あ", 100) {
+		t.Errorf("Excerpt(100) = %q", got)
+	}
+	if got := Excerpt("@[山田 太郎](user:1) 見てください"); got != "@山田 太郎 見てください" {
+		t.Errorf("Excerpt(mention) = %q", got)
 	}
 }

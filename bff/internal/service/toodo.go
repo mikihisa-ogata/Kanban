@@ -121,12 +121,13 @@ type todoService struct {
 	attachmentRepo repository.AttachmentRepository
 	userRepo       repository.UserRepository
 	watchers       repository.WatcherRepository
+	notifications  repository.NotificationRepository
 	history        historyRecorder
 	statuses       statusResolver
 }
 
-func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository, st repository.StatusRepository, u repository.UserRepository, w repository.WatcherRepository) TodoService {
-	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a, userRepo: u, watchers: w,
+func NewTodoService(r repository.TodoRepository, e repository.EpicRepository, s repository.SpaceRepository, l repository.IssueLinkRepository, h repository.HistoryRepository, a repository.AttachmentRepository, st repository.StatusRepository, u repository.UserRepository, w repository.WatcherRepository, n repository.NotificationRepository) TodoService {
+	return &todoService{repo: r, epicRepo: e, spaceRepo: s, linkRepo: l, attachmentRepo: a, userRepo: u, watchers: w, notifications: n,
 		history: historyRecorder{history: h, epics: e, spaces: s}, statuses: statusResolver{repo: st}}
 }
 
@@ -378,6 +379,10 @@ func (s *todoService) CreateTodo(title string, deadline string, status StatusInp
 	if err := s.watchers.Add(id, assigneeID); err != nil {
 		return domain.Todo{}, err
 	}
+	// 説明でメンションされたユーザーに通知する
+	if _, err := notifyMentions(s.userRepo, s.notifications, id, actorID, domain.MentionedUserIDs(description), domain.Excerpt(description)); err != nil {
+		return domain.Todo{}, err
+	}
 	return s.findWithLinks(id)
 }
 
@@ -501,6 +506,11 @@ func (s *todoService) UpdateTodo(id int, title string, done bool, deadline strin
 		}
 	}
 	if err := s.history.by(actorID).recordChanges(names, current, updated); err != nil {
+		return domain.Todo{}, err
+	}
+	// 説明で新しくメンションされたユーザーに通知する（編集で同じ人に何度も通知しない）
+	newly := domain.NewlyMentionedUserIDs(current.Description, description)
+	if _, err := notifyMentions(s.userRepo, s.notifications, id, actorID, newly, domain.Excerpt(description)); err != nil {
 		return domain.Todo{}, err
 	}
 	if current.SpaceID != spaceID || current.EpicID != epicID {

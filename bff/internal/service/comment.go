@@ -13,10 +13,11 @@ type CommentService interface {
 	// GetComments は課題のコメントを投稿順（古い順）に返す。課題がなければ ErrIssueNotFound を返す
 	GetComments(todoID int) ([]domain.Comment, error)
 	// CreateComment は課題に authorID のユーザーとしてコメントを投稿し、作成したコメントを返す。課題がなければ ErrIssueNotFound を返す。
-	// 投稿者は自動でウォッチャーになり、ほかのウォッチャーに通知する
+	// 投稿者は自動でウォッチャーになる。メンションされたユーザーには「メンションされました」、ほかのウォッチャーには「コメントしました」と通知する
 	CreateComment(todoID int, body string, authorID int) (domain.Comment, error)
-	// UpdateComment はコメントの本文を変え、変更後のコメントを返す。なければ ErrCommentNotFound を返す
-	UpdateComment(id int, body string) (domain.Comment, error)
+	// UpdateComment はコメントの本文を変え、変更後のコメントを返す。なければ ErrCommentNotFound を返す。
+	// 編集で新しくメンションしたユーザーには、actorID のユーザーからの通知を作る
+	UpdateComment(id int, body string, actorID int) (domain.Comment, error)
 	// DeleteComment はコメントを削除する。なければ ErrCommentNotFound を返す
 	DeleteComment(id int) error
 }
@@ -26,10 +27,11 @@ type commentService struct {
 	todoRepo      repository.TodoRepository
 	watchers      repository.WatcherRepository
 	notifications repository.NotificationRepository
+	users         repository.UserRepository
 }
 
-func NewCommentService(c repository.CommentRepository, t repository.TodoRepository, w repository.WatcherRepository, n repository.NotificationRepository) CommentService {
-	return &commentService{commentRepo: c, todoRepo: t, watchers: w, notifications: n}
+func NewCommentService(c repository.CommentRepository, t repository.TodoRepository, w repository.WatcherRepository, n repository.NotificationRepository, u repository.UserRepository) CommentService {
+	return &commentService{commentRepo: c, todoRepo: t, watchers: w, notifications: n, users: u}
 }
 
 func (s *commentService) GetComments(todoID int) ([]domain.Comment, error) {
@@ -53,20 +55,30 @@ func (s *commentService) CreateComment(todoID int, body string, authorID int) (d
 	if err := s.watchers.Add(todoID, authorID); err != nil {
 		return domain.Comment{}, err
 	}
-	if err := notifyWatchers(s.watchers, s.notifications, todoID, authorID, domain.NotificationCommented, domain.CommentExcerpt(body)); err != nil {
+	// メンションされたウォッチャーには、同じコメントの通知を重ねて送らない
+	mentioned, err := notifyMentions(s.users, s.notifications, todoID, authorID, domain.MentionedUserIDs(body), domain.Excerpt(body))
+	if err != nil {
+		return domain.Comment{}, err
+	}
+	if err := notifyWatchers(s.watchers, s.notifications, todoID, authorID, domain.NotificationCommented, domain.Excerpt(body), mentioned); err != nil {
 		return domain.Comment{}, err
 	}
 	return s.findComment(id)
 }
 
-func (s *commentService) UpdateComment(id int, body string) (domain.Comment, error) {
+func (s *commentService) UpdateComment(id int, body string, actorID int) (domain.Comment, error) {
 	if err := domain.ValidateCommentBody(body); err != nil {
 		return domain.Comment{}, err
 	}
-	if _, err := s.findComment(id); err != nil {
+	current, err := s.findComment(id)
+	if err != nil {
 		return domain.Comment{}, err
 	}
 	if err := s.commentRepo.Update(id, body); err != nil {
+		return domain.Comment{}, err
+	}
+	newly := domain.NewlyMentionedUserIDs(current.Body, body)
+	if _, err := notifyMentions(s.users, s.notifications, current.TodoID, actorID, newly, domain.Excerpt(body)); err != nil {
 		return domain.Comment{}, err
 	}
 	return s.findComment(id)

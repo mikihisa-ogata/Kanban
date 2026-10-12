@@ -68,7 +68,7 @@ func setupTodoRouter(t *testing.T) *gin.Engine {
 
 func newTodoRouter(repos testRepos) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status, repos.user, repos.watcher))
+	h := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status, repos.user, repos.watcher, repos.notification))
 
 	r := gin.New()
 	r.GET("/todos", h.GetTodos)

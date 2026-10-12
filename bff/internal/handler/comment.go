@@ -78,7 +78,7 @@ func (h *CommentHandler) UpdateComment(c *gin.Context) {
 		return
 	}
 
-	comment, err := h.service.UpdateComment(id, req.Body)
+	comment, err := h.service.UpdateComment(id, req.Body, actorID(c))
 	if err != nil {
 		respondCommentError(c, err)
 		return

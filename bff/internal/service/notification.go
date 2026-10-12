@@ -62,20 +62,45 @@ func (s *notificationService) MarkAllRead(userID int) error {
 	return s.notifications.MarkAllRead(userID)
 }
 
-// notifyWatchers は課題のウォッチャーのうち、操作した actorID 以外に通知を作る
-func notifyWatchers(watchers repository.WatcherRepository, notifications repository.NotificationRepository, todoID int, actorID int, kind domain.NotificationKind, detail string) error {
+// notifyWatchers は課題のウォッチャーのうち、操作した actorID と skip のユーザー以外に通知を作る
+func notifyWatchers(watchers repository.WatcherRepository, notifications repository.NotificationRepository, todoID int, actorID int, kind domain.NotificationKind, detail string, skip map[int]bool) error {
 	users, err := watchers.FindByTodo(todoID)
 	if err != nil {
 		return err
 	}
 	list := []domain.Notification{}
 	for _, user := range users {
-		if user.ID == actorID {
+		if user.ID == actorID || skip[user.ID] {
 			continue
 		}
 		list = append(list, domain.Notification{UserID: user.ID, TodoID: todoID, ActorID: actorID, Kind: kind, Detail: detail})
 	}
 	return notifications.Create(list)
+}
+
+// notifyMentions はメンションされたユーザー（userIDs）のうち、操作した actorID 以外の存在するユーザーに
+// 「メンションされました」の通知を作り、通知したユーザーの ID を返す
+func notifyMentions(users repository.UserRepository, notifications repository.NotificationRepository, todoID int, actorID int, userIDs []int, detail string) (map[int]bool, error) {
+	notified := map[int]bool{}
+	list := []domain.Notification{}
+	for _, id := range userIDs {
+		if id == actorID {
+			continue
+		}
+		user, err := users.FindByID(id)
+		if err != nil {
+			return nil, err
+		}
+		if user == nil {
+			continue
+		}
+		notified[id] = true
+		list = append(list, domain.Notification{UserID: id, TodoID: todoID, ActorID: actorID, Kind: domain.NotificationMentioned, Detail: detail})
+	}
+	if err := notifications.Create(list); err != nil {
+		return nil, err
+	}
+	return notified, nil
 }
 
 // notifyingHistory は変更履歴を記録したときに、変わった課題のウォッチャーへ通知を作る HistoryRepository。
@@ -110,7 +135,7 @@ func (h *notifyingHistory) Add(entries []domain.HistoryEntry) error {
 		if fields == "" {
 			continue
 		}
-		if err := notifyWatchers(h.watchers, h.notifications, todoID, byTodo[todoID][0].UserID, domain.NotificationUpdated, fields); err != nil {
+		if err := notifyWatchers(h.watchers, h.notifications, todoID, byTodo[todoID][0].UserID, domain.NotificationUpdated, fields, nil); err != nil {
 			return err
 		}
 	}

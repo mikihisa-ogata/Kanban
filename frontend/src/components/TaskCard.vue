@@ -6,7 +6,7 @@
         ×
       </button>
     </div>
-    <p v-if="task.Description" class="m-0 mb-3 text-sm text-gray-600 whitespace-pre-wrap break-words line-clamp-3" :title="task.Description">{{ task.Description }}</p>
+    <p v-if="task.Description" class="m-0 mb-3 text-sm text-gray-600 whitespace-pre-wrap break-words line-clamp-3" :title="plainMentions(task.Description)">{{ plainMentions(task.Description) }}</p>
     <div v-if="task.Deadline" class="flex items-center gap-1.5 text-sm text-gray-600">
       <span class="text-sm">📅</span>
       <span>{{ formatDate(task.Deadline) }}</span>
@@ -91,6 +91,7 @@ import PriorityIcon from './PriorityIcon.vue';
 import UserAvatar from './UserAvatar.vue';
 import { formatStoryPoints } from '../utils/storyPoints';
 import { openBlockers } from '../utils/issueLinks';
+import { plainMentions } from '../utils/mentions';
 
 const props = defineProps({
   task: {
