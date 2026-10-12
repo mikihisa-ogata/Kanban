@@ -22,6 +22,17 @@ export const todosApi = {
     return response.json();
   },
 
+  // 課題一覧（課題ナビゲーター）の 1 ページ分 { Issues, Total, Page, PerPage }。
+  // params は URLSearchParams（space・type・status・assignee・label は繰り返して複数指定。text・sort・order・page・perPage）
+  async search(params) {
+    const response = await apiFetch(`${API_BASE_URL}/issues/search?${params.toString()}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to search issues');
+    }
+    return response.json();
+  },
+
   // タスク作成
   async create(todo) {
     const response = await apiFetch(`${API_BASE_URL}/todos`, {

@@ -37,7 +37,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { boardPath, backlogPath, releasesPath, settingsPath } from '../utils/spaceRoutes';
+import { boardPath, backlogPath, issuesPath, releasesPath, settingsPath } from '../utils/spaceRoutes';
 
 const props = defineProps({
   // 表示中のスペース。null の場合は「すべてのスペース」
@@ -67,6 +67,12 @@ const items = computed(() => {
     to: boardPath(props.space),
     icon: ['M3 4h18v16H3z', 'M9 4v16', 'M15 4v16']
   });
+  // 課題一覧は全スペースを横断して検索できる。スペースの中から開くと、そのスペースに絞り込む
+  list.push({
+    label: '課題',
+    to: issuesPath(props.space),
+    icon: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11']
+  });
   if (props.space) {
     list.push({
       label: 'リリース',
@@ -82,6 +88,9 @@ const items = computed(() => {
   return list;
 });
 
-// リリースはバージョンの詳細（/releases/:id）でも選択中にする
-const isActive = (to) => route.path === to || (to.endsWith('/releases') && route.path.startsWith(`${to}/`));
+// リリースはバージョンの詳細（/releases/:id）でも選択中にする。課題一覧は絞り込みのクエリを除いたパスで比べる
+const isActive = (to) => {
+  const path = to.split('?')[0];
+  return route.path === path || (path.endsWith('/releases') && route.path.startsWith(`${path}/`));
+};
 </script>

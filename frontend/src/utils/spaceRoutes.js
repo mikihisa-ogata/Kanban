@@ -9,6 +9,9 @@ export const backlogPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/
 export const releasesPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/releases`;
 export const versionPath = (space, versionId) => `${releasesPath(space)}/${versionId}`;
 
+// 課題一覧（課題ナビゲーター）。スペースを渡すと、そのスペースに絞り込んだ一覧
+export const issuesPath = (space) => (space ? `/issues?space=${encodeURIComponent(space.Key)}` : '/issues');
+
 export const settingsPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/settings`;
 
 // 課題の全画面ページ（Jira と同じく /browse/KAN-12）

@@ -51,6 +51,69 @@ func (h *TodoHandler) GetIssue(c *gin.Context) {
 	c.JSON(http.StatusOK, todo)
 }
 
+// SearchIssues は課題一覧（Jira の課題ナビゲーター）の 1 ページ分を返す。
+// 条件はクエリ文字列で、同じ名前を繰り返すと OR になる: space（キー）・type・status（ステータス名）・assignee（ユーザー ID か unassigned）・
+// label・text・sort・order（asc か desc）・page・perPage
+func (h *TodoHandler) SearchIssues(c *gin.Context) {
+	q := domain.IssueSearch{Text: c.Query("text"), Sort: c.Query("sort"), StatusNames: c.QueryArray("status"), Labels: c.QueryArray("label")}
+	for _, t := range c.QueryArray("type") {
+		q.Types = append(q.Types, domain.IssueType(t))
+	}
+	for _, v := range c.QueryArray("assignee") {
+		if v == "unassigned" {
+			q.AssigneeIDs = append(q.AssigneeIDs, 0)
+			continue
+		}
+		id, err := strconv.Atoi(v)
+		if err != nil || id <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "担当者はユーザーの ID か unassigned で指定してください",
+			})
+			return
+		}
+		q.AssigneeIDs = append(q.AssigneeIDs, id)
+	}
+	switch c.Query("order") {
+	case "", "asc":
+	case "desc":
+		q.Desc = true
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "order は asc か desc にしてください",
+		})
+		return
+	}
+	for name, dest := range map[string]*int{"page": &q.Page, "perPage": &q.PerPage} {
+		v := c.Query(name)
+		if v == "" {
+			continue
+		}
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": domain.ErrInvalidIssuePage.Error(),
+			})
+			return
+		}
+		*dest = n
+	}
+
+	result, err := h.service.SearchIssues(c.QueryArray("space"), q)
+	if errors.Is(err, domain.ErrInvalidIssueSort) || errors.Is(err, domain.ErrInvalidIssuePage) || errors.Is(err, domain.ErrInvalidIssueSearchType) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // GetLabels はいずれかのタスクに付いているラベルを名前順に返す
 func (h *TodoHandler) GetLabels(c *gin.Context) {
 	labels, err := h.service.GetLabels()

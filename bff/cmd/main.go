@@ -91,6 +91,7 @@ func main() {
 	api.PUT("/todos/:id", h.UpdateTodo)
 	api.DELETE("/todos/:id", h.DeleteTodo)
 	api.POST("/todos/:id/move", h.MoveTodo)
+	api.GET("/issues/search", h.SearchIssues)
 	api.GET("/issues/:key", h.GetIssue)
 	api.GET("/labels", h.GetLabels)
 	api.POST("/todos/:id/links", h.AddLink)

@@ -111,6 +111,9 @@ type TodoService interface {
 	DeleteLink(linkID int) error
 	// GetHistory は課題の変更履歴を記録順（古い順）に返す。課題がなければ ErrIssueNotFound を返す
 	GetHistory(id int) ([]domain.HistoryEntry, error)
+	// SearchIssues は課題一覧の 1 ページ分を返す。spaceKeys はスペースのキー（TASK はスペース未割り当て。存在しないキーはどの課題にも合わない）で、
+	// q.SpaceIDs に加える。並べ替え・ページングの指定が正しくなければ domain の ErrInvalidIssueSort などを返す
+	SearchIssues(spaceKeys []string, q domain.IssueSearch) (domain.IssueSearchResult, error)
 }
 
 type todoService struct {
@@ -626,4 +629,30 @@ func (s *todoService) validateEpicAndSpace(epicID int, spaceID int) error {
 		return ErrEpicSpaceMismatch
 	}
 	return nil
+}
+
+func (s *todoService) SearchIssues(spaceKeys []string, q domain.IssueSearch) (domain.IssueSearchResult, error) {
+	if err := q.Normalize(); err != nil {
+		return domain.IssueSearchResult{}, err
+	}
+	if len(spaceKeys) > 0 {
+		spaces, err := s.spaceRepo.FindAll()
+		if err != nil {
+			return domain.IssueSearchResult{}, err
+		}
+		for _, key := range spaceKeys {
+			key = strings.ToUpper(strings.TrimSpace(key))
+			id := -1 // 存在しないキーは、どのスペースにも合わない ID にする
+			if key == domain.UnassignedKeyPrefix {
+				id = 0
+			}
+			for _, space := range spaces {
+				if space.Key == key {
+					id = space.ID
+				}
+			}
+			q.SpaceIDs = append(q.SpaceIDs, id)
+		}
+	}
+	return s.repo.Search(q)
 }

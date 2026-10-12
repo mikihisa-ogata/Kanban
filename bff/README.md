@@ -364,6 +364,28 @@ GET /issues/:key
 { "error": "課題が見つかりません" }
 ```
 
+### 課題を検索（課題一覧）
+
+```
+GET /issues/search?space=DEV&space=OPS&type=Bug&status=進行中&assignee=2&assignee=unassigned&label=ui&text=ログイン&sort=priority&order=asc&page=1&perPage=50
+```
+
+Jira の課題ナビゲーターの一覧です。全スペースを横断して、絞り込み・並べ替え・ページングを DB で行い、1 ページ分を返します。
+
+```json
+{ "Issues": [ { "ID": 12, "Key": "DEV-12", "Title": "...", "...": "GET /todos と同じ形（Links は null）" } ], "Total": 120, "Page": 1, "PerPage": 50 }
+```
+
+- 条件はどれも省略でき、同じ名前を繰り返すとそのいずれか（OR）、種類どうしはすべて（AND）を満たす課題を返します。サブタスクも含みます。
+  - `space`: スペースのキー（大文字・小文字は区別しない）。`TASK` はスペース未割り当て。存在しないキーはどの課題にも合いません。
+  - `type`: 課題タイプ（`Task`・`Bug`・`Story`・`Subtask`）。
+  - `status`: ステータスの名前（スペースをまたいで同じ名前のステータスをまとめて選びます）。
+  - `assignee`: 担当者のユーザー ID か `unassigned`（未割り当て）。
+  - `label`: ラベルの名前（大文字・小文字は区別しない）。
+  - `text`: 要約・説明に含まれる文字列か、課題キーそのもの（例: `dev-12`）。
+- `sort` は `key`・`type`・`summary`・`status`・`assignee`・`reporter`・`priority`・`created`・`updated`・`due`（期限）、`order` は `asc`・`desc` です。`sort` を省略すると作成日の新しい順です。優先度は高い順が `asc` で、担当者・報告者・期限のない課題は `asc`・`desc` とも末尾に並びます。
+- `page` は 1 から、`perPage` は 1〜100（既定 50）です。誤った値は 400 です。
+
 ### ラベル一覧を取得
 
 ```

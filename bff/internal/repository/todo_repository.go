@@ -17,4 +17,6 @@ type TodoRepository interface {
 	FindLabels() ([]string, error)
 	// Move はタスクを beforeID のタスクの直前へ移動する。beforeID が 0 の場合は末尾へ移動する
 	Move(id int, beforeID int) error
+	// Search は条件に合う課題の 1 ページ分と総数を返す（q は Normalize 済み）。絞り込み・並べ替え・ページングは DB で行う
+	Search(q domain.IssueSearch) (domain.IssueSearchResult, error)
 }
