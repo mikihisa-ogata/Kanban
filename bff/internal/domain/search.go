@@ -16,6 +16,10 @@ type IssueSearch struct {
 	Labels []string
 	// Text は要約・説明・課題キーに含まれる文字列。空なら絞り込まない
 	Text string
+	// Filter は JQL の絞り込み（詳細検索）。nil でなければ、上の条件の代わりにこれで絞り込む
+	Filter *IssueFilter
+	// Order は並べ替え（JQL の ORDER BY）。空なら Sort・Desc で並べ替える
+	Order []IssueOrder
 	// Sort は並べ替える列（IssueSortFields のいずれか）。Desc が true なら降順
 	Sort string
 	Desc bool
@@ -66,14 +70,13 @@ func (q *IssueSearch) Normalize() error {
 	if q.Sort == "" {
 		q.Sort, q.Desc = IssueSortCreated, true
 	}
-	valid := false
-	for _, f := range IssueSortFields {
-		if q.Sort == f {
-			valid = true
-		}
-	}
-	if !valid {
+	if !validSortField(q.Sort) {
 		return ErrInvalidIssueSort
+	}
+	for _, o := range q.Order {
+		if !validSortField(o.Field) {
+			return ErrInvalidIssueSort
+		}
 	}
 	if q.Page == 0 {
 		q.Page = 1
@@ -90,4 +93,13 @@ func (q *IssueSearch) Normalize() error {
 		}
 	}
 	return nil
+}
+
+func validSortField(field string) bool {
+	for _, f := range IssueSortFields {
+		if field == f {
+			return true
+		}
+	}
+	return false
 }

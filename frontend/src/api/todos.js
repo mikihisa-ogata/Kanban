@@ -33,6 +33,20 @@ export const todosApi = {
     return response.json();
   },
 
+  // JQL で課題を検索し、1 ページ分 { Issues, Total, Page, PerPage } を返す。
+  // JQL の誤りは、message と position（誤りの位置。先頭からの文字数で 0 から）を持つ Error を投げる
+  async searchJql(jql, page, perPage) {
+    const params = new URLSearchParams({ jql, page: String(page), perPage: String(perPage) });
+    const response = await apiFetch(`${API_BASE_URL}/issues/jql?${params.toString()}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const error = new Error(data.error || 'Failed to search issues');
+      if (typeof data.position === 'number') error.position = data.position;
+      throw error;
+    }
+    return response.json();
+  },
+
   // タスク作成
   async create(todo) {
     const response = await apiFetch(`${API_BASE_URL}/todos`, {

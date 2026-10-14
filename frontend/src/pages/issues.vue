@@ -2,10 +2,23 @@
   <!-- 課題一覧（Jira の課題ナビゲーター）。全スペースを横断して絞り込み・並べ替えし、選んだ課題を右に出す -->
   <SpaceShell :spaces="spaces" :current-space="currentSpace" @changed="handleSpacesChanged">
     <div class="px-8 py-8">
-      <h2 class="m-0 mb-4 text-2xl font-bold text-white">課題</h2>
+      <div class="mb-4 flex items-center gap-3">
+        <h2 class="m-0 text-2xl font-bold text-white">課題</h2>
+        <!-- 基本（フィルターで選ぶ）と JQL（クエリを書く）の切り替え -->
+        <div class="flex p-0.5 rounded-md bg-white/20" role="group" aria-label="検索の方法">
+          <button type="button" :class="modeButton(!jqlMode)" :aria-pressed="!jqlMode" @click="switchToBasic">基本</button>
+          <button type="button" :class="modeButton(jqlMode)" :aria-pressed="jqlMode" @click="switchToJql">JQL</button>
+        </div>
+      </div>
+
+      <!-- 詳細検索（JQL） -->
+      <div v-if="jqlMode" class="mb-4 flex flex-wrap items-start gap-2">
+        <JqlInput v-model="jqlDraft" :masters="jqlMasters" :error="jqlError" @submit="submitJql" />
+        <FilterMenu label="表示列" :options="columnOptions" :model-value="columns" @update:model-value="changeColumns" />
+      </div>
 
       <!-- フィルター -->
-      <div class="mb-4 flex flex-wrap items-center gap-2">
+      <div v-else class="mb-4 flex flex-wrap items-center gap-2">
         <input
           :value="textDraft"
           type="search"
@@ -63,7 +76,7 @@
                       @click="sortBy(column)"
                     >
                       {{ column.label }}
-                      <span v-if="search.sort === column.sort" class="text-blue-600" aria-hidden="true">{{ search.order === 'asc' ? '▲' : '▼' }}</span>
+                      <span v-if="currentSort.sort === column.sort" class="text-blue-600" aria-hidden="true">{{ currentSort.order === 'asc' ? '▲' : '▼' }}</span>
                     </button>
                   </th>
                 </tr>
@@ -192,12 +205,15 @@ import IssueDetail from '~/components/IssueDetail.vue';
 import IssueTypeIcon from '~/components/IssueTypeIcon.vue';
 import PriorityIcon from '~/components/PriorityIcon.vue';
 import UserAvatar from '~/components/UserAvatar.vue';
+import JqlInput from '~/components/JqlInput.vue';
 import { todosApi } from '~/api/todos';
 import { spacesApi } from '~/api/spaces';
 import { epicsApi } from '~/api/epics';
 import { statusesApi } from '~/api/statuses';
 import { usersApi } from '~/api/users';
 import { labelsApi } from '~/api/labels';
+import { sprintsApi } from '~/api/sprints';
+import { versionsApi } from '~/api/versions';
 import { issuePath } from '~/utils/spaceRoutes';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '~/utils/issueTypes';
 import { PRIORITY_OPTIONS } from '~/utils/priorities';
@@ -206,6 +222,7 @@ import {
   ISSUE_COLUMNS, PER_PAGE, UNASSIGNED, DEFAULT_SORT, DEFAULT_ORDER,
   parseIssueSearch, withIssueSearch, issueSearchParams, isSearching, loadColumns, saveColumns
 } from '~/utils/issueSearch';
+import { basicSearchToJql, jqlSortOf, withJqlSort } from '~/utils/jql';
 
 useHead({ title: '課題 - Kanban' });
 
@@ -216,6 +233,8 @@ const epics = ref([]);
 const statuses = ref([]);
 const users = ref([]);
 const labels = ref([]);
+const sprints = ref([]);
+const versions = ref([]);
 const result = ref({ Issues: [], Total: 0, Page: 1, PerPage: PER_PAGE });
 const loading = ref(true);
 const error = ref('');
@@ -223,6 +242,51 @@ const error = ref('');
 // 条件は URL のクエリ（例: /issues?space=DEV&status=進行中&sort=priority&order=asc）
 const search = computed(() => parseIssueSearch(route.query));
 const searching = computed(() => isSearching(search.value));
+
+// 詳細検索（JQL）。URL の ?jql=… があれば JQL で検索する（Jira と同じ）
+const jqlMode = computed(() => typeof route.query.jql === 'string');
+const jql = computed(() => (jqlMode.value ? route.query.jql : ''));
+// 入力中の JQL。検索するまで URL には入れない
+const jqlDraft = ref(jql.value);
+watch(jql, (value) => {
+  jqlDraft.value = value;
+});
+// JQL の誤り { message, position }
+const jqlError = ref(null);
+const jqlMasters = computed(() => ({
+  spaces: spaces.value, statuses: statuses.value, users: users.value, labels: labels.value,
+  epics: epics.value, sprints: sprints.value, versions: versions.value
+}));
+
+const BASIC_KEYS = ['space', 'type', 'status', 'assignee', 'label', 'text', 'sort', 'order', 'page'];
+
+// 基本の条件を JQL に書き換えて切り替える
+const switchToJql = () => {
+  if (jqlMode.value) return;
+  const query = { ...route.query, jql: basicSearchToJql(search.value, users.value) };
+  for (const key of BASIC_KEYS) delete query[key];
+  navigateTo({ query });
+};
+// 基本に戻すと、条件はクリアした状態から選び直す（JQL は基本の条件で表せないことがあるため）
+const switchToBasic = () => {
+  if (!jqlMode.value) return;
+  const { jql: _, page: __, ...query } = route.query;
+  textDraft.value = '';
+  navigateTo({ query });
+};
+const submitJql = () => {
+  const { page: _, ...query } = route.query;
+  navigateTo({ query: { ...query, jql: jqlDraft.value.trim() } });
+  // 同じ JQL でも検索し直す（課題が変わっているかもしれない）
+  if (jqlDraft.value.trim() === jql.value) fetchIssues();
+};
+const modeButton = (active) => [
+  'px-3 py-1 border-0 rounded text-sm font-semibold cursor-pointer',
+  active ? 'bg-white text-gray-900' : 'bg-transparent text-white hover:bg-white/20'
+];
+
+// 表の見出しに出す並べ替え。JQL では ORDER BY の最初の列
+const currentSort = computed(() => (jqlMode.value ? jqlSortOf(jql.value) : { sort: search.value.sort, order: search.value.order }));
 
 // スペースを 1 つだけ選んでいるときは、左ナビをそのスペースのものにする
 const currentSpace = computed(() =>
@@ -291,16 +355,22 @@ const changeColumns = (next) => {
   saveColumns(columns.value);
 };
 
-// 並べ替え。同じ列を押すと昇順・降順を切り替える。作成日・更新日は新しい順から始める
+// 並べ替え。同じ列を押すと昇順・降順を切り替える。作成日・更新日は新しい順から始める。
+// JQL では ORDER BY をその列に書き換える
 const sortBy = (column) => {
-  if (search.value.sort === column.sort) {
-    update({ order: search.value.order === 'asc' ? 'desc' : 'asc' });
-  } else {
-    update({ sort: column.sort, order: column.sort === DEFAULT_SORT || column.sort === 'updated' ? DEFAULT_ORDER : 'asc' });
+  const { sort, order } = currentSort.value;
+  const next = sort === column.sort
+    ? { sort, order: order === 'asc' ? 'desc' : 'asc' }
+    : { sort: column.sort, order: column.sort === DEFAULT_SORT || column.sort === 'updated' ? DEFAULT_ORDER : 'asc' };
+  if (jqlMode.value) {
+    const { page: _, ...query } = route.query;
+    navigateTo({ query: { ...query, jql: withJqlSort(jql.value, next.sort, next.order) } }, { replace: true });
+    return;
   }
+  update(next);
 };
 const ariaSort = (column) =>
-  search.value.sort === column.sort ? (search.value.order === 'asc' ? 'ascending' : 'descending') : 'none';
+  currentSort.value.sort === column.sort ? (currentSort.value.order === 'asc' ? 'ascending' : 'descending') : 'none';
 
 // ページング
 const pageCount = computed(() => Math.max(1, Math.ceil(result.value.Total / PER_PAGE)));
@@ -331,9 +401,12 @@ const fetchIssues = async () => {
   const id = ++requestId;
   loading.value = true;
   try {
-    const data = await todosApi.search(issueSearchParams(search.value));
+    const data = jqlMode.value
+      ? await todosApi.searchJql(jql.value, search.value.page, PER_PAGE)
+      : await todosApi.search(issueSearchParams(search.value));
     if (id !== requestId) return;
     error.value = '';
+    jqlError.value = null;
     result.value = data;
     // 課題を消すなどしてページが範囲外になったら最後のページへ
     if (search.value.page > 1 && !data.Issues.length && data.Total) {
@@ -341,6 +414,12 @@ const fetchIssues = async () => {
     }
   } catch (err) {
     if (id !== requestId) return;
+    // JQL の誤りは入力欄の下に出し、一覧は空にする
+    if (jqlMode.value && typeof err.position === 'number') {
+      jqlError.value = { message: err.message, position: err.position };
+      result.value = { Issues: [], Total: 0, Page: 1, PerPage: PER_PAGE };
+      return;
+    }
     error.value = '課題の取得に失敗しました: ' + err.message;
     console.error('Failed to search issues:', err);
   } finally {
@@ -350,8 +429,9 @@ const fetchIssues = async () => {
 
 const fetchMasters = async () => {
   try {
-    [spaces.value, epics.value, statuses.value, users.value, labels.value] = await Promise.all([
-      spacesApi.fetchAll(), epicsApi.fetchAll(), statusesApi.fetchAll(), usersApi.fetchAll(), labelsApi.fetchAll()
+    [spaces.value, epics.value, statuses.value, users.value, labels.value, sprints.value, versions.value] = await Promise.all([
+      spacesApi.fetchAll(), epicsApi.fetchAll(), statusesApi.fetchAll(), usersApi.fetchAll(), labelsApi.fetchAll(),
+      sprintsApi.fetchAll(), versionsApi.fetchAll()
     ]);
   } catch (err) {
     error.value = '検索条件の候補の取得に失敗しました: ' + err.message;
@@ -359,7 +439,7 @@ const fetchMasters = async () => {
   }
 };
 
-watch(() => JSON.stringify(search.value), fetchIssues);
+watch(() => JSON.stringify([search.value, jql.value, jqlMode.value]), fetchIssues);
 
 // 詳細（URL の ?selectedIssue=KAN-12 で表す。ボードと同じ）
 const detailKey = computed(() => (typeof route.query.selectedIssue === 'string' ? route.query.selectedIssue : ''));

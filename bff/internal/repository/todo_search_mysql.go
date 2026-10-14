@@ -29,7 +29,10 @@ var nullableSortColumns = map[string]bool{
 }
 
 func (r *todoMySQLRepository) Search(q domain.IssueSearch) (domain.IssueSearchResult, error) {
-	where, args := issueSearchWhere(q)
+	where, args, err := issueSearchWhere(q)
+	if err != nil {
+		return domain.IssueSearchResult{}, err
+	}
 
 	result := domain.IssueSearchResult{Issues: []domain.Todo{}, Page: q.Page, PerPage: q.PerPage}
 	if err := r.db.QueryRow(`SELECT COUNT(*) FROM todos t LEFT JOIN spaces s ON s.id = t.space_id LEFT JOIN statuses st ON st.id = t.status_id`+where, args...).
@@ -37,18 +40,16 @@ func (r *todoMySQLRepository) Search(q domain.IssueSearch) (domain.IssueSearchRe
 		return domain.IssueSearchResult{}, err
 	}
 
-	direction := " ASC"
-	if q.Desc {
-		direction = " DESC"
+	// JQL の ORDER BY があればその順、なければ Sort・Desc。最後は同じ向きの ID で並べ、順序を一意にする
+	sorts := q.Order
+	if len(sorts) == 0 {
+		sorts = []domain.IssueOrder{{Field: q.Sort, Desc: q.Desc}}
 	}
 	order := []string{}
-	if nullableSortColumns[q.Sort] {
-		order = append(order, issueSortColumns[q.Sort][0]+" IS NULL")
+	for _, sort := range sorts {
+		order = append(order, issueOrderColumns(sort)...)
 	}
-	for _, column := range issueSortColumns[q.Sort] {
-		order = append(order, column+direction)
-	}
-	order = append(order, "t.id"+direction)
+	order = append(order, "t.id"+sortDirection(sorts[0].Desc))
 
 	rows, err := r.db.Query(selectTodos+where+` ORDER BY `+strings.Join(order, ", ")+` LIMIT ? OFFSET ?`,
 		append(args, q.PerPage, (q.Page-1)*q.PerPage)...)
@@ -103,8 +104,34 @@ func (r *todoMySQLRepository) Search(q domain.IssueSearch) (domain.IssueSearchRe
 	return result, nil
 }
 
-// issueSearchWhere は検索条件を WHERE 句（空の条件なら空文字）と引数にする
-func issueSearchWhere(q domain.IssueSearch) (string, []any) {
+// issueOrderColumns は並べ替えの 1 つの列の ORDER BY の式。値のない行は向きによらず末尾にする
+func issueOrderColumns(sort domain.IssueOrder) []string {
+	order := []string{}
+	if nullableSortColumns[sort.Field] {
+		order = append(order, issueSortColumns[sort.Field][0]+" IS NULL")
+	}
+	for _, column := range issueSortColumns[sort.Field] {
+		order = append(order, column+sortDirection(sort.Desc))
+	}
+	return order
+}
+
+func sortDirection(desc bool) string {
+	if desc {
+		return " DESC"
+	}
+	return " ASC"
+}
+
+// issueSearchWhere は検索条件を WHERE 句（空の条件なら空文字）と引数にする。JQL の絞り込み（Filter）があれば、それだけで絞り込む
+func issueSearchWhere(q domain.IssueSearch) (string, []any, error) {
+	if q.Filter != nil {
+		expr, args, err := issueFilterSQL(*q.Filter)
+		if err != nil {
+			return "", nil, err
+		}
+		return ` WHERE ` + expr, args, nil
+	}
 	conditions := []string{}
 	args := []any{}
 	in := func(column string, values []any) {
@@ -145,9 +172,9 @@ func issueSearchWhere(q domain.IssueSearch) (string, []any) {
 		args = append(args, like, like, strings.ToUpper(text))
 	}
 	if len(conditions) == 0 {
-		return "", args
+		return "", args, nil
 	}
-	return ` WHERE ` + strings.Join(conditions, " AND "), args
+	return ` WHERE ` + strings.Join(conditions, " AND "), args, nil
 }
 
 // escapeLike は LIKE の特殊文字（\・%・_）をそのままの文字として扱うようにする

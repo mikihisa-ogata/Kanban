@@ -386,6 +386,25 @@ Jira の課題ナビゲーターの一覧です。全スペースを横断して
 - `sort` は `key`・`type`・`summary`・`status`・`assignee`・`reporter`・`priority`・`created`・`updated`・`due`（期限）、`order` は `asc`・`desc` です。`sort` を省略すると作成日の新しい順です。優先度は高い順が `asc` で、担当者・報告者・期限のない課題は `asc`・`desc` とも末尾に並びます。
 - `page` は 1 から、`perPage` は 1〜100（既定 50）です。誤った値は 400 です。
 
+### 課題を JQL で検索（詳細検索）
+
+```
+GET /issues/jql?jql=project = DEV AND status != Done AND assignee = currentUser() ORDER BY priority DESC&page=1&perPage=50
+```
+
+Jira の JQL の簡易版で課題を検索します。レスポンスは `GET /issues/search` と同じ形です。`jql` が空なら全課題を作成日の新しい順に返します。
+
+- 項目: `project`（スペースのキーか名前。`TASK` はスペース未割り当て）・`type`（`issuetype`）・`status`・`statusCategory`（`ToDo`・`"In Progress"`・`Done`）・`priority`・`assignee`・`reporter`（ユーザー ID・メール・表示名）・`labels`・`epic`（`"epic link"`。ID か名前）・`sprint`（ID か名前）・`fixVersion`（ID か名前）・`created`・`updated`・`due`（`duedate`）・`text`。項目名・キーワード・名前は大文字・小文字を区別しません。
+- 演算子: `=`・`!=`・`IN (…)`・`NOT IN (…)`・`~`（`text` だけ。要約・説明・課題キー）・`>`・`>=`・`<`・`<=`（`priority`・`created`・`updated`・`due`。優先度は高いほど大きい）・`IS EMPTY`・`IS NOT EMPTY`（`assignee`・`reporter`・`labels`・`epic`・`sprint`・`fixVersion`・`due`）。条件は `AND`・`OR`・`NOT` と括弧で組み合わせます（`AND` が `OR` より先）。`NOT IN` と `!=` は値のない課題には合いません（Jira と同じ）。
+- 値に空白や記号を含むときは `"…"` か `'…'` で囲みます。関数: `currentUser()`・`openSprints()`・`closedSprints()`・`futureSprints()`・`releasedVersions()`・`unreleasedVersions()`・`now()`・`startOfDay()`。日付は `2026-10-01`・`"2026-10-01 09:00"`、相対日付は `-7d`・`2w`・`-1h`・`-30m`（現在からの差）。日付だけの値はその日全体を表します（`created = 2026-10-01` はその日に作成）。
+- `ORDER BY 項目 [ASC|DESC], …` で並べ替えます（項目は `GET /issues/search` の `sort` と同じ。`priority DESC` が高い順）。
+- 値はすべてプレースホルダで SQL に渡します。
+- JQL の誤り（構文・存在しない項目や値）は 400 で、位置（先頭からの文字数。0 から）を返します。
+
+```json
+{ "error": "14 文字目: 対応する「(」がない「)」があります", "position": 13 }
+```
+
 ### ラベル一覧を取得
 
 ```
