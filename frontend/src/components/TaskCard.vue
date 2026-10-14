@@ -1,85 +1,83 @@
 <template>
-  <div class="bg-white rounded-lg p-4 mb-4 shadow hover:shadow-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:-translate-y-1" draggable="true" @dragstart="handleDragStart" @click="$emit('open', task)">
-    <div class="flex justify-between items-start mb-3">
-      <h3 class="m-0 text-base font-semibold text-gray-900 flex-1 leading-relaxed">{{ task.Title }}</h3>
-      <button class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-6 h-6 flex items-center justify-center rounded hover:bg-red-100 hover:text-red-500 transition-all duration-200 leading-none" @click.stop="$emit('delete', task.ID)" title="削除">
-        ×
-      </button>
-    </div>
-    <p v-if="task.Description" class="m-0 mb-3 text-sm text-gray-600 whitespace-pre-wrap break-words line-clamp-3" :title="plainMentions(task.Description)">{{ plainMentions(task.Description) }}</p>
-    <div v-if="task.Deadline" class="flex items-center gap-1.5 text-sm text-gray-600">
-      <span class="text-sm">📅</span>
-      <span>{{ formatDate(task.Deadline) }}</span>
-    </div>
-    <!-- ラベル -->
-    <div v-if="task.Labels && task.Labels.length" class="flex flex-wrap gap-1 mb-1">
-      <span
-        v-for="label in task.Labels"
-        :key="label"
-        class="max-w-full truncate px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-xs text-gray-700"
-      >
-        {{ label }}
-      </span>
-    </div>
-    <!-- 課題タイプのアイコンと課題キー（Jira と同じくカードの左下）。ストーリーポイント・優先度・担当者のアバターは右下 -->
-    <div class="mt-3 flex items-center gap-1.5">
-      <IssueTypeIcon :type="task.IssueType" />
-      <span v-if="task.Key" class="font-mono text-xs font-semibold text-gray-500">{{ task.Key }}</span>
+  <!-- ボードのカード。1 行目は課題キーと担当者、2 行目は要約、3 行目はタイプ・優先度・ラベルと、右にサブタスク・期限・ストーリーポイント。
+       削除は課題の詳細から行う -->
+  <div
+    class="bg-surface border border-line rounded-md px-2.5 py-2 cursor-grab active:cursor-grabbing transition-colors duration-150 hover:border-muted/60"
+    draggable="true"
+    @dragstart="handleDragStart"
+    @click="$emit('open', task)"
+  >
+    <div class="flex items-center gap-1.5 min-h-5">
+      <span v-if="task.Key" class="font-mono text-xs text-muted">{{ task.Key }}</span>
       <!-- 完了していない課題にブロックされている -->
       <span
         v-if="blockers.length"
-        class="flex items-center text-red-600"
+        class="flex items-center text-danger"
         :title="`ブロックされています: ${blockers.map(issue => issue.Key).join(', ')}`"
         role="img"
         :aria-label="`ブロックされています: ${blockers.map(issue => issue.Key).join(', ')}`"
       >
-        <svg class="w-4 h-4 block" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <svg class="w-3.5 h-3.5 block" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
           <circle cx="8" cy="8" r="6" />
           <path d="M3.8 12.2l8.4-8.4" />
         </svg>
       </span>
-      <!-- サブタスクの件数（完了 / 全体） -->
-      <span
-        v-if="subtasks"
-        :class="[
-          'flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold',
-          subtasks.done === subtasks.total ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
-        ]"
-        :title="`サブタスク ${subtasks.done}/${subtasks.total} 完了`"
-      >
-        <IssueTypeIcon type="Subtask" :size="12" />
-        {{ subtasks.done }}/{{ subtasks.total }}
-      </span>
-      <!-- コメント数 -->
-      <span
-        v-if="task.CommentCount"
-        class="flex items-center gap-0.5 text-xs font-semibold text-gray-500"
-        :title="`コメント ${task.CommentCount} 件`"
-      >
-        <svg class="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        {{ task.CommentCount }}
-      </span>
-      <!-- ストーリーポイントは Jira と同じく丸いバッジ -->
-      <span
-        v-if="task.StoryPoints != null"
-        class="ml-auto min-w-6 h-6 px-1.5 rounded-full bg-gray-200 text-xs font-semibold text-gray-700 flex items-center justify-center"
-        :title="`ストーリーポイント: ${formatStoryPoints(task.StoryPoints)}`"
-      >
-        {{ formatStoryPoints(task.StoryPoints) }}
-      </span>
-      <PriorityIcon :priority="task.Priority" :class="task.StoryPoints != null ? '' : 'ml-auto'" />
       <UserAvatar
         v-if="task.Assignee"
+        class="ml-auto"
         :user="task.Assignee"
-        size="sm"
+        size="xs"
         :title="`担当者: ${task.Assignee.DisplayName}`"
       />
     </div>
-    <div v-if="task.Done" class="mt-3 pt-3 border-t border-gray-200 flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
-      <span class="text-sm">✓</span>
-      <span>完了</span>
+
+    <h3 :class="['mt-1 mb-0 text-sm font-medium leading-snug break-words', done ? 'text-muted' : 'text-fg']">{{ task.Title }}</h3>
+
+    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+      <IssueTypeIcon :type="task.IssueType" :size="14" />
+      <span class="inline-flex items-center gap-1 px-1.5 py-px rounded border border-line text-[11px] text-muted" :title="`優先度: ${priorityLabel(task.Priority)}`">
+        <PriorityIcon :priority="task.Priority" :size="12" />
+        {{ priorityLabel(task.Priority) }}
+      </span>
+      <span
+        v-for="label in task.Labels || []"
+        :key="label"
+        class="inline-flex max-w-32 items-center gap-1 px-1.5 py-px rounded border border-line text-[11px] text-muted"
+        :title="`ラベル: ${label}`"
+      >
+        <span class="shrink-0" :style="{ color: labelColor(label) }" aria-hidden="true">●</span>
+        <span class="truncate">{{ label }}</span>
+      </span>
+      <div class="ml-auto flex items-center gap-2 text-[11px] text-muted">
+        <!-- サブタスクの件数（完了 / 全体） -->
+        <span
+          v-if="subtasks"
+          :class="['inline-flex items-center gap-1 tabular-nums', subtasks.done === subtasks.total ? 'text-success' : '']"
+          :title="`サブタスク ${subtasks.done}/${subtasks.total} 完了`"
+        >
+          <IssueTypeIcon type="Subtask" :size="12" />
+          {{ subtasks.done }}/{{ subtasks.total }}
+        </span>
+        <!-- 期限。完了していない課題の期限切れと今日が期限のものは赤 -->
+        <span
+          v-if="task.Deadline"
+          :class="['inline-flex items-center gap-1 tabular-nums', dueAlert ? 'text-danger font-semibold' : '']"
+          :title="`期限: ${task.Deadline}${dueAlert === 'overdue' ? '（期限切れ）' : dueAlert === 'today' ? '（今日）' : ''}`"
+        >
+          <svg class="w-3 h-3 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" />
+          </svg>
+          {{ shortDate(task.Deadline) }}
+        </span>
+        <span
+          v-if="task.StoryPoints != null"
+          class="min-w-5 h-5 px-1 rounded-full bg-raised text-fg font-semibold flex items-center justify-center tabular-nums"
+          :title="`ストーリーポイント: ${formatStoryPoints(task.StoryPoints)}`"
+        >
+          {{ formatStoryPoints(task.StoryPoints) }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -91,7 +89,9 @@ import PriorityIcon from './PriorityIcon.vue';
 import UserAvatar from './UserAvatar.vue';
 import { formatStoryPoints } from '../utils/storyPoints';
 import { openBlockers } from '../utils/issueLinks';
-import { plainMentions } from '../utils/mentions';
+import { priorityLabel } from '../utils/priorities';
+import { isDoneCategory } from '../utils/statuses';
+import { labelColor } from '../utils/spaceColors';
 
 const props = defineProps({
   task: {
@@ -100,7 +100,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['dragstart', 'delete', 'open']);
+const emit = defineEmits(['dragstart', 'open']);
 
 // 親課題ごとのサブタスクの件数（ボードが provide する。サブタスクがなければ出さない）
 const subtaskProgress = inject('subtaskProgress', null);
@@ -108,14 +108,31 @@ const subtasks = computed(() => subtaskProgress?.value?.[props.task.ID] ?? null)
 
 const blockers = computed(() => openBlockers(props.task));
 
+// 完了カテゴリの課題（要約を補助色にする）
+const done = computed(() => isDoneCategory(props.task.StatusCategory));
+
+// 期限の注意。overdue は期限切れ、today は今日が期限。完了した課題には出さない
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+const dueAlert = computed(() => {
+  if (!props.task.Deadline || done.value) return null;
+  const today = localToday();
+  if (props.task.Deadline < today) return 'overdue';
+  if (props.task.Deadline === today) return 'today';
+  return null;
+});
+
+// 期限（YYYY-MM-DD）を「10/20」の形にする
+const shortDate = (date) => {
+  const [, month, day] = date.split('-');
+  return `${Number(month)}/${Number(day)}`;
+};
+
 const handleDragStart = (event) => {
   event.dataTransfer.effectAllowed = 'move';
   event.dataTransfer.setData('taskId', props.task.ID);
   emit('dragstart', props.task);
-};
-
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 </script>

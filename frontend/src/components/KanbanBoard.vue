@@ -116,34 +116,76 @@
       <div class="overflow-x-auto px-8 pb-6 mt-6">
         <!-- 列はスペースのワークフローのステータス。すべてのスペースではカテゴリの 3 列。列が多いときは横にスクロールする -->
         <div class="flex flex-col gap-4" :style="{ minWidth: `max(64rem, ${columns.length * 15}rem)` }">
-          <div class="grid gap-4 px-3" :style="columnGridStyle">
+          <div class="grid gap-3" :style="columnGridStyle">
+            <!-- 列見出し: 状態の丸・列名・件数（最大件数があれば「件数 / 最大」）・ストーリーポイント、右端に追加とメニュー -->
             <div
               v-for="column in columns"
               :key="column.key"
-              :class="[
-                'flex justify-between items-center gap-2 px-5 py-4 rounded-lg text-white shadow-md',
-                column.overLimit ? 'bg-red-600' : STATUS_CATEGORY_HEADER_CLASS[column.category]
-              ]"
+              class="group/col relative flex items-center gap-2 min-w-0 px-1 py-1"
             >
-              <h3 class="m-0 min-w-0 truncate text-xl font-bold tracking-wide" :title="column.title">{{ column.title }}</h3>
-              <div class="flex shrink-0 items-center gap-2">
-                <!-- 列のストーリーポイントの合計（ポイントの付いたタスクがあるときだけ） -->
-                <span
-                  v-if="hasStoryPoints(column)"
-                  class="bg-white/25 text-white px-2.5 py-1 rounded-full text-xs font-bold"
-                  title="ストーリーポイントの合計"
+              <StatusDot :category="column.category" />
+              <h3 class="m-0 min-w-0 truncate text-sm font-semibold text-fg" :title="column.title">{{ column.title }}</h3>
+              <span
+                v-if="column.wipLimit"
+                :class="['shrink-0 text-xs tabular-nums', column.overLimit ? 'text-danger font-semibold' : 'text-muted']"
+                :title="`列の課題 ${column.wipCount} 件 / 最大 ${column.wipLimit} 件（サブタスクを除き、絞り込みに関係なく数える）${column.overLimit ? '。最大件数を超えています' : ''}`"
+              >
+                {{ column.wipCount }} / {{ column.wipLimit }}
+              </span>
+              <span v-else class="shrink-0 text-xs text-muted tabular-nums">{{ countOf(column) }}</span>
+              <span v-if="column.overLimit" class="shrink-0 text-xs font-semibold text-danger whitespace-nowrap">● 上限超過</span>
+              <!-- 列のストーリーポイントの合計（ポイントの付いた課題があるときだけ） -->
+              <span v-if="hasStoryPoints(column)" class="shrink-0 text-xs text-muted whitespace-nowrap" title="ストーリーポイントの合計">
+                {{ formatStoryPoints(storyPointsOf(column)) }} pt
+              </span>
+              <div class="ml-auto flex shrink-0 items-center gap-0.5">
+                <button
+                  type="button"
+                  :class="columnIconButton"
+                  :title="`「${column.title}」に課題を追加`"
+                  :aria-label="`「${column.title}」に課題を追加`"
+                  @click="openModal({ column, lane: { kind: 'none' } })"
                 >
-                  {{ formatStoryPoints(storyPointsOf(column)) }} pt
-                </span>
-                <!-- 最大件数のある列は「件数 / 最大」。超えたら列を赤くする -->
-                <span
-                  v-if="column.wipLimit"
-                  class="bg-white text-black px-3 py-1.5 rounded-full text-sm font-bold whitespace-nowrap"
-                  :title="`列の課題 ${column.wipCount} 件 / 最大 ${column.wipLimit} 件（サブタスクを除き、絞り込みに関係なく数える）${column.overLimit ? '。最大件数を超えています' : ''}`"
+                  <svg class="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  :class="columnIconButton"
+                  title="列のメニュー"
+                  aria-haspopup="menu"
+                  :aria-expanded="columnMenuKey === column.key"
+                  @click.stop="columnMenuKey = columnMenuKey === column.key ? null : column.key"
                 >
-                  {{ column.wipCount }} / {{ column.wipLimit }}
-                </span>
-                <span v-else class="bg-white bg-opacity-35 text-black px-3 py-1.5 rounded-full text-sm font-bold">{{ countOf(column) }}</span>
+                  <svg class="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <circle cx="5" cy="12" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="19" cy="12" r="1.6" />
+                  </svg>
+                </button>
+              </div>
+              <!-- 列のメニュー。ステータスの名前・並び・最大件数はスペースの設定（ワークフロー）で変える -->
+              <div
+                v-if="columnMenuKey === column.key"
+                class="absolute right-0 top-full mt-1 w-56 p-1 bg-surface border border-line rounded-lg shadow-lg z-30"
+                role="menu"
+                @click.stop
+              >
+                <button type="button" role="menuitem" :class="columnMenuItem" @click="columnMenuKey = null; openModal({ column, lane: { kind: 'none' } })">
+                  この列に課題を追加
+                </button>
+                <button type="button" role="menuitem" :class="columnMenuItem" @click="columnMenuKey = null; collapseAllLanes()">
+                  スイムレーンをすべて折りたたむ
+                </button>
+                <NuxtLink
+                  v-if="currentSpace"
+                  :to="settingsPath(currentSpace)"
+                  role="menuitem"
+                  :class="[columnMenuItem, 'no-underline']"
+                >
+                  ワークフロー（列・最大件数）を編集
+                </NuxtLink>
               </div>
             </div>
           </div>
@@ -161,7 +203,6 @@
             :grid-style="columnGridStyle"
             @toggle-collapse="toggleLane(lane.key)"
             @drop="handleDrop"
-            @delete-task="handleDeleteTodo"
             @add-task="openModal"
             @delete-epic="handleDeleteEpic"
             @rename-epic="handleRenameEpic"
@@ -173,12 +214,12 @@
               v-model="newEpicTitle"
               type="text"
               placeholder="新しいエピック"
-              class="px-3 py-1.5 border-2 border-gray-300 rounded-full text-sm text-gray-900 bg-white focus:outline-none focus:border-indigo-500"
+              class="px-2.5 py-1 border border-line rounded-md text-sm text-fg bg-surface focus:outline-none focus:border-accent"
             />
             <button
               type="submit"
               :disabled="!newEpicTitle.trim()"
-              class="px-3 py-1.5 bg-indigo-500 text-white border-0 rounded-full text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-2.5 py-1 bg-transparent text-fg border border-line rounded-md text-xs font-medium cursor-pointer hover:bg-raised disabled:opacity-50 disabled:cursor-not-allowed"
             >
               + エピックを追加
             </button>
@@ -235,6 +276,20 @@
           @open="openDetailByKey"
         >
           <template #actions>
+            <!-- 課題の削除（ボードのカードからは消せない） -->
+            <button
+              type="button"
+              class="p-1.5 border-0 rounded bg-transparent text-gray-500 cursor-pointer hover:bg-red-50 hover:text-red-600"
+              title="課題を削除"
+              aria-label="課題を削除"
+              @click="handleDeleteTodo(detailTask.ID)"
+            >
+              <svg class="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              </svg>
+            </button>
             <NuxtLink
               :to="issuePath(detailTask.Key)"
               class="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
@@ -272,7 +327,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, provide } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, provide } from 'vue';
 import TaskForm from './TaskForm.vue';
 import IssueDetail from './IssueDetail.vue';
 import SwimLane from './SwimLane.vue';
@@ -281,13 +336,14 @@ import ConfirmDialog from './ConfirmDialog.vue';
 import FilterMenu from './FilterMenu.vue';
 import UserAvatar from './UserAvatar.vue';
 import PageToolbar from './PageToolbar.vue';
+import StatusDot from './StatusDot.vue';
 import ToolbarMenu from './ToolbarMenu.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
 import { statusesApi } from '../api/statuses';
-import { STATUS_CATEGORIES, STATUS_CATEGORY_HEADER_CLASS, statusesOfSpace, firstStatusInCategory, isInColumn, isDoneCategory } from '../utils/statuses';
-import { rememberLastBoard, issuePath, boardPath } from '../utils/spaceRoutes';
+import { STATUS_CATEGORIES, statusesOfSpace, firstStatusInCategory, isInColumn, isDoneCategory } from '../utils/statuses';
+import { rememberLastBoard, issuePath, boardPath, settingsPath } from '../utils/spaceRoutes';
 import { toolbarButtonClass, toolbarChipClass } from '../utils/toolbar';
 import { formatStoryPoints, sumStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
@@ -414,6 +470,19 @@ const toggleLane = (key) => {
   else next.add(key);
   collapsedLanes.value = next;
 };
+const collapseAllLanes = () => {
+  collapsedLanes.value = new Set(lanes.value.map(lane => lane.key));
+};
+
+// 列見出しのメニュー（開いている列の key）。外を押すと閉じる
+const columnMenuKey = ref(null);
+const closeColumnMenu = () => {
+  columnMenuKey.value = null;
+};
+onMounted(() => document.addEventListener('click', closeColumnMenu));
+onUnmounted(() => document.removeEventListener('click', closeColumnMenu));
+const columnIconButton = 'w-6 h-6 flex items-center justify-center p-0 border-0 rounded bg-transparent text-muted cursor-pointer hover:bg-raised hover:text-fg';
+const columnMenuItem = 'block w-full px-2.5 py-1.5 border-0 rounded bg-transparent text-left text-sm font-normal text-fg cursor-pointer hover:bg-raised';
 
 // スペースごとの開始中のスプリント（スペースの ID → スプリント）
 const sprints = ref([]);
@@ -961,7 +1030,7 @@ const resolveBeforeId = ({ taskId, column, lane, beforeId }) => {
   return cell[lastShown + 1]?.ID ?? 0;
 };
 
-// タスクを削除
+// 課題を削除（課題の詳細のモーダルから）
 const handleDeleteTodo = async (taskId) => {
   const task = todos.value.find(t => t.ID === taskId);
   // サブタスクも一緒に削除されることを、件数とあわせて伝える
@@ -978,6 +1047,8 @@ const handleDeleteTodo = async (taskId) => {
   try {
     error.value = '';
     await todosApi.delete(taskId);
+    // 詳細から消したら詳細を閉じる
+    if (detailTask.value && detailTask.value.ID === taskId) closeDetailModal();
     await fetchTodos(); // リストを再取得
   } catch (err) {
     error.value = 'タスクの削除に失敗しました: ' + err.message;

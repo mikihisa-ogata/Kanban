@@ -10,13 +10,6 @@ export const DEFAULT_STATUS_CATEGORY = 'ToDo';
 export const statusCategoryLabel = (category) =>
   STATUS_CATEGORIES.find(c => c.value === category)?.label ?? category;
 
-// カテゴリごとのボードの列見出しの色
-export const STATUS_CATEGORY_HEADER_CLASS = {
-  ToDo: 'bg-gradient-to-r from-gray-400 to-gray-600',
-  InProgress: 'bg-gradient-to-r from-amber-400 to-amber-600',
-  Done: 'bg-gradient-to-r from-emerald-500 to-emerald-700'
-};
-
 // カテゴリごとのステータスのバッジの色（詳細の選択欄や子課題・リンクの一覧）
 export const STATUS_CATEGORY_BADGE_CLASS = {
   ToDo: 'bg-gray-100 text-gray-700',

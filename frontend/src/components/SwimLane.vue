@@ -1,11 +1,11 @@
 <template>
-  <section class="bg-fg/5 rounded-xl p-3">
+  <section>
     <!-- レーンの見出し。スイムレーン「なし」では出さない -->
     <div
       v-if="lane.kind !== 'none'"
       :class="[
-        'flex items-center gap-2 px-2 text-fg',
-        collapsed ? '' : 'pb-3',
+        'flex items-center gap-1.5 px-1 text-xs text-muted',
+        collapsed ? '' : 'pb-1.5',
         epic && !editing ? 'cursor-grab active:cursor-grabbing' : ''
       ]"
       :draggable="!!epic && !editing"
@@ -14,13 +14,13 @@
     >
       <button
         type="button"
-        class="shrink-0 bg-transparent border-0 p-0 text-fg opacity-80 hover:opacity-100 cursor-pointer"
+        class="shrink-0 bg-transparent border-0 p-0 text-muted hover:text-fg cursor-pointer"
         :title="collapsed ? 'レーンを開く' : 'レーンを折りたたむ'"
         :aria-label="collapsed ? 'レーンを開く' : 'レーンを折りたたむ'"
         :aria-expanded="!collapsed"
         @click="$emit('toggle-collapse')"
       >
-        <svg :class="['w-5 h-5 block transition-transform', collapsed ? '-rotate-90' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <svg :class="['w-4 h-4 block transition-transform', collapsed ? '-rotate-90' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
         </svg>
       </button>
@@ -29,51 +29,52 @@
         ref="titleInput"
         v-model="editTitle"
         type="text"
-        class="min-w-0 w-64 px-2 py-0.5 border-2 border-indigo-300 rounded-md text-base font-bold text-gray-900 bg-white focus:outline-none focus:border-indigo-500"
+        class="min-w-0 w-64 px-2 py-0.5 border border-line rounded-md text-xs font-semibold text-fg bg-surface focus:outline-none focus:border-accent"
         @keydown.enter="handleEnter"
         @keydown.esc="cancelEdit"
         @blur="commitEdit"
       />
       <h2
         v-else-if="lane.kind === 'epic'"
-        class="m-0 text-base font-bold truncate"
+        class="m-0 text-xs font-semibold text-fg truncate"
         :title="titleTooltip"
         @dblclick="startEdit"
       >
+        <span :class="epic ? 'text-accent' : 'text-muted'" aria-hidden="true">◆</span>
         {{ epic ? epic.Title : 'エピックなし' }}
       </h2>
       <!-- 担当者のレーン -->
       <template v-else-if="lane.kind === 'assignee'">
         <UserAvatar :user="lane.user || { DisplayName: '未割り当て', AvatarColor: '#A5ADBA' }" size="sm" />
-        <h2 class="m-0 text-base font-bold truncate">{{ lane.user ? lane.user.DisplayName : '未割り当て' }}</h2>
+        <h2 class="m-0 text-xs font-semibold text-fg truncate">{{ lane.user ? lane.user.DisplayName : '未割り当て' }}</h2>
       </template>
       <!-- 親課題のレーン。押すと親課題の詳細を開く -->
       <button
         v-else-if="lane.kind === 'parent'"
         type="button"
-        class="flex items-center gap-2 min-w-0 bg-transparent border-0 p-0 text-fg cursor-pointer hover:underline"
+        class="flex items-center gap-1.5 min-w-0 bg-transparent border-0 p-0 text-fg cursor-pointer hover:underline"
         :title="`${lane.parent.Key} ${lane.parent.Title}`"
         @click="$emit('open-task', lane.parent)"
       >
         <IssueTypeIcon :type="lane.parent.IssueType" />
-        <span class="shrink-0 font-mono text-sm font-semibold opacity-90">{{ lane.parent.Key }}</span>
-        <h2 class="m-0 text-base font-bold truncate">{{ lane.parent.Title }}</h2>
+        <span class="shrink-0 font-mono text-xs text-muted">{{ lane.parent.Key }}</span>
+        <h2 class="m-0 text-xs font-semibold truncate">{{ lane.parent.Title }}</h2>
       </button>
-      <h2 v-else class="m-0 text-base font-bold truncate">その他の課題</h2>
+      <h2 v-else class="m-0 text-xs font-semibold text-fg truncate">その他の課題</h2>
       <button
         v-if="epic && !editing"
-        class="bg-transparent border-0 p-0 leading-none text-sm text-fg opacity-60 hover:opacity-100 cursor-pointer"
+        class="bg-transparent border-0 p-0 leading-none text-xs text-muted hover:text-fg cursor-pointer"
         title="エピックの名前を変更"
         @click="startEdit"
       >
         ✎
       </button>
-      <span v-if="lane.parent" class="shrink-0 px-2 py-0.5 rounded bg-raised text-xs font-semibold">{{ lane.parent.StatusName }}</span>
-      <span v-if="lane.spaceTitle" class="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold">{{ lane.spaceTitle }}</span>
-      <span class="shrink-0 text-xs opacity-80">{{ progressLabel }}</span>
+      <span v-if="lane.parent" class="shrink-0 px-1.5 py-0.5 rounded bg-raised text-[11px] font-semibold text-fg">{{ lane.parent.StatusName }}</span>
+      <span v-if="lane.spaceTitle" class="px-1.5 py-0.5 rounded border border-line text-[11px] text-muted">{{ lane.spaceTitle }}</span>
+      <span class="shrink-0 tabular-nums">{{ progressLabel }}</span>
       <button
         v-if="epic"
-        class="ml-auto bg-transparent border-0 p-0 leading-none text-lg text-fg opacity-60 hover:opacity-100 cursor-pointer"
+        class="ml-auto bg-transparent border-0 p-0 leading-none text-base text-muted hover:text-danger cursor-pointer"
         title="エピックを削除"
         @click="$emit('delete-epic', epic.ID)"
       >
@@ -81,7 +82,7 @@
       </button>
     </div>
 
-    <div v-if="!collapsed" class="grid gap-4" :style="gridStyle">
+    <div v-if="!collapsed" class="grid gap-3" :style="gridStyle">
       <KanbanColumn
         v-for="column in columns"
         :key="column.key"
@@ -89,7 +90,6 @@
         :tasks="lane.tasks.filter(task => isInColumn(task, column))"
         :can-add="lane.kind !== 'parent'"
         @drop="$emit('drop', { ...$event, lane })"
-        @delete-task="$emit('delete-task', $event)"
         @open-task="$emit('open-task', $event)"
         @add-task="$emit('add-task', { column: $event, lane })"
       />
@@ -130,7 +130,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['drop', 'delete-task', 'add-task', 'delete-epic', 'rename-epic', 'open-task', 'toggle-collapse']);
+const emit = defineEmits(['drop', 'add-task', 'delete-epic', 'rename-epic', 'open-task', 'toggle-collapse']);
 
 // エピックのレーンのエピック（名前の変更・削除・スペースへの移動に使う）
 const epic = computed(() => (props.lane.kind === 'epic' ? props.lane.epic : null));

@@ -22,13 +22,14 @@ const props = defineProps({
   size: {
     type: String,
     default: 'md',
-    validator: (value) => ['sm', 'md', 'lg'].includes(value)
+    validator: (value) => ['xs', 'sm', 'md', 'lg'].includes(value)
   }
 });
 
 const initial = computed(() => Array.from(props.user.DisplayName || '?')[0].toUpperCase());
 
 const sizeClass = computed(() => ({
+  xs: 'w-5 h-5 text-[10px]',
   sm: 'w-6 h-6 text-xs',
   md: 'w-8 h-8 text-sm',
   lg: 'w-10 h-10 text-base'

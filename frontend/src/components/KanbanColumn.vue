@@ -1,34 +1,37 @@
 <template>
-  <div 
+  <!-- スイムレーンの中の 1 つの列の区画。カードのない区画は点線の枠にする -->
+  <div
     :class="[
-      'rounded-xl p-3 min-w-0 flex flex-col transition-all duration-200 border-2 shadow-md',
+      'group/cell rounded-lg p-1 min-w-0 min-h-14 flex flex-col transition-colors duration-150 border',
       isDragOver
-        ? 'bg-blue-50 border-blue-500 shadow-lg shadow-blue-300'
-        : column.overLimit ? 'bg-red-50 border-red-400' : 'bg-gray-50 border-transparent'
+        ? 'bg-accent/10 border-accent'
+        : column.overLimit ? 'bg-danger/5 border-danger/30' : tasks.length ? 'border-transparent' : 'border-dashed border-line'
     ]"
     @dragover.prevent="handleDragOver"
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
-    <div class="flex-1">
+    <div class="flex-1 flex flex-col gap-1.5">
       <template v-for="(task, index) in tasks" :key="task.ID">
         <!-- ドロップ先の位置を示す線。前後の余白に重ねてレイアウトを動かさない -->
-        <div v-if="dropIndex === index" class="h-1 -mt-2.5 mb-1.5 rounded-full bg-blue-500"></div>
+        <div v-if="dropIndex === index" class="h-0.5 -my-1 rounded-full bg-accent"></div>
         <TaskCard
           :task="task"
           :data-task-id="task.ID"
-          @delete="$emit('delete-task', $event)"
           @open="$emit('open-task', $event)"
         />
       </template>
-      <div v-if="dropIndex === tasks.length" class="h-1 -mt-2.5 mb-1.5 rounded-full bg-blue-500"></div>
-      <!-- +ボタン -->
+      <div v-if="dropIndex === tasks.length && tasks.length" class="h-0.5 -my-1 rounded-full bg-accent"></div>
+      <!-- 課題の追加。カードがあるときは目立たせず、区画にマウスを乗せたときに出す -->
       <button
         v-if="canAdd"
+        :class="[
+          'w-full py-1 px-2 border-0 rounded-md bg-transparent text-left text-xs text-muted cursor-pointer hover:bg-raised hover:text-fg transition-colors duration-150',
+          tasks.length ? 'opacity-0 group-hover/cell:opacity-100 focus:opacity-100' : ''
+        ]"
         @click="$emit('add-task', column)"
-        class="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 border-2 border-dashed border-gray-400 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200"
       >
-        + タスクを追加
+        + 課題を追加
       </button>
     </div>
   </div>
@@ -55,7 +58,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['drop', 'delete-task', 'add-task', 'open-task']);
+const emit = defineEmits(['drop', 'add-task', 'open-task']);
 
 const isDragOver = ref(false);
 // ドロップしたときに挿入する位置（tasks のインデックス）。null の場合はドラッグ中でない
