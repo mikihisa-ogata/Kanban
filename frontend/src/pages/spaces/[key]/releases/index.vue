@@ -1,7 +1,16 @@
 <template>
   <!-- スペースのリリース（Jira のリリース）。バージョンの一覧と作成 -->
   <SpaceShell :spaces="spaces" :todos="todos" :current-space="space" @changed="fetchAll">
-    <div class="px-8 py-8">
+    <PageToolbar :crumbs="[{ label: 'リリース' }]">
+      <template v-if="space">
+        <label :class="[toolbarButtonClass(showArchived), 'select-none']">
+          <input v-model="showArchived" type="checkbox" class="cursor-pointer" />
+          アーカイブも表示
+        </label>
+        <button type="button" :class="toolbarButtonClass()" @click="creating = true">バージョンを作成</button>
+      </template>
+    </PageToolbar>
+    <div class="px-8 py-6">
       <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
       <div v-else-if="!space" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
         スペース「{{ spaceKey }}」が見つかりません。
@@ -9,23 +18,8 @@
       </div>
 
       <template v-else>
-        <div class="flex flex-wrap items-center gap-3 max-w-6xl">
-          <h2 class="m-0 text-2xl font-bold text-fg">リリース</h2>
-          <label class="ml-auto flex items-center gap-2 text-sm font-semibold text-fg cursor-pointer">
-            <input v-model="showArchived" type="checkbox" class="cursor-pointer" />
-            アーカイブも表示
-          </label>
-          <button
-            type="button"
-            class="px-3 py-1.5 bg-white text-blue-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-50"
-            @click="creating = true"
-          >
-            バージョンを作成
-          </button>
-        </div>
-
         <!-- バージョンの作成 -->
-        <form v-if="creating" class="mt-4 max-w-6xl bg-white rounded-2xl px-6 py-5 shadow-xl flex flex-col gap-3" @submit.prevent="handleCreate">
+        <form v-if="creating" class="mb-4 max-w-6xl bg-white rounded-2xl px-6 py-5 shadow-xl flex flex-col gap-3" @submit.prevent="handleCreate">
           <h3 class="m-0 text-base font-bold text-gray-900">バージョンを作成</h3>
           <VersionFields v-model="form" id-prefix="new-version" />
           <p v-if="formError" class="m-0 text-sm text-red-600">{{ formError }}</p>
@@ -41,7 +35,7 @@
           </div>
         </form>
 
-        <section class="mt-4 max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
+        <section class="max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
           <table class="w-full border-collapse text-sm">
             <thead class="bg-gray-50 text-left text-xs font-semibold text-gray-600">
               <tr>
@@ -90,6 +84,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import SpaceShell from '~/components/SpaceShell.vue';
+import PageToolbar from '~/components/PageToolbar.vue';
+import { toolbarButtonClass } from '~/utils/toolbar';
 import VersionFields from '~/components/VersionFields.vue';
 import VersionProgress from '~/components/VersionProgress.vue';
 import { todosApi } from '~/api/todos';

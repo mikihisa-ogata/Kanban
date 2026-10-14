@@ -1,5 +1,5 @@
 <template>
-  <!-- ヘッダーのベル。未読の数を出し、押すと通知一覧を開く。通知は表示時と 30 秒ごとに取り直す -->
+  <!-- サイドバー下部のベル。未読の数を出し、押すと通知一覧を開く。通知は表示時と 30 秒ごとに取り直す -->
   <div ref="root" class="relative">
     <button
       type="button"
@@ -24,7 +24,7 @@
 
     <div
       v-if="open"
-      class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+      class="absolute left-0 bottom-full mb-2 w-96 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-lg shadow-lg z-50"
       role="dialog"
       aria-label="通知"
     >

@@ -1,6 +1,7 @@
 <template>
   <SpaceShell :spaces="spaces" :current-space="space" @changed="fetchSpaces">
-    <div class="px-8 py-8">
+    <PageToolbar :crumbs="[{ label: '設定' }, ...(space ? [{ label: space.Title }] : [])]" />
+    <div class="px-8 py-6">
       <div class="max-w-3xl mx-auto">
         <p v-if="loading" class="mt-6 text-fg">読み込み中...</p>
         <div v-else-if="!space" class="mt-6 bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
@@ -8,11 +9,6 @@
         </div>
 
         <template v-else>
-          <h2 class="m-0 mb-6 text-2xl font-bold text-fg">
-            スペースの設定
-            <span class="ml-2 text-base font-semibold opacity-80">{{ space.Title }}</span>
-          </h2>
-
           <!-- 詳細（名前とキー） -->
           <section class="bg-white rounded-2xl px-8 py-6 shadow-xl">
             <h3 class="m-0 mb-4 text-lg font-bold text-gray-900">詳細</h3>
@@ -113,6 +109,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import ConfirmDialog from '~/components/ConfirmDialog.vue';
 import SpaceShell from '~/components/SpaceShell.vue';
+import PageToolbar from '~/components/PageToolbar.vue';
 import WorkflowSection from '~/components/WorkflowSection.vue';
 import ComponentSection from '~/components/ComponentSection.vue';
 import { spacesApi } from '~/api/spaces';

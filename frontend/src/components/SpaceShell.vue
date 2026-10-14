@@ -1,31 +1,16 @@
 <template>
-  <!-- スペース単位のページの共通の枠。左からスペース一覧（ハンバーガーで開閉）、スペース内の左ナビ、ページ本体 -->
+  <!-- ページの共通の枠。左にサイドバー（スペースの切り替え・ナビ・スペース一覧・ユーザー）、右にページ本体 -->
   <div class="flex min-h-screen">
-    <!-- 開閉時は幅を広げながらサイドバーを画面左端からスライドさせ、右側の位置もなめらかに動かす -->
-    <div
-      :class="[
-        'sticky top-17 self-start shrink-0 overflow-hidden transition-[width] duration-300 ease-out motion-reduce:transition-none',
-        sidebarOpen ? 'w-64' : 'w-0'
-      ]"
-      :inert="!sidebarOpen"
-    >
-      <SpaceSidebar
-        :class="[
-          'transition-transform duration-300 ease-out motion-reduce:transition-none',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        ]"
+    <div class="sticky top-0 self-start shrink-0 z-40">
+      <AppSidebar
         :spaces="spaces"
         :todos="todos"
-        :selected-space-id="currentSpace ? currentSpace.ID : null"
+        :current-space="currentSpace"
         @select="handleSelect"
         @create="handleCreateSpace"
         @delete="handleDeleteSpace"
         @move="$emit('move', $event)"
       />
-    </div>
-
-    <div class="sticky top-17 self-start shrink-0">
-      <SpaceNav :space="currentSpace" />
     </div>
 
     <div class="flex-1 min-w-0">
@@ -48,8 +33,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import SpaceSidebar from './SpaceSidebar.vue';
-import SpaceNav from './SpaceNav.vue';
+import AppSidebar from './AppSidebar.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import { spacesApi } from '../api/spaces';
 import { boardPath } from '../utils/spaceRoutes';
@@ -59,7 +43,7 @@ const props = defineProps({
     type: Array,
     required: true
   },
-  // サイドバーに各スペースの進み具合を出すためのタスク。null なら出さない
+  // サイドバーに各スペースの課題数を出すための課題。null ならサイドバーで読む
   todos: {
     type: Array,
     default: null
@@ -75,8 +59,6 @@ const props = defineProps({
 // move: タスクやエピックをサイドバーのスペースへドロップした
 const emit = defineEmits(['changed', 'move']);
 
-// サイドバー（スペース一覧）の開閉状態。ヘッダーのハンバーガーメニューで切り替える
-const sidebarOpen = useState('sidebarOpen', () => false);
 const error = ref('');
 // 削除の確認モーダルの内容と、選んだ結果を返す関数（null の場合は閉じている）
 const confirmDialog = ref(null);

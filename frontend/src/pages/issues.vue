@@ -1,15 +1,14 @@
 <template>
   <!-- 課題一覧（Jira の課題ナビゲーター）。全スペースを横断して絞り込み・並べ替えし、選んだ課題を右に出す -->
   <SpaceShell :spaces="spaces" :current-space="currentSpace" @changed="handleSpacesChanged">
-    <div class="px-8 py-8">
-      <div class="mb-4 flex items-center gap-3">
-        <h2 class="m-0 text-2xl font-bold text-fg">課題</h2>
-        <!-- 基本（フィルターで選ぶ）と JQL（クエリを書く）の切り替え -->
-        <div class="flex p-0.5 rounded-md bg-raised" role="group" aria-label="検索の方法">
-          <button type="button" :class="modeButton(!jqlMode)" :aria-pressed="!jqlMode" @click="switchToBasic">基本</button>
-          <button type="button" :class="modeButton(jqlMode)" :aria-pressed="jqlMode" @click="switchToJql">JQL</button>
-        </div>
+    <PageToolbar :crumbs="[{ label: '課題一覧' }]">
+      <!-- 基本（フィルターで選ぶ）と JQL（クエリを書く）の切り替え -->
+      <div class="flex p-0.5 rounded-md bg-raised" role="group" aria-label="検索の方法">
+        <button type="button" :class="modeButton(!jqlMode)" :aria-pressed="!jqlMode" @click="switchToBasic">基本</button>
+        <button type="button" :class="modeButton(jqlMode)" :aria-pressed="jqlMode" @click="switchToJql">JQL</button>
       </div>
+    </PageToolbar>
+    <div class="px-8 py-6">
 
       <!-- 詳細検索（JQL） -->
       <div v-if="jqlMode" class="mb-4 flex flex-wrap items-start gap-2">
@@ -144,7 +143,7 @@
         </section>
 
         <!-- 詳細（Jira の分割ビュー） -->
-        <section v-if="detailKey" class="w-full xl:w-1/2 min-w-0 xl:sticky xl:top-4 xl:max-h-[calc(100vh-6rem)] overflow-y-auto bg-white rounded-2xl px-6 py-5 shadow-xl">
+        <section v-if="detailKey" class="w-full xl:w-1/2 min-w-0 xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)] overflow-y-auto bg-white rounded-2xl px-6 py-5 shadow-xl">
           <p v-if="!detailTask" class="m-0 text-sm text-gray-500">{{ detailLoading ? '読み込み中...' : `課題「${detailKey}」が見つかりません。` }}</p>
           <IssueDetail
             v-else
@@ -200,6 +199,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import SpaceShell from '~/components/SpaceShell.vue';
+import PageToolbar from '~/components/PageToolbar.vue';
 import FilterMenu from '~/components/FilterMenu.vue';
 import IssueDetail from '~/components/IssueDetail.vue';
 import IssueTypeIcon from '~/components/IssueTypeIcon.vue';
@@ -281,7 +281,7 @@ const submitJql = () => {
   if (jqlDraft.value.trim() === jql.value) fetchIssues();
 };
 const modeButton = (active) => [
-  'px-3 py-1 border-0 rounded text-sm font-semibold cursor-pointer',
+  'px-2.5 py-0.5 border-0 rounded text-xs font-semibold cursor-pointer',
   active ? 'bg-surface text-fg shadow-sm' : 'bg-transparent text-muted hover:text-fg'
 ];
 

@@ -1,5 +1,5 @@
 <template>
-  <!-- ヘッダーの「作成」から開く課題の作成モーダル。どのページからでも使える -->
+  <!-- サイドバーの作成ボタン・ツールバーの「+ 新規課題」から開く課題の作成モーダル。どのページからでも使える -->
   <div
     v-if="open && loaded"
     class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
@@ -41,7 +41,7 @@ import { spacesApi } from '../api/spaces';
 import { statusesApi } from '../api/statuses';
 import { boardPath } from '../utils/spaceRoutes';
 
-// 作成モーダルの開閉（ヘッダーの「作成」ボタンと共有）
+// 作成モーダルの開閉（サイドバーの作成ボタン・ツールバーの「+ 新規課題」と共有）
 const open = useState('createIssueOpen', () => false);
 // 課題を作成するたびに増やす。ボードはこれを見てタスクを取り直す
 const issuesVersion = useState('issuesVersion', () => 0);

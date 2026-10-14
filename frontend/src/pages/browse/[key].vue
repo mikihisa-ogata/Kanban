@@ -1,7 +1,8 @@
 <template>
   <!-- 課題の全画面ページ（Jira の /browse/KAN-12）。左ナビは課題のスペースのものを出す -->
   <SpaceShell :spaces="spaces" :current-space="space" @changed="handleSpacesChanged">
-    <div class="px-8 py-8">
+    <PageToolbar :crumbs="[{ label: space ? space.Title : 'すべてのスペース', to: boardPath(space) }, { label: issue ? issue.Key : issueKey }]" />
+    <div class="px-8 py-6">
       <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
 
       <div v-else-if="!issue" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
@@ -44,12 +45,13 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import SpaceShell from '~/components/SpaceShell.vue';
+import PageToolbar from '~/components/PageToolbar.vue';
 import IssueDetail from '~/components/IssueDetail.vue';
 import { todosApi } from '~/api/todos';
 import { epicsApi } from '~/api/epics';
 import { spacesApi } from '~/api/spaces';
 import { statusesApi } from '~/api/statuses';
-import { issuePath } from '~/utils/spaceRoutes';
+import { issuePath, boardPath } from '~/utils/spaceRoutes';
 
 const route = useRoute();
 // URL の課題キー（例: /browse/KAN-12）

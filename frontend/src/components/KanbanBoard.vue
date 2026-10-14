@@ -6,107 +6,111 @@
     @changed="handleSpacesChanged"
     @move="handleMoveToSpace"
   >
-    <div v-if="spaceNotFound" class="px-8 py-8">
+    <PageToolbar v-if="spaceNotFound" :crumbs="[{ label: 'ボード' }]" />
+    <div v-if="spaceNotFound" class="px-8 py-6">
       <div class="bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
         スペース「{{ spaceKey }}」が見つかりません。
         <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
       </div>
     </div>
 
-    <div v-else class="py-8">
-      <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-8">
-        <h2 class="m-0 text-2xl font-bold text-fg">{{ selectedSpaceTitle }}</h2>
-        <!-- 開始中のスプリント（ボードにはその課題だけを出す）と、終了日までの残り日数 -->
-        <p v-if="currentSprint" class="m-0 text-sm font-semibold text-fg" :title="currentSprint.Goal ? `ゴール: ${currentSprint.Goal}` : ''">
-          {{ currentSprint.Name }}
-          <span v-if="sprintPeriodLabel(currentSprint)" class="ml-1 font-normal opacity-80">{{ sprintPeriodLabel(currentSprint) }}</span>
+    <div v-else class="pb-8">
+      <PageToolbar :crumbs="toolbarCrumbs">
+        <!-- 開始中のスプリント（ボードにはその課題だけを出す）の期間と、終了日までの残り日数 -->
+        <template v-if="currentSprint" #chips>
           <span
-            v-if="currentSprint.EndDate"
-            :class="['ml-2 px-2 py-0.5 rounded-full text-xs', remainingDays(currentSprint) < 0 ? 'bg-red-600' : 'bg-white/25']"
+            :class="toolbarChipClass(currentSprint.EndDate && remainingDays(currentSprint) < 0)"
+            :title="currentSprint.Goal ? `ゴール: ${currentSprint.Goal}` : currentSprint.Name"
           >
-            {{ remainingDaysLabel(currentSprint) }}
+            <span v-if="sprintPeriodLabel(currentSprint)">{{ sprintPeriodLabel(currentSprint) }}</span>
+            <span v-if="sprintPeriodLabel(currentSprint) && currentSprint.EndDate" aria-hidden="true">·</span>
+            <span v-if="currentSprint.EndDate">{{ remainingDaysLabel(currentSprint) }}</span>
           </span>
-        </p>
-      </div>
+        </template>
 
-      <!-- クイックフィルターと検索（Jira のボード上部）。条件は URL のクエリに持つ -->
-      <div class="flex flex-wrap items-center gap-2 px-8 mt-4">
-        <input
-          v-model="searchText"
-          type="search"
-          placeholder="ボードを検索"
-          aria-label="ボードを検索（要約・課題キー）"
-          class="w-56 px-3 py-1.5 border-2 border-transparent rounded-md text-sm text-gray-900 bg-white/90 focus:outline-none focus:bg-white focus:border-blue-500"
-        />
-        <!-- 担当者のアバター。押すとその担当者の課題に絞り込む（複数可） -->
-        <div v-if="assigneeOptions.length" class="flex items-center pl-1" role="group" aria-label="担当者で絞り込む">
-          <button
-            v-for="option in assigneeOptions"
-            :key="option.id"
-            type="button"
-            :class="[
-              '-ml-1 p-0 border-0 rounded-full bg-transparent cursor-pointer ring-2 transition-transform hover:-translate-y-0.5 hover:z-10',
-              filters.assignees.includes(option.id) ? 'ring-blue-600 z-10' : 'ring-white/80'
-            ]"
-            :title="option.user.DisplayName"
-            :aria-label="option.user.DisplayName"
-            :aria-pressed="filters.assignees.includes(option.id)"
-            @click="toggleAssignee(option.id)"
-          >
-            <UserAvatar :user="option.user" />
-          </button>
-        </div>
+        <!-- クイックフィルター（Jira のボード上部）。条件は URL のクエリに持つ -->
         <button
           v-for="toggle in quickToggles"
           :key="toggle.key"
           type="button"
-          :class="[
-            'px-3 py-1.5 border-0 rounded-md text-sm font-semibold cursor-pointer',
-            filters[toggle.key] ? 'bg-blue-50 text-blue-700' : 'bg-white/90 text-gray-700 hover:bg-white'
-          ]"
+          :class="toolbarButtonClass(filters[toggle.key])"
+          :title="toggle.title"
           :aria-pressed="filters[toggle.key]"
           @click="updateFilters({ [toggle.key]: !filters[toggle.key] })"
         >
           {{ toggle.label }}
         </button>
-        <FilterMenu
-          label="ラベル"
-          :options="labelOptions"
-          :model-value="filters.labels"
-          empty-text="ラベルの付いた課題がありません"
-          @update:model-value="updateFilters({ labels: $event })"
-        />
-        <FilterMenu
-          label="課題タイプ"
-          :options="ISSUE_TYPE_OPTIONS"
-          :model-value="filters.types"
-          @update:model-value="updateFilters({ types: $event })"
-        />
-        <FilterMenu
-          label="エピック"
-          :options="epicOptions"
-          :model-value="filters.epics"
-          @update:model-value="updateFilters({ epics: $event })"
-        />
-        <button
-          v-if="filtering"
-          type="button"
-          class="px-3 py-1.5 border-0 rounded-md bg-transparent text-sm font-semibold text-fg underline-offset-2 cursor-pointer hover:underline"
-          @click="clearFilters"
-        >
-          フィルターをクリア
-        </button>
+        <ToolbarMenu label="フィルター" :count="detailFilterCount">
+          <div class="w-72 flex flex-col gap-3">
+            <input
+              v-model="searchText"
+              type="search"
+              placeholder="ボードを検索"
+              aria-label="ボードを検索（要約・課題キー）"
+              class="w-full px-2.5 py-1.5 border border-line rounded-md text-sm text-fg bg-canvas focus:outline-none focus:border-accent"
+            />
+            <!-- 担当者のアバター。押すとその担当者の課題に絞り込む（複数可） -->
+            <div v-if="assigneeOptions.length" class="flex flex-wrap items-center gap-1 pl-1" role="group" aria-label="担当者で絞り込む">
+              <button
+                v-for="option in assigneeOptions"
+                :key="option.id"
+                type="button"
+                :class="[
+                  'p-0 border-0 rounded-full bg-transparent cursor-pointer ring-2 transition-transform hover:-translate-y-0.5',
+                  filters.assignees.includes(option.id) ? 'ring-accent' : 'ring-transparent'
+                ]"
+                :title="option.user.DisplayName"
+                :aria-label="option.user.DisplayName"
+                :aria-pressed="filters.assignees.includes(option.id)"
+                @click="toggleAssignee(option.id)"
+              >
+                <UserAvatar :user="option.user" size="sm" />
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <FilterMenu
+                label="ラベル"
+                :options="labelOptions"
+                :model-value="filters.labels"
+                empty-text="ラベルの付いた課題がありません"
+                @update:model-value="updateFilters({ labels: $event })"
+              />
+              <FilterMenu
+                label="課題タイプ"
+                :options="ISSUE_TYPE_OPTIONS"
+                :model-value="filters.types"
+                @update:model-value="updateFilters({ types: $event })"
+              />
+              <FilterMenu
+                label="エピック"
+                :options="epicOptions"
+                :model-value="filters.epics"
+                @update:model-value="updateFilters({ epics: $event })"
+              />
+            </div>
+            <button
+              v-if="filtering"
+              type="button"
+              class="self-start p-0 border-0 bg-transparent text-xs font-semibold text-accent cursor-pointer hover:underline"
+              @click="clearFilters"
+            >
+              フィルターをクリア
+            </button>
+          </div>
+        </ToolbarMenu>
         <!-- スイムレーンの種類（Jira の「グループ化」）。スペースごとにブラウザに覚える -->
-        <label class="ml-auto flex items-center gap-2 text-sm font-semibold text-fg">
-          グループ化
-          <select
-            v-model="swimlane"
-            class="px-2 py-1.5 border-0 rounded-md bg-white/90 text-sm font-semibold text-gray-800 cursor-pointer hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option v-for="option in SWIMLANE_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
-        </label>
-      </div>
+        <ToolbarMenu label="表示">
+          <label class="w-48 flex flex-col gap-1.5 text-xs font-semibold text-muted">
+            グループ化
+            <select
+              v-model="swimlane"
+              class="px-2 py-1.5 border border-line rounded-md bg-canvas text-sm font-medium text-fg cursor-pointer focus:outline-none focus:border-accent"
+            >
+              <option v-for="option in SWIMLANE_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+            </select>
+          </label>
+        </ToolbarMenu>
+      </PageToolbar>
 
       <!-- 画面が狭いときに画面端で見切れるよう、左右の余白は外側ではなくスクロール領域の内側に持たせる -->
       <div class="overflow-x-auto px-8 pb-6 mt-6">
@@ -276,12 +280,15 @@ import SpaceShell from './SpaceShell.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import FilterMenu from './FilterMenu.vue';
 import UserAvatar from './UserAvatar.vue';
+import PageToolbar from './PageToolbar.vue';
+import ToolbarMenu from './ToolbarMenu.vue';
 import { todosApi } from '../api/todos';
 import { epicsApi } from '../api/epics';
 import { spacesApi } from '../api/spaces';
 import { statusesApi } from '../api/statuses';
 import { STATUS_CATEGORIES, STATUS_CATEGORY_HEADER_CLASS, statusesOfSpace, firstStatusInCategory, isInColumn, isDoneCategory } from '../utils/statuses';
-import { rememberLastBoard, issuePath } from '../utils/spaceRoutes';
+import { rememberLastBoard, issuePath, boardPath } from '../utils/spaceRoutes';
+import { toolbarButtonClass, toolbarChipClass } from '../utils/toolbar';
 import { formatStoryPoints, sumStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS } from '../utils/issueTypes';
 import { NONE, parseFilters, withFilters, isFiltering, matchesFilters } from '../utils/boardFilters';
@@ -325,7 +332,7 @@ const detailTask = computed(() => {
   const key = route.query.selectedIssue;
   return key ? (todos.value.find(todo => todo.Key === key) || null) : null;
 });
-// ヘッダーの「作成」で課題が作られたら増える（GlobalCreate と共有）
+// 「作成」で課題が作られたら増える（GlobalCreate と共有）
 const issuesVersion = useState('issuesVersion', () => 0);
 // 削除の確認モーダルの内容と、選んだ結果を返す関数（null の場合は閉じている）
 const confirmDialog = ref(null);
@@ -362,15 +369,6 @@ const columnGridStyle = computed(() => ({ gridTemplateColumns: `repeat(${columns
 // 列に落としたタスクのステータス。カテゴリの列なら、タスクのスペースの同じカテゴリの先頭のステータス
 const statusIdForColumn = (column, spaceId) =>
   column.statusId ?? firstStatusInCategory(statusesOfSpace(statuses.value, spaceId), column.category)?.ID ?? 0;
-
-// 選択中のスペース名（画面上部に表示する）
-const selectedSpaceTitle = computed(() => {
-  if (selectedSpaceId.value === null) {
-    return 'すべてのスペース';
-  }
-  const space = spaces.value.find(s => s.ID === selectedSpaceId.value);
-  return space ? space.Title : '';
-});
 
 // 選択中のスペースに属するエピック
 const visibleEpics = computed(() =>
@@ -484,9 +482,21 @@ const toggleAssignee = (id) => {
 };
 
 const quickToggles = [
-  { key: 'mine', label: '自分の課題のみ' },
-  { key: 'recent', label: '最近更新したもの' }
+  { key: 'mine', label: '自分の課題', title: '自分が担当の課題だけを出す' },
+  { key: 'recent', label: '最近更新', title: '最近更新した課題だけを出す' }
 ];
+
+// 「フィルター」の中で効いている条件の数（ボタンに出す）
+const detailFilterCount = computed(() =>
+  (filters.value.text.trim() ? 1 : 0) + filters.value.assignees.length + filters.value.labels.length +
+  filters.value.types.length + filters.value.epics.length
+);
+
+// ツールバーのパンくず（例: ボード › DEV スプリント 1）。スペースはサイドバーに出す
+const toolbarCrumbs = computed(() => [
+  { label: 'ボード', to: currentSprint.value ? boardPath(currentSpace.value) : undefined },
+  ...(currentSprint.value ? [{ label: currentSprint.value.Name }] : [])
+]);
 
 // 絞り込みの候補。担当者・ラベルはボードの課題に出てくるもの、エピックはボードのエピック
 const assigneeOptions = computed(() => {
@@ -691,7 +701,7 @@ const handleSpacesChanged = async () => {
   await Promise.all([fetchSpaces(), fetchEpics(), fetchTodos(), fetchStatuses(), fetchSprints()]);
 };
 
-// ヘッダーの「作成」で作られた課題をボードに出す
+// 「作成」で作られた課題をボードに出す
 watch(issuesVersion, () => {
   fetchTodos();
 });

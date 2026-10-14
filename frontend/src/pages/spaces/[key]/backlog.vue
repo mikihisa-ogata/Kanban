@@ -1,7 +1,8 @@
 <template>
   <!-- スペースのバックログ（Jira のバックログ）。完了していない課題を順位（ボードと共通の並び順）の順に 1 行ずつ並べる -->
   <SpaceShell :spaces="spaces" :todos="todos" :current-space="space" @changed="fetchAll">
-    <div class="px-8 py-8">
+    <PageToolbar :crumbs="[{ label: 'バックログ' }]" />
+    <div class="px-8 py-6">
       <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
       <div v-else-if="!space" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
         スペース「{{ spaceKey }}」が見つかりません。
@@ -10,7 +11,6 @@
 
       <template v-else>
         <div class="flex flex-wrap items-center gap-3 max-w-6xl">
-          <h2 class="m-0 text-2xl font-bold text-fg">バックログ</h2>
           <template v-if="selectedIds.size > 1">
             <span class="ml-auto text-sm font-semibold text-fg">{{ selectedIds.size }} 件を選択中</span>
             <button
@@ -257,6 +257,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import SpaceShell from '~/components/SpaceShell.vue';
+import PageToolbar from '~/components/PageToolbar.vue';
 import IssueDetail from '~/components/IssueDetail.vue';
 import IssueTypeIcon from '~/components/IssueTypeIcon.vue';
 import UserAvatar from '~/components/UserAvatar.vue';
@@ -284,7 +285,7 @@ const statuses = ref([]);
 const sprints = ref([]);
 const loading = ref(true);
 const error = ref('');
-// ヘッダーの「作成」で課題が作られたら増える（GlobalCreate と共有）
+// 「作成」で課題が作られたら増える（GlobalCreate と共有）
 const issuesVersion = useState('issuesVersion', () => 0);
 
 const space = computed(() => spaces.value.find(s => s.Key === spaceKey.value) || null);
@@ -361,7 +362,7 @@ const fetchAll = async () => {
   await Promise.all([fetchTodos(), fetchSprints()]);
 };
 
-// ヘッダーの「作成」で作られた課題を出す
+// 「作成」で作られた課題を出す
 watch(issuesVersion, fetchTodos);
 
 // 選択（Jira と同じく、クリックで 1 件を選んで詳細を開き、⌘/Ctrl クリックで追加・解除、Shift クリックで範囲を選ぶ）

@@ -1,19 +1,20 @@
 <template>
-  <!-- ヘッダー右上のアバター。押すとユーザーの情報・テーマの切り替え・ログアウトのメニューを開く -->
+  <!-- サイドバー下部のユーザー（アバターと名前）。押すとユーザーの情報・テーマの切り替え・ログアウトのメニューを上に開く -->
   <div ref="root" class="relative">
     <button
       type="button"
-      class="flex items-center bg-transparent border-0 p-0.5 rounded-full cursor-pointer hover:ring-4 hover:ring-accent/25 transition-all duration-150"
+      class="w-full min-w-0 flex items-center gap-2 bg-transparent border-0 p-1 rounded-md text-left text-fg cursor-pointer hover:bg-raised transition-colors duration-150"
       :title="`${user.DisplayName}（${user.Email}）`"
       aria-haspopup="menu"
       :aria-expanded="open"
       @click="open = !open"
     >
-      <UserAvatar :user="user" />
+      <UserAvatar :user="user" size="sm" />
+      <span class="hidden md:inline min-w-0 truncate text-sm font-medium">{{ user.DisplayName }}</span>
     </button>
     <div
       v-if="open"
-      class="absolute right-0 mt-2 w-64 bg-surface border border-line rounded-lg shadow-lg py-2 z-50"
+      class="absolute left-0 bottom-full mb-2 w-64 bg-surface border border-line rounded-lg shadow-lg py-2 z-50"
       role="menu"
     >
       <div class="flex items-center gap-3 px-4 pb-3 mb-1 border-b border-line">
