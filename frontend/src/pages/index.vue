@@ -1,5 +1,5 @@
 <template>
-  <p class="px-8 py-8 text-white">{{ message }}</p>
+  <p class="px-8 py-8 text-fg">{{ message }}</p>
 </template>
 
 <script setup>

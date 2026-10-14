@@ -2,14 +2,14 @@
   <!-- バージョンの詳細（Jira のリリースの詳細）。含まれる課題と進捗、編集・リリース・アーカイブ・削除 -->
   <SpaceShell :spaces="spaces" :todos="todos" :current-space="space" @changed="fetchAll">
     <div class="px-8 py-8">
-      <p v-if="loading" class="m-0 text-white">読み込み中...</p>
+      <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
       <div v-else-if="!space || !version" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
         バージョンが見つかりません。
         <NuxtLink v-if="space" :to="releasesPath(space)" class="ml-2 text-blue-600 font-semibold">リリースの一覧へ戻る</NuxtLink>
       </div>
 
       <template v-else>
-        <NuxtLink :to="releasesPath(space)" class="text-sm font-semibold text-white/90 no-underline hover:underline">← リリース</NuxtLink>
+        <NuxtLink :to="releasesPath(space)" class="text-sm font-semibold text-fg no-underline hover:underline">← リリース</NuxtLink>
 
         <section class="mt-3 max-w-6xl bg-white rounded-2xl px-6 py-5 shadow-xl">
           <form v-if="editing" class="flex flex-col gap-3" @submit.prevent="handleSave">

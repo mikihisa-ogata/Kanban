@@ -58,7 +58,7 @@
       title="誤りの位置へ移動"
       @click="focusError"
     >
-      <span class="block text-sm font-semibold text-red-200">{{ error.message }}</span>
+      <span class="block text-sm font-semibold text-danger">{{ error.message }}</span>
       <span v-if="errorExcerpt" class="mt-1 inline-block px-2 py-0.5 rounded bg-white/90 font-mono text-xs text-gray-700 whitespace-pre">{{ errorExcerpt.before }}<mark class="bg-red-200 text-red-800 rounded-sm">{{ errorExcerpt.at }}</mark>{{ errorExcerpt.after }}</span>
     </button>
   </div>

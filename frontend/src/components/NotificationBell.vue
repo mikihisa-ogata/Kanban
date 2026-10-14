@@ -3,7 +3,7 @@
   <div ref="root" class="relative">
     <button
       type="button"
-      class="relative flex items-center bg-transparent border-0 p-1.5 rounded-full text-blue-900 cursor-pointer hover:bg-blue-50 transition-colors duration-150"
+      class="relative flex items-center bg-transparent border-0 p-1.5 rounded-full text-fg cursor-pointer hover:bg-raised transition-colors duration-150"
       :title="unread ? `通知（未読 ${unread} 件）` : '通知'"
       aria-haspopup="dialog"
       :aria-expanded="open"

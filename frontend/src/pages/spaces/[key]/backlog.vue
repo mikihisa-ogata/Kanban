@@ -2,7 +2,7 @@
   <!-- スペースのバックログ（Jira のバックログ）。完了していない課題を順位（ボードと共通の並び順）の順に 1 行ずつ並べる -->
   <SpaceShell :spaces="spaces" :todos="todos" :current-space="space" @changed="fetchAll">
     <div class="px-8 py-8">
-      <p v-if="loading" class="m-0 text-white">読み込み中...</p>
+      <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
       <div v-else-if="!space" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
         スペース「{{ spaceKey }}」が見つかりません。
         <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
@@ -10,9 +10,9 @@
 
       <template v-else>
         <div class="flex flex-wrap items-center gap-3 max-w-6xl">
-          <h2 class="m-0 text-2xl font-bold text-white">バックログ</h2>
+          <h2 class="m-0 text-2xl font-bold text-fg">バックログ</h2>
           <template v-if="selectedIds.size > 1">
-            <span class="ml-auto text-sm font-semibold text-white">{{ selectedIds.size }} 件を選択中</span>
+            <span class="ml-auto text-sm font-semibold text-fg">{{ selectedIds.size }} 件を選択中</span>
             <button
               type="button"
               class="px-2 py-1 border-0 rounded bg-white/90 text-sm text-gray-700 cursor-pointer hover:bg-white"
@@ -21,7 +21,7 @@
               選択を解除
             </button>
           </template>
-          <span v-else class="ml-auto text-xs text-white/80">ドラッグで順位・スプリントを変更（Shift / ⌘ クリックで複数選択）</span>
+          <span v-else class="ml-auto text-xs text-muted">ドラッグで順位・スプリントを変更（Shift / ⌘ クリックで複数選択）</span>
         </div>
 
         <!-- スプリント（開始中・未開始）とバックログの枠。課題はドラッグで枠の間を出し入れできる -->

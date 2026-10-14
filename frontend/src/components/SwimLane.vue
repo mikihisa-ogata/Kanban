@@ -1,10 +1,10 @@
 <template>
-  <section class="bg-white/20 rounded-xl p-3">
+  <section class="bg-fg/5 rounded-xl p-3">
     <!-- レーンの見出し。スイムレーン「なし」では出さない -->
     <div
       v-if="lane.kind !== 'none'"
       :class="[
-        'flex items-center gap-2 px-2 text-white',
+        'flex items-center gap-2 px-2 text-fg',
         collapsed ? '' : 'pb-3',
         epic && !editing ? 'cursor-grab active:cursor-grabbing' : ''
       ]"
@@ -14,7 +14,7 @@
     >
       <button
         type="button"
-        class="shrink-0 bg-transparent border-0 p-0 text-white opacity-80 hover:opacity-100 cursor-pointer"
+        class="shrink-0 bg-transparent border-0 p-0 text-fg opacity-80 hover:opacity-100 cursor-pointer"
         :title="collapsed ? 'レーンを開く' : 'レーンを折りたたむ'"
         :aria-label="collapsed ? 'レーンを開く' : 'レーンを折りたたむ'"
         :aria-expanded="!collapsed"
@@ -51,7 +51,7 @@
       <button
         v-else-if="lane.kind === 'parent'"
         type="button"
-        class="flex items-center gap-2 min-w-0 bg-transparent border-0 p-0 text-white cursor-pointer hover:underline"
+        class="flex items-center gap-2 min-w-0 bg-transparent border-0 p-0 text-fg cursor-pointer hover:underline"
         :title="`${lane.parent.Key} ${lane.parent.Title}`"
         @click="$emit('open-task', lane.parent)"
       >
@@ -62,18 +62,18 @@
       <h2 v-else class="m-0 text-base font-bold truncate">その他の課題</h2>
       <button
         v-if="epic && !editing"
-        class="bg-transparent border-0 p-0 leading-none text-sm text-white opacity-60 hover:opacity-100 cursor-pointer"
+        class="bg-transparent border-0 p-0 leading-none text-sm text-fg opacity-60 hover:opacity-100 cursor-pointer"
         title="エピックの名前を変更"
         @click="startEdit"
       >
         ✎
       </button>
-      <span v-if="lane.parent" class="shrink-0 px-2 py-0.5 rounded bg-white/25 text-xs font-semibold">{{ lane.parent.StatusName }}</span>
+      <span v-if="lane.parent" class="shrink-0 px-2 py-0.5 rounded bg-raised text-xs font-semibold">{{ lane.parent.StatusName }}</span>
       <span v-if="lane.spaceTitle" class="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold">{{ lane.spaceTitle }}</span>
       <span class="shrink-0 text-xs opacity-80">{{ progressLabel }}</span>
       <button
         v-if="epic"
-        class="ml-auto bg-transparent border-0 p-0 leading-none text-lg text-white opacity-60 hover:opacity-100 cursor-pointer"
+        class="ml-auto bg-transparent border-0 p-0 leading-none text-lg text-fg opacity-60 hover:opacity-100 cursor-pointer"
         title="エピックを削除"
         @click="$emit('delete-epic', epic.ID)"
       >

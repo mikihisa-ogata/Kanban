@@ -2,13 +2,13 @@
   <SpaceShell :spaces="spaces" :current-space="space" @changed="fetchSpaces">
     <div class="px-8 py-8">
       <div class="max-w-3xl mx-auto">
-        <p v-if="loading" class="mt-6 text-white">読み込み中...</p>
+        <p v-if="loading" class="mt-6 text-fg">読み込み中...</p>
         <div v-else-if="!space" class="mt-6 bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
           {{ saveError || `スペース「${spaceKey}」が見つかりません。` }}
         </div>
 
         <template v-else>
-          <h2 class="m-0 mb-6 text-2xl font-bold text-white">
+          <h2 class="m-0 mb-6 text-2xl font-bold text-fg">
             スペースの設定
             <span class="ml-2 text-base font-semibold opacity-80">{{ space.Title }}</span>
           </h2>

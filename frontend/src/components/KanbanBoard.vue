@@ -15,9 +15,9 @@
 
     <div v-else class="py-8">
       <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-8">
-        <h2 class="m-0 text-2xl font-bold text-white">{{ selectedSpaceTitle }}</h2>
+        <h2 class="m-0 text-2xl font-bold text-fg">{{ selectedSpaceTitle }}</h2>
         <!-- 開始中のスプリント（ボードにはその課題だけを出す）と、終了日までの残り日数 -->
-        <p v-if="currentSprint" class="m-0 text-sm font-semibold text-white" :title="currentSprint.Goal ? `ゴール: ${currentSprint.Goal}` : ''">
+        <p v-if="currentSprint" class="m-0 text-sm font-semibold text-fg" :title="currentSprint.Goal ? `ゴール: ${currentSprint.Goal}` : ''">
           {{ currentSprint.Name }}
           <span v-if="sprintPeriodLabel(currentSprint)" class="ml-1 font-normal opacity-80">{{ sprintPeriodLabel(currentSprint) }}</span>
           <span
@@ -91,13 +91,13 @@
         <button
           v-if="filtering"
           type="button"
-          class="px-3 py-1.5 border-0 rounded-md bg-transparent text-sm font-semibold text-white underline-offset-2 cursor-pointer hover:underline"
+          class="px-3 py-1.5 border-0 rounded-md bg-transparent text-sm font-semibold text-fg underline-offset-2 cursor-pointer hover:underline"
           @click="clearFilters"
         >
           フィルターをクリア
         </button>
         <!-- スイムレーンの種類（Jira の「グループ化」）。スペースごとにブラウザに覚える -->
-        <label class="ml-auto flex items-center gap-2 text-sm font-semibold text-white">
+        <label class="ml-auto flex items-center gap-2 text-sm font-semibold text-fg">
           グループ化
           <select
             v-model="swimlane"
@@ -144,7 +144,7 @@
             </div>
           </div>
 
-          <p v-if="filtering && !lanes.length" class="m-0 px-3 py-6 text-center text-white font-semibold">
+          <p v-if="filtering && !lanes.length" class="m-0 px-3 py-6 text-center text-fg font-semibold">
             条件に一致する課題はありません
           </p>
 

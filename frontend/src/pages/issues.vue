@@ -3,9 +3,9 @@
   <SpaceShell :spaces="spaces" :current-space="currentSpace" @changed="handleSpacesChanged">
     <div class="px-8 py-8">
       <div class="mb-4 flex items-center gap-3">
-        <h2 class="m-0 text-2xl font-bold text-white">課題</h2>
+        <h2 class="m-0 text-2xl font-bold text-fg">課題</h2>
         <!-- 基本（フィルターで選ぶ）と JQL（クエリを書く）の切り替え -->
-        <div class="flex p-0.5 rounded-md bg-white/20" role="group" aria-label="検索の方法">
+        <div class="flex p-0.5 rounded-md bg-raised" role="group" aria-label="検索の方法">
           <button type="button" :class="modeButton(!jqlMode)" :aria-pressed="!jqlMode" @click="switchToBasic">基本</button>
           <button type="button" :class="modeButton(jqlMode)" :aria-pressed="jqlMode" @click="switchToJql">JQL</button>
         </div>
@@ -51,7 +51,7 @@
         <button
           v-if="searching"
           type="button"
-          class="px-3 py-1.5 border-0 rounded-md bg-transparent text-sm font-semibold text-white underline-offset-2 cursor-pointer hover:underline"
+          class="px-3 py-1.5 border-0 rounded-md bg-transparent text-sm font-semibold text-fg underline-offset-2 cursor-pointer hover:underline"
           @click="clearSearch"
         >
           フィルターをクリア
@@ -282,7 +282,7 @@ const submitJql = () => {
 };
 const modeButton = (active) => [
   'px-3 py-1 border-0 rounded text-sm font-semibold cursor-pointer',
-  active ? 'bg-white text-gray-900' : 'bg-transparent text-white hover:bg-white/20'
+  active ? 'bg-surface text-fg shadow-sm' : 'bg-transparent text-muted hover:text-fg'
 ];
 
 // 表の見出しに出す並べ替え。JQL では ORDER BY の最初の列

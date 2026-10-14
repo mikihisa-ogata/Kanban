@@ -1,39 +1,39 @@
 <template>
   <form class="flex flex-col gap-4" @submit.prevent="submit">
-    <h2 class="m-0 text-lg font-bold text-gray-900 text-center">ログイン</h2>
+    <h2 class="m-0 text-lg font-bold text-fg text-center">ログイン</h2>
     <div>
-      <label for="email" class="block mb-2 text-sm font-semibold text-gray-700">メールアドレス</label>
+      <label for="email" class="block mb-2 text-sm font-semibold text-fg">メールアドレス</label>
       <input
         id="email"
         v-model="email"
         type="email"
         autocomplete="email"
         required
-        class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        class="w-full px-3 py-2.5 border-2 border-line rounded-lg text-sm transition-all duration-200 text-fg bg-surface focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
       />
     </div>
     <div>
-      <label for="password" class="block mb-2 text-sm font-semibold text-gray-700">パスワード</label>
+      <label for="password" class="block mb-2 text-sm font-semibold text-fg">パスワード</label>
       <input
         id="password"
         v-model="password"
         type="password"
         autocomplete="current-password"
         required
-        class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        class="w-full px-3 py-2.5 border-2 border-line rounded-lg text-sm transition-all duration-200 text-fg bg-surface focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
       />
     </div>
-    <p v-if="error" class="m-0 text-sm text-red-600" role="alert">{{ error }}</p>
+    <p v-if="error" class="m-0 text-sm text-danger" role="alert">{{ error }}</p>
     <button
       type="submit"
       :disabled="submitting"
-      class="w-full py-2.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+      class="w-full py-2.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {{ submitting ? 'ログイン中...' : 'ログイン' }}
     </button>
-    <p class="m-0 text-sm text-gray-600 text-center">
+    <p class="m-0 text-sm text-muted text-center">
       アカウントがない場合は
-      <NuxtLink :to="{ path: '/signup', query: route.query }" class="text-blue-600 font-semibold hover:underline">サインアップ</NuxtLink>
+      <NuxtLink :to="{ path: '/signup', query: route.query }" class="text-accent font-semibold hover:underline">サインアップ</NuxtLink>
     </p>
   </form>
 </template>

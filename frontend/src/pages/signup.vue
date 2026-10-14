@@ -1,8 +1,8 @@
 <template>
   <form class="flex flex-col gap-4" @submit.prevent="submit">
-    <h2 class="m-0 text-lg font-bold text-gray-900 text-center">サインアップ</h2>
+    <h2 class="m-0 text-lg font-bold text-fg text-center">サインアップ</h2>
     <div>
-      <label for="displayName" class="block mb-2 text-sm font-semibold text-gray-700">表示名</label>
+      <label for="displayName" class="block mb-2 text-sm font-semibold text-fg">表示名</label>
       <input
         id="displayName"
         v-model="displayName"
@@ -10,22 +10,22 @@
         autocomplete="name"
         maxlength="50"
         required
-        class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        class="w-full px-3 py-2.5 border-2 border-line rounded-lg text-sm transition-all duration-200 text-fg bg-surface focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
       />
     </div>
     <div>
-      <label for="email" class="block mb-2 text-sm font-semibold text-gray-700">メールアドレス</label>
+      <label for="email" class="block mb-2 text-sm font-semibold text-fg">メールアドレス</label>
       <input
         id="email"
         v-model="email"
         type="email"
         autocomplete="email"
         required
-        class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        class="w-full px-3 py-2.5 border-2 border-line rounded-lg text-sm transition-all duration-200 text-fg bg-surface focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
       />
     </div>
     <div>
-      <label for="password" class="block mb-2 text-sm font-semibold text-gray-700">パスワード（8 文字以上）</label>
+      <label for="password" class="block mb-2 text-sm font-semibold text-fg">パスワード（8 文字以上）</label>
       <input
         id="password"
         v-model="password"
@@ -33,20 +33,20 @@
         autocomplete="new-password"
         minlength="8"
         required
-        class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        class="w-full px-3 py-2.5 border-2 border-line rounded-lg text-sm transition-all duration-200 text-fg bg-surface focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
       />
     </div>
-    <p v-if="error" class="m-0 text-sm text-red-600" role="alert">{{ error }}</p>
+    <p v-if="error" class="m-0 text-sm text-danger" role="alert">{{ error }}</p>
     <button
       type="submit"
       :disabled="submitting"
-      class="w-full py-2.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+      class="w-full py-2.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {{ submitting ? '登録中...' : '登録してログイン' }}
     </button>
-    <p class="m-0 text-sm text-gray-600 text-center">
+    <p class="m-0 text-sm text-muted text-center">
       アカウントがある場合は
-      <NuxtLink :to="{ path: '/login', query: route.query }" class="text-blue-600 font-semibold hover:underline">ログイン</NuxtLink>
+      <NuxtLink :to="{ path: '/login', query: route.query }" class="text-accent font-semibold hover:underline">ログイン</NuxtLink>
     </p>
   </form>
 </template>

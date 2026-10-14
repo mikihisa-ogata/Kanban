@@ -2,7 +2,7 @@
   <!-- スペースのリリース（Jira のリリース）。バージョンの一覧と作成 -->
   <SpaceShell :spaces="spaces" :todos="todos" :current-space="space" @changed="fetchAll">
     <div class="px-8 py-8">
-      <p v-if="loading" class="m-0 text-white">読み込み中...</p>
+      <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
       <div v-else-if="!space" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
         スペース「{{ spaceKey }}」が見つかりません。
         <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
@@ -10,8 +10,8 @@
 
       <template v-else>
         <div class="flex flex-wrap items-center gap-3 max-w-6xl">
-          <h2 class="m-0 text-2xl font-bold text-white">リリース</h2>
-          <label class="ml-auto flex items-center gap-2 text-sm font-semibold text-white cursor-pointer">
+          <h2 class="m-0 text-2xl font-bold text-fg">リリース</h2>
+          <label class="ml-auto flex items-center gap-2 text-sm font-semibold text-fg cursor-pointer">
             <input v-model="showArchived" type="checkbox" class="cursor-pointer" />
             アーカイブも表示
           </label>

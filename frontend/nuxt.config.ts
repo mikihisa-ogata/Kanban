@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from '@tailwindcss/vite'
+import { THEME_INIT_SCRIPT } from './src/utils/theme'
 
 export default defineNuxtConfig({
   srcDir: 'src',
@@ -30,6 +31,10 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16.png' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'manifest', href: '/site.webmanifest' }
+      ],
+      // 選んだテーマを、画面を描く前に <html> に付ける（読み込み直後のちらつきを防ぐ）
+      script: [
+        { innerHTML: THEME_INIT_SCRIPT, tagPosition: 'head' }
       ]
     }
   },

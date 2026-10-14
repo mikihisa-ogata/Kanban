@@ -2,7 +2,7 @@
   <!-- 課題の全画面ページ（Jira の /browse/KAN-12）。左ナビは課題のスペースのものを出す -->
   <SpaceShell :spaces="spaces" :current-space="space" @changed="handleSpacesChanged">
     <div class="px-8 py-8">
-      <p v-if="loading" class="m-0 text-white">読み込み中...</p>
+      <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
 
       <div v-else-if="!issue" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
         <template v-if="loadError">{{ loadError }}</template>
