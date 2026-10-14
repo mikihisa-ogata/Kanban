@@ -12,32 +12,32 @@
     </PageToolbar>
     <div class="px-8 py-6">
       <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
-      <div v-else-if="!space" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
+      <div v-else-if="!space" class="max-w-3xl bg-surface rounded-2xl px-8 py-6 shadow-xl text-fg">
         スペース「{{ spaceKey }}」が見つかりません。
-        <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
+        <NuxtLink to="/board" class="ml-2 text-accent font-semibold">すべてのスペースのボードを開く</NuxtLink>
       </div>
 
       <template v-else>
         <!-- バージョンの作成 -->
-        <form v-if="creating" class="mb-4 max-w-6xl bg-white rounded-2xl px-6 py-5 shadow-xl flex flex-col gap-3" @submit.prevent="handleCreate">
-          <h3 class="m-0 text-base font-bold text-gray-900">バージョンを作成</h3>
+        <form v-if="creating" class="mb-4 max-w-6xl bg-surface rounded-2xl px-6 py-5 shadow-xl flex flex-col gap-3" @submit.prevent="handleCreate">
+          <h3 class="m-0 text-base font-bold text-fg">バージョンを作成</h3>
           <VersionFields v-model="form" id-prefix="new-version" />
-          <p v-if="formError" class="m-0 text-sm text-red-600">{{ formError }}</p>
+          <p v-if="formError" class="m-0 text-sm text-danger">{{ formError }}</p>
           <div class="flex justify-end gap-2">
-            <button type="button" class="px-3 py-1.5 bg-transparent border-0 rounded-md text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100" @click="closeCreate">キャンセル</button>
+            <button type="button" class="px-3 py-1.5 bg-transparent border-0 rounded-md text-sm font-semibold text-fg cursor-pointer hover:bg-raised" @click="closeCreate">キャンセル</button>
             <button
               type="submit"
               :disabled="!!formError || saving"
-              class="px-4 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               作成
             </button>
           </div>
         </form>
 
-        <section class="max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
+        <section class="max-w-6xl bg-surface rounded-2xl shadow-xl overflow-hidden">
           <table class="w-full border-collapse text-sm">
-            <thead class="bg-gray-50 text-left text-xs font-semibold text-gray-600">
+            <thead class="bg-raised text-left text-xs font-semibold text-muted">
               <tr>
                 <th class="px-5 py-2.5">バージョン</th>
                 <th class="px-3 py-2.5">状態</th>
@@ -48,9 +48,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="version in visibleVersions" :key="version.ID" class="border-t border-gray-100 hover:bg-gray-50">
+              <tr v-for="version in visibleVersions" :key="version.ID" class="border-t border-line hover:bg-raised">
                 <td class="px-5 py-2.5 font-semibold">
-                  <NuxtLink :to="versionPath(space, version.ID)" class="text-blue-700 no-underline hover:underline">{{ version.Name }}</NuxtLink>
+                  <NuxtLink :to="versionPath(space, version.ID)" class="text-accent no-underline hover:underline">{{ version.Name }}</NuxtLink>
                 </td>
                 <td class="px-3 py-2.5">
                   <span :class="['px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap', VERSION_STATUS_BADGE_CLASS[version.Status]]">
@@ -60,14 +60,14 @@
                 <td class="px-3 py-2.5">
                   <VersionProgress :progress="versionProgress(issuesOfVersion(spaceTodos, version.ID))" />
                 </td>
-                <td class="px-3 py-2.5 text-gray-700 whitespace-nowrap">{{ version.StartDate || '-' }}</td>
-                <td :class="['px-3 py-2.5 whitespace-nowrap', isOverdue(version) ? 'text-red-600 font-semibold' : 'text-gray-700']">
+                <td class="px-3 py-2.5 text-fg whitespace-nowrap">{{ version.StartDate || '-' }}</td>
+                <td :class="['px-3 py-2.5 whitespace-nowrap', isOverdue(version) ? 'text-danger font-semibold' : 'text-fg']">
                   {{ version.ReleaseDate || '-' }}
                 </td>
-                <td class="px-5 py-2.5 text-gray-600 max-w-80 truncate" :title="version.Description">{{ version.Description }}</td>
+                <td class="px-5 py-2.5 text-muted max-w-80 truncate" :title="version.Description">{{ version.Description }}</td>
               </tr>
               <tr v-if="!visibleVersions.length">
-                <td colspan="6" class="px-5 py-6 text-center text-gray-500">バージョンはまだありません。「バージョンを作成」から作れます。</td>
+                <td colspan="6" class="px-5 py-6 text-center text-muted">バージョンはまだありません。「バージョンを作成」から作れます。</td>
               </tr>
             </tbody>
           </table>
@@ -75,7 +75,7 @@
       </template>
     </div>
 
-    <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
+    <div v-if="error" class="fixed bottom-8 right-8 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
       {{ error }}
     </div>
   </SpaceShell>

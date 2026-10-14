@@ -4,9 +4,9 @@
     <PageToolbar :crumbs="[{ label: 'バックログ' }]" />
     <div class="px-8 py-6">
       <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
-      <div v-else-if="!space" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
+      <div v-else-if="!space" class="max-w-3xl bg-surface rounded-2xl px-8 py-6 shadow-xl text-fg">
         スペース「{{ spaceKey }}」が見つかりません。
-        <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
+        <NuxtLink to="/board" class="ml-2 text-accent font-semibold">すべてのスペースのボードを開く</NuxtLink>
       </div>
 
       <template v-else>
@@ -15,7 +15,7 @@
             <span class="ml-auto text-sm font-semibold text-fg">{{ selectedIds.size }} 件を選択中</span>
             <button
               type="button"
-              class="px-2 py-1 border-0 rounded bg-white/90 text-sm text-gray-700 cursor-pointer hover:bg-white"
+              class="px-2 py-1 border-0 rounded bg-surface text-sm text-fg cursor-pointer hover:bg-raised"
               @click="clearSelection"
             >
               選択を解除
@@ -29,19 +29,19 @@
           v-for="section in sections"
           :key="section.key"
           :class="[
-            'mt-4 max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden border-2',
-            dropTarget?.key === section.key ? 'border-blue-500' : 'border-transparent'
+            'mt-4 max-w-6xl bg-surface rounded-2xl shadow-xl overflow-hidden border-2',
+            dropTarget?.key === section.key ? 'border-accent' : 'border-transparent'
           ]"
         >
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 border-b border-gray-200">
-            <h3 class="m-0 text-base font-bold text-gray-900">{{ section.sprint ? section.sprint.Name : 'バックログ' }}</h3>
-            <span v-if="section.sprint?.State === SPRINT_ACTIVE" class="px-2 py-0.5 rounded bg-blue-100 text-xs font-semibold text-blue-800">開始中</span>
-            <span v-if="section.sprint && sprintPeriodLabel(section.sprint)" class="text-sm text-gray-500">{{ sprintPeriodLabel(section.sprint) }}</span>
-            <span v-if="section.sprint?.State === SPRINT_ACTIVE" class="text-sm font-semibold text-gray-700">{{ remainingDaysLabel(section.sprint) }}</span>
-            <span class="text-sm text-gray-500">{{ section.rows.length }} 件の課題</span>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 border-b border-line">
+            <h3 class="m-0 text-base font-bold text-fg">{{ section.sprint ? section.sprint.Name : 'バックログ' }}</h3>
+            <span v-if="section.sprint?.State === SPRINT_ACTIVE" class="px-2 py-0.5 rounded bg-accent/15 text-xs font-semibold text-accent">開始中</span>
+            <span v-if="section.sprint && sprintPeriodLabel(section.sprint)" class="text-sm text-muted">{{ sprintPeriodLabel(section.sprint) }}</span>
+            <span v-if="section.sprint?.State === SPRINT_ACTIVE" class="text-sm font-semibold text-fg">{{ remainingDaysLabel(section.sprint) }}</span>
+            <span class="text-sm text-muted">{{ section.rows.length }} 件の課題</span>
             <span
               v-if="section.rows.some(todo => todo.StoryPoints != null)"
-              class="px-2 py-0.5 rounded-full bg-gray-100 text-xs font-semibold text-gray-700"
+              class="px-2 py-0.5 rounded-full bg-raised text-xs font-semibold text-fg"
               title="ストーリーポイントの合計"
             >
               {{ formatStoryPoints(sumStoryPoints(section.rows)) }} pt
@@ -66,7 +66,7 @@
               </template>
               <button v-else type="button" :class="secondaryButton" @click="handleCreateSprint">スプリントを作成</button>
             </div>
-            <p v-if="section.sprint?.Goal" class="w-full m-0 text-sm text-gray-600 whitespace-pre-line">{{ section.sprint.Goal }}</p>
+            <p v-if="section.sprint?.Goal" class="w-full m-0 text-sm text-muted whitespace-pre-line">{{ section.sprint.Goal }}</p>
           </div>
 
           <!-- 課題の行。ドラッグで順位を変える（選択中の行はまとめて動かす） -->
@@ -78,12 +78,12 @@
             @drop="handleDrop($event, section)"
           >
             <template v-for="(row, index) in section.rows" :key="row.ID">
-              <li v-if="dropTarget?.key === section.key && dropTarget.index === index" class="h-0.5 bg-blue-500" aria-hidden="true"></li>
+              <li v-if="dropTarget?.key === section.key && dropTarget.index === index" class="h-0.5 bg-accent" aria-hidden="true"></li>
               <li
                 :data-row-id="row.ID"
                 :class="[
-                  'flex items-center gap-3 px-5 py-2 border-b border-gray-100 text-sm cursor-pointer select-none',
-                  selectedIds.has(row.ID) ? 'bg-blue-50' : 'bg-white hover:bg-gray-50',
+                  'flex items-center gap-3 px-5 py-2 border-b border-line text-sm cursor-pointer select-none',
+                  selectedIds.has(row.ID) ? 'bg-accent/10' : 'bg-surface hover:bg-raised',
                   draggingIds.has(row.ID) ? 'opacity-50' : ''
                 ]"
                 draggable="true"
@@ -93,11 +93,11 @@
                 @dragend="handleDragEnd"
               >
                 <IssueTypeIcon :type="row.IssueType" />
-                <span :class="['shrink-0 w-20 font-mono text-xs font-semibold', row.Done ? 'text-gray-400 line-through' : 'text-gray-500']">{{ row.Key }}</span>
-                <span class="flex-1 min-w-0 truncate text-gray-900" :title="row.Title">{{ row.Title }}</span>
+                <span :class="['shrink-0 w-20 font-mono text-xs font-semibold', row.Done ? 'text-muted line-through' : 'text-muted']">{{ row.Key }}</span>
+                <span class="flex-1 min-w-0 truncate text-fg" :title="row.Title">{{ row.Title }}</span>
                 <span
                   v-if="epicOf(row)"
-                  class="shrink-0 max-w-40 truncate px-2 py-0.5 rounded bg-purple-100 text-xs font-semibold text-purple-800"
+                  class="shrink-0 max-w-40 truncate px-2 py-0.5 rounded bg-accent/15 text-xs font-semibold text-accent"
                   :title="`エピック: ${epicOf(row).Title}`"
                 >
                   {{ epicOf(row).Title }}
@@ -111,7 +111,7 @@
                 <span
                   :class="[
                     'shrink-0 min-w-8 h-6 px-1.5 rounded-full text-xs font-semibold flex items-center justify-center',
-                    row.StoryPoints != null ? 'bg-gray-200 text-gray-700' : 'text-gray-300'
+                    row.StoryPoints != null ? 'bg-line text-fg' : 'text-muted'
                   ]"
                   :title="row.StoryPoints != null ? `ストーリーポイント: ${formatStoryPoints(row.StoryPoints)}` : 'ストーリーポイント未設定'"
                 >
@@ -119,8 +119,8 @@
                 </span>
               </li>
             </template>
-            <li v-if="dropTarget?.key === section.key && dropTarget.index === section.rows.length" class="h-0.5 bg-blue-500" aria-hidden="true"></li>
-            <li v-if="!section.rows.length" class="px-5 py-4 text-center text-sm text-gray-500">
+            <li v-if="dropTarget?.key === section.key && dropTarget.index === section.rows.length" class="h-0.5 bg-accent" aria-hidden="true"></li>
+            <li v-if="!section.rows.length" class="px-5 py-4 text-center text-sm text-muted">
               {{ section.sprint ? 'バックログから課題をドラッグして、このスプリントに入れます' : '完了していない課題はありません' }}
             </li>
           </ol>
@@ -130,7 +130,7 @@
             <select
               v-model="newIssueType"
               aria-label="課題タイプ"
-              class="px-2 py-1.5 border-2 border-gray-300 rounded-md text-sm text-gray-800 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+              class="px-2 py-1.5 border-2 border-line rounded-md text-sm text-fg bg-surface cursor-pointer focus:outline-none focus:border-accent"
             >
               <option v-for="option in ISSUE_TYPE_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
@@ -140,20 +140,20 @@
               type="text"
               placeholder="要約を入力して Enter"
               aria-label="作成する課題の要約"
-              class="flex-1 min-w-0 px-3 py-1.5 border-2 border-blue-500 rounded-md text-sm text-gray-900 bg-white focus:outline-none"
+              class="flex-1 min-w-0 px-3 py-1.5 border-2 border-accent rounded-md text-sm text-fg bg-surface focus:outline-none"
               @keydown.enter="handleCreateEnter"
               @keydown.esc="closeCreate"
             />
             <button
               type="submit"
               :disabled="!newTitle.trim() || saving"
-              class="px-3 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-3 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               作成
             </button>
             <button
               type="button"
-              class="px-3 py-1.5 bg-transparent border-0 rounded-md text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+              class="px-3 py-1.5 bg-transparent border-0 rounded-md text-sm text-muted cursor-pointer hover:bg-raised"
               @click="closeCreate"
             >
               キャンセル
@@ -162,7 +162,7 @@
           <button
             v-else
             type="button"
-            class="w-full px-5 py-2.5 bg-transparent border-0 text-left text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-50"
+            class="w-full px-5 py-2.5 bg-transparent border-0 text-left text-sm font-semibold text-muted cursor-pointer hover:bg-raised"
             @click="openCreate(section)"
           >
             + 課題を作成
@@ -198,17 +198,17 @@
       @cancel="deleting = null"
     />
 
-    <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
+    <div v-if="error" class="fixed bottom-8 right-8 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
       {{ error }}
     </div>
 
     <!-- 課題の詳細のモーダル（ボードと同じく URL の ?selectedIssue=KAN-12 で表す） -->
     <div
       v-if="detailTask"
-      class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-overlay flex items-center justify-center z-50"
       @click.self="closeDetail"
     >
-      <div class="bg-white rounded-2xl px-8 py-6 shadow-2xl mx-4 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="bg-surface rounded-2xl px-8 py-6 shadow-2xl mx-4 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         <IssueDetail
           :task="detailTask"
           :epics="epics"
@@ -229,7 +229,7 @@
           <template #actions>
             <NuxtLink
               :to="issuePath(detailTask.Key)"
-              class="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              class="p-1.5 rounded text-muted hover:bg-raised hover:text-fg"
               title="全画面で開く"
             >
               <svg class="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -241,7 +241,7 @@
             </NuxtLink>
             <button
               type="button"
-              class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 hover:text-gray-600"
+              class="bg-transparent border-0 text-muted text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-raised hover:text-muted"
               title="閉じる"
               @click="closeDetail"
             >
@@ -292,8 +292,8 @@ const space = computed(() => spaces.value.find(s => s.Key === spaceKey.value) ||
 
 useHead(() => ({ title: space.value ? `バックログ - ${space.value.Title} - Kanban` : 'Kanban' }));
 
-const primaryButton = 'px-3 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed';
-const secondaryButton = 'px-3 py-1.5 bg-gray-100 text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-200';
+const primaryButton = 'px-3 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed';
+const secondaryButton = 'px-3 py-1.5 bg-raised text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-line';
 
 // スペースの開始中のスプリントと、未開始のスプリント（作成順）
 const activeSprint = computed(() => (space.value ? activeSprintOf(sprints.value, space.value.ID) : null));

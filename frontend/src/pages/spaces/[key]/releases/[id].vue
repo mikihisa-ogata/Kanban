@@ -4,16 +4,16 @@
     <PageToolbar :crumbs="[{ label: 'リリース', to: space ? releasesPath(space) : undefined }, { label: version ? version.Name : '' }]" />
     <div class="px-8 py-6">
       <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
-      <div v-else-if="!space || !version" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
+      <div v-else-if="!space || !version" class="max-w-3xl bg-surface rounded-2xl px-8 py-6 shadow-xl text-fg">
         バージョンが見つかりません。
-        <NuxtLink v-if="space" :to="releasesPath(space)" class="ml-2 text-blue-600 font-semibold">リリースの一覧へ戻る</NuxtLink>
+        <NuxtLink v-if="space" :to="releasesPath(space)" class="ml-2 text-accent font-semibold">リリースの一覧へ戻る</NuxtLink>
       </div>
 
       <template v-else>
-        <section class="max-w-6xl bg-white rounded-2xl px-6 py-5 shadow-xl">
+        <section class="max-w-6xl bg-surface rounded-2xl px-6 py-5 shadow-xl">
           <form v-if="editing" class="flex flex-col gap-3" @submit.prevent="handleSave">
             <VersionFields v-model="form" id-prefix="edit-version" />
-            <p v-if="formError" class="m-0 text-sm text-red-600">{{ formError }}</p>
+            <p v-if="formError" class="m-0 text-sm text-danger">{{ formError }}</p>
             <div class="flex justify-end gap-2">
               <button type="button" :class="secondaryButton" @click="editing = false">キャンセル</button>
               <button type="submit" :class="primaryButton" :disabled="!!formError || saving">保存</button>
@@ -22,7 +22,7 @@
 
           <template v-else>
             <div class="flex flex-wrap items-center gap-3">
-              <h2 class="m-0 text-xl font-bold text-gray-900">{{ version.Name }}</h2>
+              <h2 class="m-0 text-xl font-bold text-fg">{{ version.Name }}</h2>
               <span :class="['px-2 py-0.5 rounded text-xs font-semibold', VERSION_STATUS_BADGE_CLASS[version.Status]]">
                 {{ VERSION_STATUS_LABEL[version.Status] }}
               </span>
@@ -36,12 +36,12 @@
               </div>
             </div>
             <dl class="mt-3 mb-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-              <dt class="text-gray-500">開始日</dt>
-              <dd class="m-0 text-gray-900">{{ version.StartDate || '-' }}</dd>
-              <dt class="text-gray-500">リリース日</dt>
-              <dd class="m-0 text-gray-900">{{ version.ReleaseDate || '-' }}</dd>
+              <dt class="text-muted">開始日</dt>
+              <dd class="m-0 text-fg">{{ version.StartDate || '-' }}</dd>
+              <dt class="text-muted">リリース日</dt>
+              <dd class="m-0 text-fg">{{ version.ReleaseDate || '-' }}</dd>
             </dl>
-            <p v-if="version.Description" class="mt-3 mb-0 text-sm text-gray-700 whitespace-pre-line">{{ version.Description }}</p>
+            <p v-if="version.Description" class="mt-3 mb-0 text-sm text-fg whitespace-pre-line">{{ version.Description }}</p>
           </template>
 
           <div class="mt-5">
@@ -50,13 +50,13 @@
         </section>
 
         <!-- 含まれる課題 -->
-        <section class="mt-4 max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
-          <h3 class="m-0 px-5 py-3 border-b border-gray-200 text-base font-bold text-gray-900">課題（{{ issues.length }} 件）</h3>
+        <section class="mt-4 max-w-6xl bg-surface rounded-2xl shadow-xl overflow-hidden">
+          <h3 class="m-0 px-5 py-3 border-b border-line text-base font-bold text-fg">課題（{{ issues.length }} 件）</h3>
           <ol class="m-0 p-0 list-none">
-            <li v-for="issue in issues" :key="issue.ID" class="flex items-center gap-3 px-5 py-2 border-b border-gray-100 text-sm">
+            <li v-for="issue in issues" :key="issue.ID" class="flex items-center gap-3 px-5 py-2 border-b border-line text-sm">
               <IssueTypeIcon :type="issue.IssueType" />
-              <NuxtLink :to="issuePath(issue.Key)" class="shrink-0 w-20 font-mono text-xs font-semibold text-gray-500 no-underline hover:text-blue-600 hover:underline">{{ issue.Key }}</NuxtLink>
-              <span class="flex-1 min-w-0 truncate text-gray-900" :title="issue.Title">{{ issue.Title }}</span>
+              <NuxtLink :to="issuePath(issue.Key)" class="shrink-0 w-20 font-mono text-xs font-semibold text-muted no-underline hover:text-accent hover:underline">{{ issue.Key }}</NuxtLink>
+              <span class="flex-1 min-w-0 truncate text-fg" :title="issue.Title">{{ issue.Title }}</span>
               <span :class="['shrink-0 max-w-32 truncate px-2 py-0.5 rounded text-xs font-semibold', STATUS_CATEGORY_BADGE_CLASS[issue.StatusCategory]]">
                 {{ issue.StatusName }}
               </span>
@@ -64,7 +64,7 @@
                 <UserAvatar v-if="issue.Assignee" :user="issue.Assignee" size="sm" :title="`担当者: ${issue.Assignee.DisplayName}`" />
               </span>
             </li>
-            <li v-if="!issues.length" class="px-5 py-6 text-center text-sm text-gray-500">
+            <li v-if="!issues.length" class="px-5 py-6 text-center text-sm text-muted">
               このバージョンの課題はありません。課題の詳細の「修正バージョン」で付けられます。
             </li>
           </ol>
@@ -73,39 +73,39 @@
     </div>
 
     <!-- リリースの確認。未完了の課題があれば移し先を選ぶ -->
-    <div v-if="releasing" class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50" @click.self="releasing = false">
+    <div v-if="releasing" class="fixed inset-0 bg-overlay flex items-center justify-center z-50" @click.self="releasing = false">
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="release-version-title"
-        class="bg-white rounded-2xl px-8 pt-7 pb-6 shadow-2xl mx-4 max-w-md w-full flex flex-col gap-4"
+        class="bg-surface rounded-2xl px-8 pt-7 pb-6 shadow-2xl mx-4 max-w-md w-full flex flex-col gap-4"
         @submit.prevent="handleRelease"
       >
-        <h3 id="release-version-title" class="m-0 text-lg font-bold text-gray-900">「{{ version.Name }}」をリリース</h3>
+        <h3 id="release-version-title" class="m-0 text-lg font-bold text-fg">「{{ version.Name }}」をリリース</h3>
         <div>
-          <label for="release-date" class="block mb-1 text-sm font-semibold text-gray-700">リリース日</label>
+          <label for="release-date" class="block mb-1 text-sm font-semibold text-fg">リリース日</label>
           <input
             id="release-date"
             v-model="releaseDate"
             type="date"
-            class="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+            class="px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface focus:outline-none focus:border-accent"
           />
         </div>
         <template v-if="openIssues.length">
-          <p class="m-0 text-sm text-gray-700">このバージョンには完了していない課題が {{ openIssues.length }} 件あります。</p>
+          <p class="m-0 text-sm text-fg">このバージョンには完了していない課題が {{ openIssues.length }} 件あります。</p>
           <div>
-            <label for="release-move-to" class="block mb-1 text-sm font-semibold text-gray-700">完了していない課題</label>
+            <label for="release-move-to" class="block mb-1 text-sm font-semibold text-fg">完了していない課題</label>
             <select
               id="release-move-to"
               v-model="moveTo"
-              class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-800 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+              class="w-full px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface cursor-pointer focus:outline-none focus:border-accent"
             >
               <option v-for="target in moveTargets" :key="target.ID" :value="target.ID">「{{ target.Name }}」へ移す</option>
               <option :value="0">移さずにリリースする（このバージョンのまま）</option>
             </select>
           </div>
         </template>
-        <p v-else class="m-0 text-sm text-gray-700">すべての課題が完了しています。</p>
+        <p v-else class="m-0 text-sm text-fg">すべての課題が完了しています。</p>
         <div class="flex justify-end gap-3">
           <button type="button" :class="secondaryButton" @click="releasing = false">キャンセル</button>
           <button type="submit" :class="primaryButton" :disabled="saving">リリース</button>
@@ -121,7 +121,7 @@
       @cancel="deleting = false"
     />
 
-    <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
+    <div v-if="error" class="fixed bottom-8 right-8 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
       {{ error }}
     </div>
   </SpaceShell>
@@ -169,9 +169,9 @@ const issues = computed(() => (version.value ? issuesOfVersion(todos.value, vers
 const openIssues = computed(() => issues.value.filter(issue => !isDoneCategory(issue.StatusCategory)));
 const progress = computed(() => versionProgress(issues.value));
 
-const primaryButton = 'px-3 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed';
-const secondaryButton = 'px-3 py-1.5 bg-gray-100 text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-200';
-const dangerButton = 'px-3 py-1.5 bg-transparent text-red-600 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-red-50';
+const primaryButton = 'px-3 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed';
+const secondaryButton = 'px-3 py-1.5 bg-raised text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-line';
+const dangerButton = 'px-3 py-1.5 bg-transparent text-danger border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-danger/10';
 
 const fetchAll = async () => {
   try {

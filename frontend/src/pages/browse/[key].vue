@@ -5,18 +5,18 @@
     <div class="px-8 py-6">
       <p v-if="loading" class="m-0 text-fg">読み込み中...</p>
 
-      <div v-else-if="!issue" class="max-w-3xl bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
+      <div v-else-if="!issue" class="max-w-3xl bg-surface rounded-2xl px-8 py-6 shadow-xl text-fg">
         <template v-if="loadError">{{ loadError }}</template>
         <template v-else>
-          <p class="m-0 text-lg font-bold text-gray-900">課題が見つかりません</p>
+          <p class="m-0 text-lg font-bold text-fg">課題が見つかりません</p>
           <p class="mt-2 mb-0 text-sm">
             「{{ issueKey }}」の課題は存在しないか、削除されています。
-            <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
+            <NuxtLink to="/board" class="ml-2 text-accent font-semibold">すべてのスペースのボードを開く</NuxtLink>
           </p>
         </template>
       </div>
 
-      <div v-else class="max-w-6xl bg-white rounded-2xl px-8 py-6 shadow-xl">
+      <div v-else class="max-w-6xl bg-surface rounded-2xl px-8 py-6 shadow-xl">
         <IssueDetail
           :task="issue"
           :epics="epics"
@@ -36,7 +36,7 @@
       </div>
     </div>
 
-    <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
+    <div v-if="error" class="fixed bottom-8 right-8 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
       {{ error }}
     </div>
   </SpaceShell>

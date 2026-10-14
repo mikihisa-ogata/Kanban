@@ -23,7 +23,7 @@
           type="search"
           placeholder="要約・説明・キーを検索"
           aria-label="テキストで検索"
-          class="w-60 px-3 py-1.5 border-0 rounded-md text-sm text-gray-900 bg-white/90 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          class="w-60 px-3 py-1.5 border-0 rounded-md text-sm text-fg bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
           @input="handleTextInput"
         />
         <FilterMenu label="スペース" :options="spaceOptions" :model-value="search.spaces" @update:model-value="update({ spaces: $event })" />
@@ -62,20 +62,20 @@
 
       <div :class="['flex gap-4 items-start', detailKey ? 'flex-col xl:flex-row' : '']">
         <!-- 一覧 -->
-        <section :class="['min-w-0 bg-white rounded-2xl shadow-xl overflow-hidden', detailKey ? 'w-full xl:w-1/2' : 'w-full']">
+        <section :class="['min-w-0 bg-surface rounded-2xl shadow-xl overflow-hidden', detailKey ? 'w-full xl:w-1/2' : 'w-full']">
           <div class="overflow-x-auto">
             <table class="w-full border-collapse text-sm">
               <thead>
-                <tr class="bg-gray-50 text-left text-xs text-gray-500">
+                <tr class="bg-raised text-left text-xs text-muted">
                   <th v-for="column in visibleColumns" :key="column.id" scope="col" class="px-3 py-2 font-semibold whitespace-nowrap" :aria-sort="ariaSort(column)">
                     <button
                       type="button"
-                      class="flex items-center gap-1 p-0 bg-transparent border-0 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-900"
+                      class="flex items-center gap-1 p-0 bg-transparent border-0 text-xs font-semibold text-muted cursor-pointer hover:text-fg"
                       :title="`${column.label}で並べ替え`"
                       @click="sortBy(column)"
                     >
                       {{ column.label }}
-                      <span v-if="currentSort.sort === column.sort" class="text-blue-600" aria-hidden="true">{{ currentSort.order === 'asc' ? '▲' : '▼' }}</span>
+                      <span v-if="currentSort.sort === column.sort" class="text-accent" aria-hidden="true">{{ currentSort.order === 'asc' ? '▲' : '▼' }}</span>
                     </button>
                   </th>
                 </tr>
@@ -84,7 +84,7 @@
                 <tr
                   v-for="issue in result.Issues"
                   :key="issue.ID"
-                  :class="['border-t border-gray-100 cursor-pointer', issue.Key === detailKey ? 'bg-blue-50' : 'hover:bg-gray-50']"
+                  :class="['border-t border-line cursor-pointer', issue.Key === detailKey ? 'bg-accent/10' : 'hover:bg-raised']"
                   :aria-selected="issue.Key === detailKey"
                   @click="openDetail(issue.Key)"
                 >
@@ -93,12 +93,12 @@
                     <a
                       v-else-if="column.id === 'key'"
                       :href="issuePath(issue.Key)"
-                      class="font-mono text-xs font-semibold text-gray-500 whitespace-nowrap no-underline hover:text-blue-600 hover:underline"
+                      class="font-mono text-xs font-semibold text-muted whitespace-nowrap no-underline hover:text-accent hover:underline"
                       @click.prevent="openDetail(issue.Key)"
                     >
                       {{ issue.Key }}
                     </a>
-                    <span v-else-if="column.id === 'summary'" class="block min-w-48 max-w-md truncate text-gray-900" :title="issue.Title">{{ issue.Title }}</span>
+                    <span v-else-if="column.id === 'summary'" class="block min-w-48 max-w-md truncate text-fg" :title="issue.Title">{{ issue.Title }}</span>
                     <span
                       v-else-if="column.id === 'status'"
                       :class="['inline-block max-w-32 truncate px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap', STATUS_CATEGORY_BADGE_CLASS[issue.StatusCategory]]"
@@ -108,31 +108,31 @@
                     <span v-else-if="column.id === 'assignee' || column.id === 'reporter'" class="flex items-center gap-2 whitespace-nowrap">
                       <template v-if="personOf(issue, column.id)">
                         <UserAvatar :user="personOf(issue, column.id)" size="sm" />
-                        <span class="text-gray-800">{{ personOf(issue, column.id).DisplayName }}</span>
+                        <span class="text-fg">{{ personOf(issue, column.id).DisplayName }}</span>
                       </template>
-                      <span v-else class="text-gray-400">{{ column.id === 'assignee' ? '未割り当て' : 'なし' }}</span>
+                      <span v-else class="text-muted">{{ column.id === 'assignee' ? '未割り当て' : 'なし' }}</span>
                     </span>
                     <span v-else-if="column.id === 'priority'" class="flex items-center gap-1 whitespace-nowrap">
                       <PriorityIcon :priority="issue.Priority" />
-                      <span class="text-gray-700">{{ priorityLabel(issue.Priority) }}</span>
+                      <span class="text-fg">{{ priorityLabel(issue.Priority) }}</span>
                     </span>
-                    <span v-else-if="column.id === 'created'" class="text-gray-600 whitespace-nowrap">{{ formatDate(issue.CreatedAt) }}</span>
-                    <span v-else-if="column.id === 'updated'" class="text-gray-600 whitespace-nowrap">{{ formatDate(issue.UpdatedAt) }}</span>
-                    <span v-else-if="column.id === 'due'" class="text-gray-600 whitespace-nowrap">{{ issue.Deadline || '-' }}</span>
+                    <span v-else-if="column.id === 'created'" class="text-muted whitespace-nowrap">{{ formatDate(issue.CreatedAt) }}</span>
+                    <span v-else-if="column.id === 'updated'" class="text-muted whitespace-nowrap">{{ formatDate(issue.UpdatedAt) }}</span>
+                    <span v-else-if="column.id === 'due'" class="text-muted whitespace-nowrap">{{ issue.Deadline || '-' }}</span>
                   </td>
                 </tr>
                 <tr v-if="!loading && !result.Issues.length">
-                  <td :colspan="visibleColumns.length" class="px-3 py-8 text-center text-sm text-gray-500">条件に合う課題はありません。</td>
+                  <td :colspan="visibleColumns.length" class="px-3 py-8 text-center text-sm text-muted">条件に合う課題はありません。</td>
                 </tr>
                 <tr v-if="loading && !result.Issues.length">
-                  <td :colspan="visibleColumns.length" class="px-3 py-8 text-center text-sm text-gray-400">読み込み中...</td>
+                  <td :colspan="visibleColumns.length" class="px-3 py-8 text-center text-sm text-muted">読み込み中...</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           <!-- ページング -->
-          <div class="flex flex-wrap items-center gap-3 px-4 py-3 border-t border-gray-200 text-sm text-gray-600">
+          <div class="flex flex-wrap items-center gap-3 px-4 py-3 border-t border-line text-sm text-muted">
             <span>{{ rangeText }}</span>
             <div v-if="pageCount > 1" class="ml-auto flex items-center gap-1">
               <button type="button" :class="pageButton" :disabled="search.page <= 1" @click="goToPage(search.page - 1)">前へ</button>
@@ -143,8 +143,8 @@
         </section>
 
         <!-- 詳細（Jira の分割ビュー） -->
-        <section v-if="detailKey" class="w-full xl:w-1/2 min-w-0 xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)] overflow-y-auto bg-white rounded-2xl px-6 py-5 shadow-xl">
-          <p v-if="!detailTask" class="m-0 text-sm text-gray-500">{{ detailLoading ? '読み込み中...' : `課題「${detailKey}」が見つかりません。` }}</p>
+        <section v-if="detailKey" class="w-full xl:w-1/2 min-w-0 xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)] overflow-y-auto bg-surface rounded-2xl px-6 py-5 shadow-xl">
+          <p v-if="!detailTask" class="m-0 text-sm text-muted">{{ detailLoading ? '読み込み中...' : `課題「${detailKey}」が見つかりません。` }}</p>
           <IssueDetail
             v-else
             :task="detailTask"
@@ -166,7 +166,7 @@
             <template #actions>
               <NuxtLink
                 :to="issuePath(detailTask.Key)"
-                class="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                class="p-1.5 rounded text-muted hover:bg-raised hover:text-fg"
                 title="全画面で開く"
               >
                 <svg class="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -178,7 +178,7 @@
               </NuxtLink>
               <button
                 type="button"
-                class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 hover:text-gray-600"
+                class="bg-transparent border-0 text-muted text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-raised hover:text-muted"
                 title="閉じる"
                 @click="closeDetail"
               >
@@ -190,7 +190,7 @@
       </div>
     </div>
 
-    <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
+    <div v-if="error" class="fixed bottom-8 right-8 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
       {{ error }}
     </div>
   </SpaceShell>
@@ -384,7 +384,7 @@ const rangeText = computed(() => {
 const goToPage = (page) => {
   navigateTo({ query: withIssueSearch(route.query, { ...search.value, page }) });
 };
-const pageButton = 'px-3 py-1 bg-gray-100 text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed';
+const pageButton = 'px-3 py-1 bg-raised text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-line disabled:opacity-40 disabled:cursor-not-allowed';
 
 // 表示
 const personOf = (issue, column) => (column === 'assignee' ? issue.Assignee : issue.Reporter);

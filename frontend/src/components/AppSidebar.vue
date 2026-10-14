@@ -13,8 +13,8 @@
         @click="switcherOpen = !switcherOpen"
       >
         <span
-          class="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white"
-          :style="{ backgroundColor: currentSpace ? spaceColor(currentSpace) : 'var(--kb-accent)' }"
+          class="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold"
+          :style="currentSpace ? { backgroundColor: spaceColor(currentSpace), color: readableTextOn(spaceColor(currentSpace)) } : { backgroundColor: 'var(--kb-accent)', color: 'var(--kb-on-accent)' }"
           aria-hidden="true"
         >
           {{ currentSpace ? (currentSpace.Key || currentSpace.Title).slice(0, 1) : '全' }}
@@ -211,7 +211,7 @@ import { spacesApi } from '../api/spaces';
 import { todosApi } from '../api/todos';
 import { normalizeSpaceKey, spaceKeyError } from '../utils/spaceKey';
 import { boardPath, backlogPath, issuesPath, releasesPath, settingsPath } from '../utils/spaceRoutes';
-import { spaceColor } from '../utils/spaceColors';
+import { spaceColor, readableTextOn } from '../utils/spaceColors';
 import { useCurrentUser } from '../composables/useCurrentUser';
 
 const props = defineProps({

@@ -1,8 +1,8 @@
 <template>
   <!-- Jira のアバターと同じく、表示名の頭文字をユーザーの色の丸に入れる -->
   <span
-    :class="['shrink-0 inline-flex items-center justify-center rounded-full font-semibold text-white select-none', sizeClass]"
-    :style="{ backgroundColor: user.AvatarColor || '#6B778C' }"
+    :class="['shrink-0 inline-flex items-center justify-center rounded-full font-semibold select-none', sizeClass]"
+    :style="{ backgroundColor: color, color: readableTextOn(color) }"
     :title="user.DisplayName"
     aria-hidden="true"
   >
@@ -12,6 +12,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { readableTextOn } from '../utils/spaceColors';
 
 const props = defineProps({
   // { DisplayName, AvatarColor }
@@ -25,6 +26,9 @@ const props = defineProps({
     validator: (value) => ['xs', 'sm', 'md', 'lg'].includes(value)
   }
 });
+
+// 文字の色は、背景のユーザーの色に合わせて読みやすい方（白か濃い色）にする
+const color = computed(() => props.user.AvatarColor || '#6B778C');
 
 const initial = computed(() => Array.from(props.user.DisplayName || '?')[0].toUpperCase());
 
