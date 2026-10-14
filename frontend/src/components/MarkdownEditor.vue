@@ -10,13 +10,13 @@
         :aria-selected="mode === tab.value"
         :class="[
           'px-3 py-1 border-0 rounded-md text-xs font-semibold cursor-pointer',
-          mode === tab.value ? 'bg-gray-200 text-gray-900' : 'bg-transparent text-gray-500 hover:bg-gray-100'
+          mode === tab.value ? 'bg-line text-fg' : 'bg-transparent text-muted hover:bg-raised'
         ]"
         @click="switchMode(tab.value)"
       >
         {{ tab.label }}
       </button>
-      <span class="ml-auto self-center text-xs text-gray-400">Markdown が使えます</span>
+      <span class="ml-auto self-center text-xs text-muted">Markdown が使えます</span>
     </div>
     <div v-show="mode === 'edit'" class="relative">
       <textarea
@@ -28,7 +28,7 @@
         :aria-label="ariaLabel"
         :aria-expanded="mentionCandidates.length > 0"
         aria-autocomplete="list"
-        class="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white resize-y transition-all duration-200 focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+        class="block w-full px-3 py-2.5 border-2 border-line rounded-lg text-sm text-fg bg-surface resize-y transition-all duration-200 focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
         @input="handleInput"
         @keydown="handleKeydown"
         @click="detectMention"
@@ -39,31 +39,31 @@
         v-if="mentionCandidates.length"
         role="listbox"
         aria-label="メンションするユーザー"
-        class="absolute left-0 top-full mt-1 m-0 p-1 w-72 max-w-full list-none bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-64 overflow-y-auto"
+        class="absolute left-0 top-full mt-1 m-0 p-1 w-72 max-w-full list-none bg-surface border border-line rounded-lg shadow-lg z-20 max-h-64 overflow-y-auto"
       >
         <li
           v-for="(user, index) in mentionCandidates"
           :key="user.ID"
           role="option"
           :aria-selected="index === mentionIndex"
-          :class="['flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer', index === mentionIndex ? 'bg-blue-50' : 'hover:bg-gray-100']"
+          :class="['flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer', index === mentionIndex ? 'bg-accent/10' : 'hover:bg-raised']"
           @mousedown.prevent="insertMention(user)"
           @mouseenter="mentionIndex = index"
         >
           <UserAvatar :user="user" size="sm" />
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm text-gray-900">{{ user.DisplayName }}</span>
-            <span class="block truncate text-xs text-gray-500">{{ user.Email }}</span>
+            <span class="block truncate text-sm text-fg">{{ user.DisplayName }}</span>
+            <span class="block truncate text-xs text-muted">{{ user.Email }}</span>
           </span>
         </li>
       </ul>
     </div>
     <div
       v-if="mode === 'preview'"
-      class="min-h-24 px-3 py-2.5 border-2 border-dashed border-gray-300 rounded-lg bg-white"
+      class="min-h-24 px-3 py-2.5 border-2 border-dashed border-line rounded-lg bg-surface"
     >
       <MarkdownView v-if="modelValue.trim()" :source="modelValue" />
-      <p v-else class="m-0 text-sm text-gray-400">プレビューする内容がありません</p>
+      <p v-else class="m-0 text-sm text-muted">プレビューする内容がありません</p>
     </div>
   </div>
 </template>

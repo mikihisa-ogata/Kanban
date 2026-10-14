@@ -2,7 +2,7 @@
   <!-- サイドバーの作成ボタン・ツールバーの「+ 新規課題」から開く課題の作成モーダル。どのページからでも使える -->
   <div
     v-if="open && loaded"
-    class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-overlay flex items-center justify-center z-50"
     @click.self="close"
   >
     <TaskForm
@@ -19,15 +19,15 @@
   <button
     v-if="created"
     type="button"
-    class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-xl text-sm font-semibold border-0 cursor-pointer animate-slideIn"
+    class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-surface text-fg px-5 py-3 rounded-xl shadow-xl text-sm font-semibold border border-line cursor-pointer animate-slideIn"
     @click="openCreated"
   >
-    <span class="text-emerald-400" aria-hidden="true">✓</span>
+    <span class="text-success" aria-hidden="true">✓</span>
     <span><span class="font-mono">{{ created.Key || created.Title }}</span> を作成しました</span>
-    <span class="text-blue-300 underline">表示</span>
+    <span class="text-accent underline">表示</span>
   </button>
 
-  <div v-if="error" class="fixed bottom-8 right-8 z-50 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
+  <div v-if="error" class="fixed bottom-8 right-8 z-50 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
     {{ error }}
   </div>
 </template>

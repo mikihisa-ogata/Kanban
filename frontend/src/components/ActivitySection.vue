@@ -3,11 +3,11 @@
        「すべて / コメント / 作業ログ / 履歴」のタブで、コメント・作業ログ・変更履歴を時系列に表示する。コメントは Markdown で投稿・編集・削除できる -->
   <section>
     <div class="flex items-center gap-2 mb-2">
-      <h2 class="m-0 text-sm font-semibold text-gray-700">アクティビティ</h2>
+      <h2 class="m-0 text-sm font-semibold text-fg">アクティビティ</h2>
       <button
         v-if="items.length > 1"
         type="button"
-        class="ml-auto px-2 py-1 bg-transparent border-0 rounded-md text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100"
+        class="ml-auto px-2 py-1 bg-transparent border-0 rounded-md text-xs font-semibold text-muted cursor-pointer hover:bg-raised"
         :title="newestFirst ? '古い順に並べる' : '新しい順に並べる'"
         @click="toggleOrder"
       >
@@ -24,7 +24,7 @@
         :aria-selected="tab === option.value"
         :class="[
           'px-3 py-1 border-0 rounded-md text-xs font-semibold cursor-pointer',
-          tab === option.value ? 'bg-blue-50 text-blue-700' : 'bg-transparent text-gray-500 hover:bg-gray-100'
+          tab === option.value ? 'bg-accent/10 text-accent' : 'bg-transparent text-muted hover:bg-raised'
         ]"
         @click="tab = option.value"
       >
@@ -48,14 +48,14 @@
           <button
             type="button"
             :disabled="!newBody.trim() || busy"
-            class="px-4 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-4 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
             @click="createComment"
           >
             保存
           </button>
           <button
             type="button"
-            class="px-4 py-1.5 bg-transparent text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-100"
+            class="px-4 py-1.5 bg-transparent text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-raised"
             @click="cancelNew"
           >
             キャンセル
@@ -65,26 +65,26 @@
       <button
         v-else
         type="button"
-        class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg bg-white text-left text-sm text-gray-400 cursor-text hover:border-gray-400"
+        class="w-full px-3 py-2 border-2 border-line rounded-lg bg-surface text-left text-sm text-muted cursor-text hover:border-line"
         @click="startNew"
       >
         {{ newBody.trim() ? '書きかけのコメントを続ける...' : 'コメントを追加...' }}
       </button>
     </template>
-    <p v-if="error" class="mt-1 mb-0 text-xs text-red-600">{{ error }}</p>
+    <p v-if="error" class="mt-1 mb-0 text-xs text-danger">{{ error }}</p>
 
-    <p v-if="loading" class="mt-3 mb-0 text-sm text-gray-400">読み込み中...</p>
+    <p v-if="loading" class="mt-3 mb-0 text-sm text-muted">読み込み中...</p>
     <ul v-else-if="visibleItems.length" class="mt-4 mb-0 p-0 list-none flex flex-col gap-4">
       <li v-for="item in visibleItems" :key="item.key">
         <!-- コメント -->
         <template v-if="item.kind === 'comment'">
-          <div class="flex items-center gap-2 text-xs text-gray-500">
+          <div class="flex items-center gap-2 text-xs text-muted">
             <!-- 投稿者（ユーザー機能の追加前のコメントは投稿者なし） -->
             <template v-if="item.comment.Author">
               <UserAvatar :user="item.comment.Author" size="sm" />
-              <span class="font-semibold text-gray-800">{{ item.comment.Author.DisplayName }}</span>
+              <span class="font-semibold text-fg">{{ item.comment.Author.DisplayName }}</span>
             </template>
-            <span v-else class="font-semibold text-gray-600">コメント</span>
+            <span v-else class="font-semibold text-muted">コメント</span>
             <!-- 日時は相対表示し、ホバーで絶対日時を出す -->
             <time :datetime="item.comment.CreatedAt" :title="formatDateTime(item.comment.CreatedAt)">{{ formatRelativeTime(item.comment.CreatedAt, now) }}</time>
             <span v-if="item.comment.UpdatedAt" :title="`編集: ${formatDateTime(item.comment.UpdatedAt)}`">・編集済み</span>
@@ -102,14 +102,14 @@
               <button
                 type="button"
                 :disabled="!editBody.trim() || busy"
-                class="px-4 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-4 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 @click="saveEdit"
               >
                 保存
               </button>
               <button
                 type="button"
-                class="px-4 py-1.5 bg-transparent text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                class="px-4 py-1.5 bg-transparent text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-raised"
                 @click="cancelEdit"
               >
                 キャンセル
@@ -123,14 +123,14 @@
             <div class="mt-1 flex gap-3">
               <button
                 type="button"
-                class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-500 cursor-pointer hover:text-blue-600 hover:underline"
+                class="bg-transparent border-0 p-0 text-xs font-semibold text-muted cursor-pointer hover:text-accent hover:underline"
                 @click="startEdit(item.comment)"
               >
                 編集
               </button>
               <button
                 type="button"
-                class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-500 cursor-pointer hover:text-red-600 hover:underline"
+                class="bg-transparent border-0 p-0 text-xs font-semibold text-muted cursor-pointer hover:text-danger hover:underline"
                 @click="confirmingDelete = item.comment"
               >
                 削除
@@ -141,27 +141,27 @@
 
         <!-- 作業ログ -->
         <template v-else-if="item.kind === 'worklog'">
-          <div class="flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
-            <span class="font-semibold text-gray-600">作業を記録しました</span>
+          <div class="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+            <span class="font-semibold text-muted">作業を記録しました</span>
             <time :datetime="item.worklog.CreatedAt" :title="formatDateTime(item.worklog.CreatedAt)">{{ formatRelativeTime(item.worklog.CreatedAt, now) }}</time>
             <span v-if="item.worklog.UpdatedAt" :title="`編集: ${formatDateTime(item.worklog.UpdatedAt)}`">・編集済み</span>
           </div>
-          <p class="mt-1 mb-0 text-sm text-gray-900">
+          <p class="mt-1 mb-0 text-sm text-fg">
             <span class="font-semibold">{{ formatDuration(item.worklog.Minutes) }}</span>
-            <span class="ml-2 text-xs text-gray-500">開始 {{ formatDateTime(item.worklog.StartedAt) }}</span>
+            <span class="ml-2 text-xs text-muted">開始 {{ formatDateTime(item.worklog.StartedAt) }}</span>
           </p>
-          <p v-if="item.worklog.Note" class="mt-1 mb-0 text-sm text-gray-700 whitespace-pre-wrap break-words">{{ item.worklog.Note }}</p>
+          <p v-if="item.worklog.Note" class="mt-1 mb-0 text-sm text-fg whitespace-pre-wrap break-words">{{ item.worklog.Note }}</p>
           <div class="mt-1 flex gap-3">
             <button
               type="button"
-              class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-500 cursor-pointer hover:text-blue-600 hover:underline"
+              class="bg-transparent border-0 p-0 text-xs font-semibold text-muted cursor-pointer hover:text-accent hover:underline"
               @click="editingWorklog = item.worklog"
             >
               編集
             </button>
             <button
               type="button"
-              class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-500 cursor-pointer hover:text-red-600 hover:underline"
+              class="bg-transparent border-0 p-0 text-xs font-semibold text-muted cursor-pointer hover:text-danger hover:underline"
               @click="confirmingWorklogDelete = item.worklog"
             >
               削除
@@ -171,31 +171,31 @@
 
         <!-- 変更履歴（同じ操作で変わった項目はまとめて出す） -->
         <template v-else>
-          <div class="flex items-center gap-2 text-xs text-gray-500">
+          <div class="flex items-center gap-2 text-xs text-muted">
             <!-- 変更したユーザー（ユーザー機能の追加前の記録は変更者なし） -->
             <template v-if="item.user">
               <UserAvatar :user="item.user" size="sm" />
-              <span class="font-semibold text-gray-800">{{ item.user.DisplayName }}</span>
+              <span class="font-semibold text-fg">{{ item.user.DisplayName }}</span>
             </template>
-            <span class="font-semibold text-gray-600">{{ item.created ? '課題を作成しました' : '変更しました' }}</span>
+            <span class="font-semibold text-muted">{{ item.created ? '課題を作成しました' : '変更しました' }}</span>
             <time :datetime="item.time" :title="formatDateTime(item.time)">{{ formatRelativeTime(item.time, now) }}</time>
           </div>
           <ul v-if="item.changes.length" class="mt-1 mb-0 p-0 list-none flex flex-col gap-1">
             <li v-for="entry in item.changes" :key="entry.ID" class="flex flex-wrap items-baseline gap-x-2 text-sm">
-              <span class="shrink-0 text-gray-600 font-semibold">{{ historyFieldLabel(entry.Field) }}</span>
+              <span class="shrink-0 text-muted font-semibold">{{ historyFieldLabel(entry.Field) }}</span>
               <span
-                :class="['min-w-0 break-words line-clamp-3 whitespace-pre-wrap', entry.OldValue == null ? 'text-gray-400' : 'text-gray-500 line-through']"
+                :class="['min-w-0 break-words line-clamp-3 whitespace-pre-wrap', entry.OldValue == null ? 'text-muted' : 'text-muted line-through']"
               >{{ formatHistoryValue(entry.Field, entry.OldValue) }}</span>
-              <span class="text-gray-400" aria-label="から">→</span>
+              <span class="text-muted" aria-label="から">→</span>
               <span
-                :class="['min-w-0 break-words line-clamp-3 whitespace-pre-wrap', entry.NewValue == null ? 'text-gray-400' : 'text-gray-900']"
+                :class="['min-w-0 break-words line-clamp-3 whitespace-pre-wrap', entry.NewValue == null ? 'text-muted' : 'text-fg']"
               >{{ formatHistoryValue(entry.Field, entry.NewValue) }}</span>
             </li>
           </ul>
         </template>
       </li>
     </ul>
-    <p v-else class="mt-3 mb-0 text-sm text-gray-400">
+    <p v-else class="mt-3 mb-0 text-sm text-muted">
       {{ { all: 'アクティビティはありません', comments: 'コメントはありません', worklogs: '作業ログはありません', history: '変更履歴はありません' }[tab] }}
     </p>
 

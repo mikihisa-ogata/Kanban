@@ -1,66 +1,66 @@
 <template>
   <!-- スプリントの開始・編集（Jira の「スプリントを開始」）。名前・期間・ゴールを入れる -->
-  <div class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50" @click.self="$emit('cancel')">
+  <div class="fixed inset-0 bg-overlay flex items-center justify-center z-50" @click.self="$emit('cancel')">
     <form
       role="dialog"
       aria-modal="true"
       aria-labelledby="sprint-dialog-title"
-      class="bg-white rounded-2xl px-8 pt-7 pb-6 shadow-2xl mx-4 max-w-lg w-full flex flex-col gap-4"
+      class="bg-surface rounded-2xl px-8 pt-7 pb-6 shadow-2xl mx-4 max-w-lg w-full flex flex-col gap-4"
       @submit.prevent="submit"
     >
-      <h3 id="sprint-dialog-title" class="m-0 text-lg font-bold text-gray-900">
+      <h3 id="sprint-dialog-title" class="m-0 text-lg font-bold text-fg">
         {{ mode === 'start' ? 'スプリントを開始' : 'スプリントを編集' }}
       </h3>
-      <p v-if="mode === 'start'" class="m-0 text-sm text-gray-600">
+      <p v-if="mode === 'start'" class="m-0 text-sm text-muted">
         このスプリントの課題 {{ issueCount }} 件で開始します。開始すると、ボードにはこのスプリントの課題だけが表示されます。
       </p>
 
       <div>
-        <label for="sprint-name" class="block mb-1 text-sm font-semibold text-gray-700">スプリント名 <span class="text-red-500">*</span></label>
+        <label for="sprint-name" class="block mb-1 text-sm font-semibold text-fg">スプリント名 <span class="text-danger">*</span></label>
         <input
           id="sprint-name"
           v-model="form.name"
           type="text"
           maxlength="100"
-          class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+          class="w-full px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface focus:outline-none focus:border-accent"
         />
       </div>
       <div class="flex gap-3">
         <div class="flex-1">
-          <label for="sprint-start" class="block mb-1 text-sm font-semibold text-gray-700">開始日 <span v-if="needDates" class="text-red-500">*</span></label>
+          <label for="sprint-start" class="block mb-1 text-sm font-semibold text-fg">開始日 <span v-if="needDates" class="text-danger">*</span></label>
           <input
             id="sprint-start"
             v-model="form.startDate"
             type="date"
-            class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+            class="w-full px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface focus:outline-none focus:border-accent"
           />
         </div>
         <div class="flex-1">
-          <label for="sprint-end" class="block mb-1 text-sm font-semibold text-gray-700">終了日 <span v-if="needDates" class="text-red-500">*</span></label>
+          <label for="sprint-end" class="block mb-1 text-sm font-semibold text-fg">終了日 <span v-if="needDates" class="text-danger">*</span></label>
           <input
             id="sprint-end"
             v-model="form.endDate"
             type="date"
-            class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+            class="w-full px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface focus:outline-none focus:border-accent"
           />
         </div>
       </div>
       <div>
-        <label for="sprint-goal" class="block mb-1 text-sm font-semibold text-gray-700">スプリントのゴール</label>
+        <label for="sprint-goal" class="block mb-1 text-sm font-semibold text-fg">スプリントのゴール</label>
         <textarea
           id="sprint-goal"
           v-model="form.goal"
           rows="3"
           maxlength="1000"
-          class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white resize-y focus:outline-none focus:border-blue-500"
+          class="w-full px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface resize-y focus:outline-none focus:border-accent"
         ></textarea>
       </div>
-      <p v-if="validationError" class="m-0 text-sm text-red-600">{{ validationError }}</p>
+      <p v-if="validationError" class="m-0 text-sm text-danger">{{ validationError }}</p>
 
       <div class="flex justify-end gap-3">
         <button
           type="button"
-          class="py-2 px-5 bg-white text-gray-700 border-2 border-gray-300 rounded-lg text-sm font-semibold cursor-pointer hover:bg-gray-50"
+          class="py-2 px-5 bg-surface text-fg border-2 border-line rounded-lg text-sm font-semibold cursor-pointer hover:bg-raised"
           @click="$emit('cancel')"
         >
           キャンセル
@@ -68,7 +68,7 @@
         <button
           type="submit"
           :disabled="!!validationError || busy"
-          class="py-2 px-5 bg-blue-600 text-white border-2 border-blue-600 rounded-lg text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="py-2 px-5 bg-accent text-on-accent border-2 border-accent rounded-lg text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ mode === 'start' ? '開始' : '保存' }}
         </button>

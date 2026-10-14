@@ -20,9 +20,11 @@
   --kb-accent-hover: #4c57c0;
   --kb-on-accent: #ffffff;     /* アクセントの上の文字 */
   --kb-danger: #d03a3a;        /* 誤り・削除・期限切れ */
+  --kb-on-danger: #ffffff;     /* 危険色の上の文字 */
   --kb-warning: #a96c00;       /* 注意・進行中 */
   --kb-success: #2b8a4b;       /* 成功・完了 */
   --kb-scrollbar: rgba(0, 0, 0, 0.2);
+  --kb-overlay: rgba(15, 17, 21, 0.4); /* モーダルの後ろの暗幕 */
 }
 
 :root[data-theme="dark"] {
@@ -38,9 +40,11 @@
   --kb-accent-hover: #6f7ae0;
   --kb-on-accent: #ffffff;
   --kb-danger: #f07272;
+  --kb-on-danger: #1a0b0b;
   --kb-warning: #e6b84a;
   --kb-success: #5cc489;
   --kb-scrollbar: rgba(255, 255, 255, 0.18);
+  --kb-overlay: rgba(0, 0, 0, 0.6);
 }
 
 /* テーマを選んでいない（システムに合わせる）ときは OS の設定に従う。値は上のダークと同じにする */
@@ -58,9 +62,11 @@
     --kb-accent-hover: #6f7ae0;
     --kb-on-accent: #ffffff;
     --kb-danger: #f07272;
+  --kb-on-danger: #1a0b0b;
     --kb-warning: #e6b84a;
     --kb-success: #5cc489;
     --kb-scrollbar: rgba(255, 255, 255, 0.18);
+  --kb-overlay: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -76,6 +82,8 @@
   --color-accent-hover: var(--kb-accent-hover);
   --color-on-accent: var(--kb-on-accent);
   --color-danger: var(--kb-danger);
+  --color-on-danger: var(--kb-on-danger);
+  --color-overlay: var(--kb-overlay);
   --color-warning: var(--kb-warning);
   --color-success: var(--kb-success);
 }

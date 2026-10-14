@@ -1,16 +1,16 @@
 <template>
   <!-- 選択中の値を枠付きのチップで表示し、選択肢から選んだ値だとわかるようにする -->
-  <div class="relative inline-flex items-center min-w-0 max-w-full min-h-10 pl-1.5 pr-9 py-1 border-2 border-gray-300 rounded-lg bg-white cursor-pointer transition-all duration-200 hover:border-gray-400 focus-within:border-blue-500 focus-within:shadow-sm focus-within:shadow-blue-100">
+  <div class="relative inline-flex items-center min-w-0 max-w-full min-h-10 pl-1.5 pr-9 py-1 border-2 border-line rounded-lg bg-surface cursor-pointer transition-all duration-200 hover:border-line focus-within:border-accent focus-within:shadow-sm focus-within:shadow-accent/20">
     <span
       v-if="selectedLabel"
       :class="[
         'block truncate px-2.5 py-0.5 rounded-md border text-sm font-medium',
-        isEmpty ? 'border-gray-300 bg-gray-50 text-gray-500' : 'border-blue-300 bg-blue-50 text-blue-700'
+        isEmpty ? 'border-line bg-raised text-muted' : 'border-accent bg-accent/10 text-accent'
       ]"
     >
       {{ selectedLabel }}
     </span>
-    <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
     </svg>
     <!-- 見た目はチップで出し、操作はブラウザ標準のセレクトに任せる -->

@@ -2,18 +2,18 @@
   <!-- ラベルの入力欄。付けたラベルをチップで出し、入力中は既存のラベルを補完候補に出す。新しいラベルはその場で作れる -->
   <div class="relative min-w-0 w-full">
     <div
-      class="flex flex-wrap items-center gap-1.5 min-h-10 px-2 py-1.5 border-2 border-gray-300 rounded-lg bg-white cursor-text transition-all duration-200 hover:border-gray-400 focus-within:border-blue-500 focus-within:shadow-sm focus-within:shadow-blue-100"
+      class="flex flex-wrap items-center gap-1.5 min-h-10 px-2 py-1.5 border-2 border-line rounded-lg bg-surface cursor-text transition-all duration-200 hover:border-line focus-within:border-accent focus-within:shadow-sm focus-within:shadow-accent/20"
       @click="inputRef?.focus()"
     >
       <span
         v-for="label in modelValue"
         :key="label"
-        class="inline-flex items-center gap-1 max-w-full pl-2 pr-1 py-0.5 rounded bg-gray-100 border border-gray-300 text-sm text-gray-800"
+        class="inline-flex items-center gap-1 max-w-full pl-2 pr-1 py-0.5 rounded bg-raised border border-line text-sm text-fg"
       >
         <span class="truncate">{{ label }}</span>
         <button
           type="button"
-          class="bg-transparent border-0 p-0 w-4 h-4 flex items-center justify-center rounded text-gray-500 cursor-pointer hover:bg-gray-300 hover:text-gray-800 leading-none"
+          class="bg-transparent border-0 p-0 w-4 h-4 flex items-center justify-center rounded text-muted cursor-pointer hover:bg-line hover:text-fg leading-none"
           :title="`${label} を外す`"
           @click.stop="remove(label)"
         >
@@ -29,7 +29,7 @@
         role="combobox"
         :aria-expanded="showSuggestions"
         :placeholder="modelValue.length ? '' : 'ラベルを入力'"
-        class="flex-1 min-w-24 border-0 p-0.5 text-sm text-gray-900 bg-transparent focus:outline-none"
+        class="flex-1 min-w-24 border-0 p-0.5 text-sm text-fg bg-transparent focus:outline-none"
         @keydown="handleKeydown"
         @focus="focused = true"
         @blur="handleBlur"
@@ -38,7 +38,7 @@
 
     <ul
       v-if="showSuggestions"
-      class="absolute z-10 left-0 right-0 mt-1 m-0 p-1 list-none bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto"
+      class="absolute z-10 left-0 right-0 mt-1 m-0 p-1 list-none bg-surface border border-line rounded-lg shadow-lg max-h-56 overflow-y-auto"
       role="listbox"
     >
       <li
@@ -48,7 +48,7 @@
         :aria-selected="index === activeIndex"
         :class="[
           'px-3 py-1.5 rounded text-sm cursor-pointer truncate',
-          index === activeIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-800 hover:bg-gray-100'
+          index === activeIndex ? 'bg-accent/10 text-accent' : 'text-fg hover:bg-raised'
         ]"
         @mousedown.prevent="add(option.value)"
         @mouseenter="activeIndex = index"
@@ -57,7 +57,7 @@
         <template v-else>{{ option.value }}</template>
       </li>
     </ul>
-    <p v-if="error" class="mt-1 mb-0 text-xs text-red-600">{{ error }}</p>
+    <p v-if="error" class="mt-1 mb-0 text-xs text-danger">{{ error }}</p>
   </div>
 </template>
 

@@ -8,9 +8,9 @@
   >
     <PageToolbar v-if="spaceNotFound" :crumbs="[{ label: 'ボード' }]" />
     <div v-if="spaceNotFound" class="px-8 py-6">
-      <div class="bg-white rounded-2xl px-8 py-6 shadow-xl text-gray-700">
+      <div class="bg-surface rounded-2xl px-8 py-6 shadow-xl text-fg">
         スペース「{{ spaceKey }}」が見つかりません。
-        <NuxtLink to="/board" class="ml-2 text-blue-600 font-semibold">すべてのスペースのボードを開く</NuxtLink>
+        <NuxtLink to="/board" class="ml-2 text-accent font-semibold">すべてのスペースのボードを開く</NuxtLink>
       </div>
     </div>
 
@@ -228,14 +228,14 @@
       </div>
     </div>
 
-    <div v-if="error" class="fixed bottom-8 right-8 bg-red-100 text-red-800 px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-red-500 animate-slideIn">
+    <div v-if="error" class="fixed bottom-8 right-8 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
       {{ error }}
     </div>
     
     <!-- モーダル背景 -->
     <div 
       v-if="showModalForm"
-      class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-overlay flex items-center justify-center z-50"
       @click.self="closeModal"
     >
       <TaskForm 
@@ -254,10 +254,10 @@
     <!-- タスク詳細のモーダル（全画面のページと同じ内容をその場で編集する） -->
     <div
       v-if="detailTask"
-      class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-overlay flex items-center justify-center z-50"
       @click.self="closeDetailModal"
     >
-      <div class="bg-white rounded-2xl px-8 py-6 shadow-2xl mx-4 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="bg-surface rounded-2xl px-8 py-6 shadow-2xl mx-4 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         <IssueDetail
           :task="detailTask"
           :epics="epics"
@@ -279,7 +279,7 @@
             <!-- 課題の削除（ボードのカードからは消せない） -->
             <button
               type="button"
-              class="p-1.5 border-0 rounded bg-transparent text-gray-500 cursor-pointer hover:bg-red-50 hover:text-red-600"
+              class="p-1.5 border-0 rounded bg-transparent text-muted cursor-pointer hover:bg-danger/10 hover:text-danger"
               title="課題を削除"
               aria-label="課題を削除"
               @click="handleDeleteTodo(detailTask.ID)"
@@ -292,7 +292,7 @@
             </button>
             <NuxtLink
               :to="issuePath(detailTask.Key)"
-              class="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              class="p-1.5 rounded text-muted hover:bg-raised hover:text-fg"
               title="全画面で開く"
             >
               <svg class="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -304,7 +304,7 @@
             </NuxtLink>
             <button
               type="button"
-              class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 hover:text-gray-600"
+              class="bg-transparent border-0 text-muted text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-raised hover:text-muted"
               title="閉じる"
               @click="closeDetailModal"
             >

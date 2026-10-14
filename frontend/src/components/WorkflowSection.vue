@@ -1,19 +1,19 @@
 <template>
   <!-- スペースの設定の「ワークフロー」。ボードの列になるステータスを追加・名前変更・並べ替え・削除する -->
-  <section class="bg-white rounded-2xl px-8 py-6 shadow-xl">
-    <h3 class="m-0 mb-1 text-lg font-bold text-gray-900">ワークフロー</h3>
-    <p class="m-0 mb-4 text-sm text-gray-600">
+  <section class="bg-surface rounded-2xl px-8 py-6 shadow-xl">
+    <h3 class="m-0 mb-1 text-lg font-bold text-fg">ワークフロー</h3>
+    <p class="m-0 mb-4 text-sm text-muted">
       ステータスはボードの列になります（上から順に左から並びます）。カテゴリが「完了」のステータスにした課題は完了扱いになります。
       「最大」を入れると、列の課題がその件数を超えたときにボードの列が赤くなります（移動は止めません）。
     </p>
 
-    <p v-if="loading" class="m-0 text-sm text-gray-400">読み込み中...</p>
-    <ol v-else class="m-0 p-0 list-none border border-gray-200 rounded-lg divide-y divide-gray-200">
+    <p v-if="loading" class="m-0 text-sm text-muted">読み込み中...</p>
+    <ol v-else class="m-0 p-0 list-none border border-line rounded-lg divide-y divide-line">
       <li v-for="(status, index) in spaceStatuses" :key="status.ID" class="flex items-center gap-3 px-3 py-2">
         <div class="flex flex-col">
           <button
             type="button"
-            class="bg-transparent border-0 p-0 w-6 h-4 leading-none text-gray-400 cursor-pointer hover:text-gray-700 disabled:opacity-30 disabled:cursor-default"
+            class="bg-transparent border-0 p-0 w-6 h-4 leading-none text-muted cursor-pointer hover:text-fg disabled:opacity-30 disabled:cursor-default"
             :disabled="index === 0 || busy"
             :aria-label="`${status.Name} を上へ`"
             @click="move(index, -1)"
@@ -22,7 +22,7 @@
           </button>
           <button
             type="button"
-            class="bg-transparent border-0 p-0 w-6 h-4 leading-none text-gray-400 cursor-pointer hover:text-gray-700 disabled:opacity-30 disabled:cursor-default"
+            class="bg-transparent border-0 p-0 w-6 h-4 leading-none text-muted cursor-pointer hover:text-fg disabled:opacity-30 disabled:cursor-default"
             :disabled="index === spaceStatuses.length - 1 || busy"
             :aria-label="`${status.Name} を下へ`"
             @click="move(index, 1)"
@@ -38,7 +38,7 @@
           type="text"
           maxlength="50"
           :aria-label="`${status.Name} の新しい名前`"
-          class="flex-1 min-w-0 px-2 py-1 border-2 border-blue-500 rounded-md text-sm text-gray-900 bg-white focus:outline-none"
+          class="flex-1 min-w-0 px-2 py-1 border-2 border-accent rounded-md text-sm text-fg bg-surface focus:outline-none"
           @keydown.enter="handleRenameEnter"
           @keydown.esc="renamingId = null"
           @blur="saveRename"
@@ -46,7 +46,7 @@
         <button
           v-else
           type="button"
-          class="flex-1 min-w-0 truncate bg-transparent border-0 px-2 py-1 rounded-md text-left text-sm font-semibold text-gray-900 cursor-text hover:bg-gray-100"
+          class="flex-1 min-w-0 truncate bg-transparent border-0 px-2 py-1 rounded-md text-left text-sm font-semibold text-fg cursor-text hover:bg-raised"
           title="クリックして名前を変更"
           @click="startRename(status)"
         >
@@ -56,9 +56,9 @@
         <span :class="['shrink-0 px-2 py-0.5 rounded text-xs font-semibold', STATUS_CATEGORY_BADGE_CLASS[status.Category]]">
           {{ statusCategoryLabel(status.Category) }}
         </span>
-        <span class="shrink-0 w-14 text-right text-xs text-gray-500">{{ usage(status) }} 件</span>
+        <span class="shrink-0 w-14 text-right text-xs text-muted">{{ usage(status) }} 件</span>
         <!-- 列の最大件数（WIP 制限）。空欄は制限なし。Enter かフォーカスを外すと保存 -->
-        <label class="shrink-0 flex items-center gap-1 text-xs text-gray-500">
+        <label class="shrink-0 flex items-center gap-1 text-xs text-muted">
           最大
           <input
             :value="status.WIPLimit ?? ''"
@@ -68,14 +68,14 @@
             step="1"
             placeholder="なし"
             :aria-label="`${status.Name} の最大件数`"
-            class="w-16 px-2 py-1 border-2 border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+            class="w-16 px-2 py-1 border-2 border-line rounded-md text-sm text-fg bg-surface focus:outline-none focus:border-accent"
             @keydown.enter.prevent="$event.target.blur()"
             @change="saveWipLimit(status, $event)"
           />
         </label>
         <button
           type="button"
-          class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 text-lg leading-none cursor-pointer hover:bg-red-100 hover:text-red-500 disabled:opacity-30 disabled:cursor-default"
+          class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-muted text-lg leading-none cursor-pointer hover:bg-danger/10 hover:text-danger disabled:opacity-30 disabled:cursor-default"
           :disabled="spaceStatuses.length <= 1"
           :title="spaceStatuses.length <= 1 ? '最後のステータスは削除できません' : `${status.Name} を削除`"
           @click="startDelete(status)"
@@ -92,53 +92,53 @@
         maxlength="50"
         placeholder="ステータスを追加"
         aria-label="追加するステータスの名前"
-        class="flex-1 min-w-40 px-3 py-1.5 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+        class="flex-1 min-w-40 px-3 py-1.5 border-2 border-line rounded-lg text-sm text-fg bg-surface focus:outline-none focus:border-accent"
         @keydown.enter="handleAddEnter"
       />
       <select
         v-model="newCategory"
         aria-label="追加するステータスのカテゴリ"
-        class="px-2 py-1.5 border-2 border-gray-300 rounded-lg text-sm text-gray-800 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+        class="px-2 py-1.5 border-2 border-line rounded-lg text-sm text-fg bg-surface cursor-pointer focus:outline-none focus:border-accent"
       >
         <option v-for="category in STATUS_CATEGORIES" :key="category.value" :value="category.value">{{ category.label }}</option>
       </select>
       <button
         type="submit"
         :disabled="!newName.trim() || busy"
-        class="px-4 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="px-4 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
       >
         追加
       </button>
     </form>
-    <p v-if="error" class="mt-2 mb-0 text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="mt-2 mb-0 text-sm text-danger">{{ error }}</p>
 
     <!-- 削除の確認。使われているステータスは移し先を選ばせる -->
     <div
       v-if="deleting"
-      class="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-overlay flex items-center justify-center z-50"
       @click.self="deleting = null"
     >
-      <div role="alertdialog" aria-modal="true" aria-labelledby="delete-status-title" class="bg-white rounded-2xl px-8 pt-7 pb-6 shadow-2xl mx-4 max-w-md w-full">
-        <h3 id="delete-status-title" class="m-0 text-lg font-bold text-gray-900">ステータス「{{ deleting.Name }}」を削除しますか？</h3>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="delete-status-title" class="bg-surface rounded-2xl px-8 pt-7 pb-6 shadow-2xl mx-4 max-w-md w-full">
+        <h3 id="delete-status-title" class="m-0 text-lg font-bold text-fg">ステータス「{{ deleting.Name }}」を削除しますか？</h3>
         <template v-if="usage(deleting) > 0">
-          <p class="mt-3 mb-2 text-sm text-gray-600">
+          <p class="mt-3 mb-2 text-sm text-muted">
             このステータスの課題が {{ usage(deleting) }} 件あります。移し先のステータスを選んでください。
           </p>
           <select
             v-model="moveTo"
             aria-label="移し先のステータス"
-            class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-800 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+            class="w-full px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface cursor-pointer focus:outline-none focus:border-accent"
           >
             <option v-for="status in moveTargets" :key="status.ID" :value="status.ID">
               {{ status.Name }}（{{ statusCategoryLabel(status.Category) }}）
             </option>
           </select>
         </template>
-        <p v-else class="mt-3 mb-0 text-sm text-gray-600">このステータスの課題はありません。</p>
+        <p v-else class="mt-3 mb-0 text-sm text-muted">このステータスの課題はありません。</p>
         <div class="flex justify-end gap-3 mt-6">
           <button
             type="button"
-            class="py-2 px-5 bg-white text-gray-700 border-2 border-gray-300 rounded-lg text-sm font-semibold cursor-pointer hover:bg-gray-50"
+            class="py-2 px-5 bg-surface text-fg border-2 border-line rounded-lg text-sm font-semibold cursor-pointer hover:bg-raised"
             @click="deleting = null"
           >
             キャンセル
@@ -146,7 +146,7 @@
           <button
             type="button"
             :disabled="busy"
-            class="py-2 px-5 bg-red-500 text-white border-2 border-red-500 rounded-lg text-sm font-semibold cursor-pointer hover:bg-red-600 disabled:opacity-50"
+            class="py-2 px-5 bg-danger text-on-danger border-2 border-danger rounded-lg text-sm font-semibold cursor-pointer hover:bg-danger/90 disabled:opacity-50"
             @click="deleteStatus"
           >
             削除

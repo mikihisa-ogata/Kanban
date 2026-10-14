@@ -1,11 +1,11 @@
 <template>
   <!-- 時間管理（Jira のタイムトラッキング）。「記録済み / 残り」の進捗バー、初期見積もり・残り時間の編集、「作業を記録」を置く -->
-  <section class="border border-gray-200 rounded-lg">
-    <div class="flex items-center px-4 py-3 border-b border-gray-200">
-      <h2 class="m-0 text-sm font-semibold text-gray-700">時間管理</h2>
+  <section class="border border-line rounded-lg">
+    <div class="flex items-center px-4 py-3 border-b border-line">
+      <h2 class="m-0 text-sm font-semibold text-fg">時間管理</h2>
       <button
         type="button"
-        class="ml-auto px-3 py-1 bg-gray-100 text-gray-800 border-0 rounded-md text-xs font-semibold cursor-pointer hover:bg-gray-200"
+        class="ml-auto px-3 py-1 bg-raised text-fg border-0 rounded-md text-xs font-semibold cursor-pointer hover:bg-line"
         @click="logging = true"
       >
         作業を記録
@@ -13,23 +13,23 @@
     </div>
     <div class="px-4 py-3">
       <div
-        class="h-2 rounded-full bg-gray-200 overflow-hidden"
+        class="h-2 rounded-full bg-line overflow-hidden"
         role="progressbar"
         :aria-valuenow="spent"
         aria-valuemin="0"
         :aria-valuemax="total"
         :aria-label="`記録済み ${formatDuration(spent)} / 残り ${formatDuration(remaining)}`"
       >
-        <div class="h-full bg-blue-600 transition-all duration-300" :style="{ width: `${spentPercent}%` }"></div>
+        <div class="h-full bg-accent transition-all duration-300" :style="{ width: `${spentPercent}%` }"></div>
       </div>
-      <div class="mt-1 flex justify-between text-xs text-gray-600">
+      <div class="mt-1 flex justify-between text-xs text-muted">
         <span>{{ spent ? `${formatDuration(spent)} 記録済み` : '記録なし' }}</span>
         <span>{{ hasRemaining ? `${formatDuration(remaining)} 残り` : '見積もりなし' }}</span>
       </div>
 
       <dl class="mt-3 mb-0 grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-2 items-center text-sm">
         <template v-for="field in fields" :key="field.name">
-          <dt class="text-gray-600 font-semibold"><label :for="inputId(field.name)">{{ field.label }}</label></dt>
+          <dt class="text-muted font-semibold"><label :for="inputId(field.name)">{{ field.label }}</label></dt>
           <dd class="m-0 min-w-0">
             <template v-if="editing === field.name">
               <input
@@ -38,22 +38,22 @@
                 v-model="draft"
                 type="text"
                 placeholder="例: 2d 4h（空で未設定）"
-                class="w-full px-3 py-1.5 border-2 border-blue-500 rounded-lg text-sm text-gray-900 bg-white focus:outline-none"
+                class="w-full px-3 py-1.5 border-2 border-accent rounded-lg text-sm text-fg bg-surface focus:outline-none"
                 @keydown.enter="handleEnter"
                 @keydown.esc="handleEsc"
                 @blur="saveEdit"
               />
-              <p v-if="error" class="mt-1 mb-0 text-xs text-red-600">{{ error }}</p>
+              <p v-if="error" class="mt-1 mb-0 text-xs text-danger">{{ error }}</p>
             </template>
             <button
               v-else
               type="button"
-              class="-mx-2 px-2 py-1.5 bg-transparent border-0 rounded-md text-left text-sm cursor-pointer hover:bg-gray-100"
+              class="-mx-2 px-2 py-1.5 bg-transparent border-0 rounded-md text-left text-sm cursor-pointer hover:bg-raised"
               title="クリックして編集"
               @click="startEdit(field.name)"
             >
-              <span v-if="task[field.key] != null" class="text-gray-900">{{ formatDuration(task[field.key]) }}</span>
-              <span v-else class="text-gray-400">なし</span>
+              <span v-if="task[field.key] != null" class="text-fg">{{ formatDuration(task[field.key]) }}</span>
+              <span v-else class="text-muted">なし</span>
             </button>
           </dd>
         </template>

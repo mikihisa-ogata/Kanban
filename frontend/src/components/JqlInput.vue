@@ -14,8 +14,8 @@
           :aria-expanded="showSuggestions"
           :aria-invalid="!!error"
           :class="[
-            'block w-full px-3 py-2 border-0 rounded-md font-mono text-sm text-gray-900 bg-white/90 resize-y focus:outline-none focus:ring-2',
-            error ? 'ring-2 ring-red-400 focus:ring-red-400' : 'focus:ring-blue-300'
+            'block w-full px-3 py-2 border-0 rounded-md font-mono text-sm text-fg bg-surface resize-y focus:outline-none focus:ring-2',
+            error ? 'ring-2 ring-danger/60 focus:ring-danger/60' : 'focus:ring-accent/40'
           ]"
           @input="handleInput"
           @keydown="handleKeydown"
@@ -25,7 +25,7 @@
         />
         <ul
           v-if="showSuggestions"
-          class="absolute left-0 top-full mt-1 w-80 max-h-72 overflow-y-auto m-0 p-1 list-none bg-white border border-gray-200 rounded-lg shadow-lg z-30"
+          class="absolute left-0 top-full mt-1 w-80 max-h-72 overflow-y-auto m-0 p-1 list-none bg-surface border border-line rounded-lg shadow-lg z-30"
           role="listbox"
           aria-label="JQL の候補"
         >
@@ -34,18 +34,18 @@
             :key="`${item.label}-${index}`"
             role="option"
             :aria-selected="index === highlighted"
-            :class="['flex items-center gap-3 px-2 py-1.5 rounded text-sm cursor-pointer', index === highlighted ? 'bg-blue-50 text-blue-700' : 'text-gray-800 hover:bg-gray-100']"
+            :class="['flex items-center gap-3 px-2 py-1.5 rounded text-sm cursor-pointer', index === highlighted ? 'bg-accent/10 text-accent' : 'text-fg hover:bg-raised']"
             @mousedown.prevent="accept(item)"
             @mouseenter="highlighted = index"
           >
             <span class="font-mono min-w-0 truncate">{{ item.label }}</span>
-            <span v-if="item.detail" class="ml-auto shrink-0 text-xs text-gray-400">{{ item.detail }}</span>
+            <span v-if="item.detail" class="ml-auto shrink-0 text-xs text-muted">{{ item.detail }}</span>
           </li>
         </ul>
       </div>
       <button
         type="button"
-        class="px-4 py-2 border-0 rounded-md bg-blue-600 text-sm font-semibold text-white cursor-pointer hover:bg-blue-700"
+        class="px-4 py-2 border-0 rounded-md bg-accent text-sm font-semibold text-on-accent cursor-pointer hover:bg-accent-hover"
         @click="submit"
       >
         検索
@@ -59,7 +59,7 @@
       @click="focusError"
     >
       <span class="block text-sm font-semibold text-danger">{{ error.message }}</span>
-      <span v-if="errorExcerpt" class="mt-1 inline-block px-2 py-0.5 rounded bg-white/90 font-mono text-xs text-gray-700 whitespace-pre">{{ errorExcerpt.before }}<mark class="bg-red-200 text-red-800 rounded-sm">{{ errorExcerpt.at }}</mark>{{ errorExcerpt.after }}</span>
+      <span v-if="errorExcerpt" class="mt-1 inline-block px-2 py-0.5 rounded bg-surface font-mono text-xs text-fg whitespace-pre">{{ errorExcerpt.before }}<mark class="bg-danger/20 text-danger rounded-sm">{{ errorExcerpt.at }}</mark>{{ errorExcerpt.after }}</span>
     </button>
   </div>
 </template>

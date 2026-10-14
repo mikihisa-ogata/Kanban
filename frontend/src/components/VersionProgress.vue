@@ -2,15 +2,15 @@
   <!-- バージョンの進捗（Jira のリリースの進捗バー）。完了は緑、進行中は青、未着手は灰 -->
   <div class="min-w-0">
     <div
-      class="flex h-2 w-full overflow-hidden rounded-full bg-gray-200"
+      class="flex h-2 w-full overflow-hidden rounded-full bg-line"
       role="img"
       :aria-label="summary"
       :title="summary"
     >
-      <div class="bg-emerald-500" :style="{ width: percent(progress.done) }"></div>
-      <div class="bg-blue-500" :style="{ width: percent(progress.inProgress) }"></div>
+      <div class="bg-success" :style="{ width: percent(progress.done) }"></div>
+      <div class="bg-accent" :style="{ width: percent(progress.inProgress) }"></div>
     </div>
-    <p v-if="showCounts" class="m-0 mt-1 text-xs text-gray-500">{{ summary }}</p>
+    <p v-if="showCounts" class="m-0 mt-1 text-xs text-muted">{{ summary }}</p>
   </div>
 </template>
 

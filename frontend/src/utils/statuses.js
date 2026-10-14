@@ -12,9 +12,9 @@ export const statusCategoryLabel = (category) =>
 
 // カテゴリごとのステータスのバッジの色（詳細の選択欄や子課題・リンクの一覧）
 export const STATUS_CATEGORY_BADGE_CLASS = {
-  ToDo: 'bg-gray-100 text-gray-700',
-  InProgress: 'bg-blue-50 text-blue-700',
-  Done: 'bg-emerald-50 text-emerald-700'
+  ToDo: 'bg-raised text-fg',
+  InProgress: 'bg-accent/10 text-accent',
+  Done: 'bg-success/10 text-success'
 };
 
 // 完了（Done カテゴリ）の課題か

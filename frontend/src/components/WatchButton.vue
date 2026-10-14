@@ -6,7 +6,7 @@
     :disabled="busy"
     :class="[
       'shrink-0 flex items-center gap-1 px-2 py-1 border-0 rounded-md text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
-      watching ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'bg-transparent text-gray-500 hover:bg-gray-100'
+      watching ? 'bg-accent/10 text-accent hover:bg-accent/15' : 'bg-transparent text-muted hover:bg-raised'
     ]"
     :title="title"
     :aria-pressed="watching"

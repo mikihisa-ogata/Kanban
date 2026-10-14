@@ -7,18 +7,18 @@
         <label
           v-for="version in choices"
           :key="version.ID"
-          class="flex items-center gap-2 text-sm text-gray-800 cursor-pointer"
+          class="flex items-center gap-2 text-sm text-fg cursor-pointer"
         >
           <input v-model="draft" type="checkbox" :value="version.ID" class="cursor-pointer" />
           <span class="truncate">{{ version.Name }}</span>
           <span :class="['shrink-0 px-1.5 rounded text-xs', VERSION_STATUS_BADGE_CLASS[version.Status]]">{{ VERSION_STATUS_LABEL[version.Status] }}</span>
         </label>
-        <p v-if="!choices.length" class="m-0 text-sm text-gray-500">このスペースにはバージョンがありません。</p>
+        <p v-if="!choices.length" class="m-0 text-sm text-muted">このスペースにはバージョンがありません。</p>
       </fieldset>
       <div class="flex gap-2 mt-2">
         <button
           type="button"
-          class="px-3 py-1 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50"
+          class="px-3 py-1 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50"
           :disabled="busy"
           @click="save"
         >
@@ -26,7 +26,7 @@
         </button>
         <button
           type="button"
-          class="px-3 py-1 bg-transparent text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-100"
+          class="px-3 py-1 bg-transparent text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-raised"
           @click="editing = false"
         >
           キャンセル
@@ -34,25 +34,25 @@
       </div>
     </div>
     <!-- スペース未割り当ての課題にはバージョンがないので、編集できない -->
-    <span v-else-if="!task.SpaceID" :id="id" class="text-sm text-gray-400" title="スペースに入れると付けられます">なし</span>
+    <span v-else-if="!task.SpaceID" :id="id" class="text-sm text-muted" title="スペースに入れると付けられます">なし</span>
     <button
       v-else
       :id="id"
       type="button"
-      class="w-full -mx-2 px-2 py-1.5 flex flex-wrap gap-1 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-gray-100"
+      class="w-full -mx-2 px-2 py-1.5 flex flex-wrap gap-1 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-raised"
       title="クリックして編集"
       @click="startEdit"
     >
       <span
         v-for="version in assigned"
         :key="version.ID"
-        class="max-w-full truncate px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs text-gray-800"
+        class="max-w-full truncate px-1.5 py-0.5 rounded bg-raised border border-line text-xs text-fg"
       >
         {{ version.Name }}
       </span>
-      <span v-if="!assigned.length" class="text-sm text-gray-400">なし</span>
+      <span v-if="!assigned.length" class="text-sm text-muted">なし</span>
     </button>
-    <p v-if="error" class="m-0 mt-1 text-xs text-red-600">{{ error }}</p>
+    <p v-if="error" class="m-0 mt-1 text-xs text-danger">{{ error }}</p>
   </div>
 </template>
 

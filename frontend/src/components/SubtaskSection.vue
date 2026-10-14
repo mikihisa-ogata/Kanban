@@ -2,48 +2,48 @@
   <!-- 子課題（サブタスク）のセクション。課題の詳細（ページとモーダル）で使い、その場で追加・ステータス変更・削除できる -->
   <section>
     <div class="flex items-center gap-3 mb-2">
-      <h2 class="m-0 text-sm font-semibold text-gray-700">子課題</h2>
+      <h2 class="m-0 text-sm font-semibold text-fg">子課題</h2>
       <template v-if="subtasks.length">
         <!-- 完了（クローズ）したサブタスクの割合 -->
         <div
-          class="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden"
+          class="flex-1 h-2 rounded-full bg-line overflow-hidden"
           role="progressbar"
           :aria-valuenow="doneCount"
           aria-valuemin="0"
           :aria-valuemax="subtasks.length"
           :aria-label="`子課題の進捗 ${doneCount}/${subtasks.length}`"
         >
-          <div class="h-full bg-emerald-500 transition-all duration-300" :style="{ width: `${progressPercent}%` }"></div>
+          <div class="h-full bg-success transition-all duration-300" :style="{ width: `${progressPercent}%` }"></div>
         </div>
-        <span class="shrink-0 text-xs text-gray-500">{{ doneCount }}/{{ subtasks.length }} 完了</span>
+        <span class="shrink-0 text-xs text-muted">{{ doneCount }}/{{ subtasks.length }} 完了</span>
       </template>
     </div>
 
-    <ul v-if="subtasks.length" class="m-0 p-0 list-none border border-gray-200 rounded-lg divide-y divide-gray-200">
+    <ul v-if="subtasks.length" class="m-0 p-0 list-none border border-line rounded-lg divide-y divide-line">
       <li v-for="subtask in subtasks" :key="subtask.ID" class="flex items-center gap-2 px-3 py-2">
         <IssueTypeIcon :type="subtask.IssueType" />
         <button
           type="button"
-          class="shrink-0 bg-transparent border-0 p-0 font-mono text-xs font-semibold text-gray-500 cursor-pointer hover:text-blue-600 hover:underline"
+          class="shrink-0 bg-transparent border-0 p-0 font-mono text-xs font-semibold text-muted cursor-pointer hover:text-accent hover:underline"
           :title="`${subtask.Key} を開く`"
           @click="$emit('open', subtask.Key)"
         >
           {{ subtask.Key }}
         </button>
-        <span :class="['flex-1 min-w-0 truncate text-sm', isDoneCategory(subtask.StatusCategory) ? 'text-gray-400 line-through' : 'text-gray-900']">
+        <span :class="['flex-1 min-w-0 truncate text-sm', isDoneCategory(subtask.StatusCategory) ? 'text-muted line-through' : 'text-fg']">
           {{ subtask.Title }}
         </span>
         <select
           :value="subtask.StatusID"
           :aria-label="`${subtask.Key} のステータス`"
-          class="shrink-0 max-w-40 px-2 py-1 border border-gray-300 rounded-md text-xs text-gray-800 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-blue-500"
+          class="shrink-0 max-w-40 px-2 py-1 border border-line rounded-md text-xs text-fg bg-surface cursor-pointer hover:border-line focus:outline-none focus:border-accent"
           @change="changeStatus(subtask, Number($event.target.value))"
         >
           <option v-for="option in statusOptionsFor(subtask)" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
         <button
           type="button"
-          class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 text-lg leading-none cursor-pointer hover:bg-red-100 hover:text-red-500"
+          class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-muted text-lg leading-none cursor-pointer hover:bg-danger/10 hover:text-danger"
           :title="`${subtask.Key} を削除`"
           @click="confirmingDelete = subtask"
         >
@@ -58,18 +58,18 @@
         type="text"
         placeholder="子課題を追加"
         aria-label="子課題のタイトル"
-        class="flex-1 min-w-0 px-3 py-1.5 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+        class="flex-1 min-w-0 px-3 py-1.5 border-2 border-line rounded-lg text-sm text-fg bg-surface focus:outline-none focus:border-accent"
         @keydown.enter="handleEnter"
       />
       <button
         type="submit"
         :disabled="!newTitle.trim() || busy"
-        class="shrink-0 px-3 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="shrink-0 px-3 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
       >
         作成
       </button>
     </form>
-    <p v-if="error" class="mt-1 mb-0 text-xs text-red-600">{{ error }}</p>
+    <p v-if="error" class="mt-1 mb-0 text-xs text-danger">{{ error }}</p>
 
     <ConfirmDialog
       v-if="confirmingDelete"

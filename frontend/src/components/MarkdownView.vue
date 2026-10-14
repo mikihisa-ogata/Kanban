@@ -32,7 +32,7 @@ const html = computed(() => (mounted.value ? renderMarkdown(props.source, { curr
 .markdown-body {
   font-size: 0.875rem;
   line-height: 1.7;
-  color: var(--color-gray-900, #111827);
+  color: var(--kb-fg);
   overflow-wrap: anywhere;
 }
 .markdown-body :deep(> :first-child) {
@@ -90,20 +90,20 @@ const html = computed(() => (mounted.value ? renderMarkdown(props.source, { curr
   vertical-align: middle;
 }
 .markdown-body :deep(a) {
-  color: var(--color-blue-600, #2563eb);
+  color: var(--kb-accent);
   text-decoration: underline;
 }
 .markdown-body :deep(code) {
   padding: 0.1rem 0.35rem;
   border-radius: 0.25rem;
-  background: var(--color-gray-100, #f3f4f6);
+  background: var(--kb-raised);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8125rem;
 }
 .markdown-body :deep(pre) {
   padding: 0.75rem 1rem;
   border-radius: 0.375rem;
-  background: var(--color-gray-100, #f3f4f6);
+  background: var(--kb-raised);
   overflow-x: auto;
 }
 .markdown-body :deep(pre code) {
@@ -112,8 +112,8 @@ const html = computed(() => (mounted.value ? renderMarkdown(props.source, { curr
 }
 .markdown-body :deep(blockquote) {
   padding-left: 0.75rem;
-  border-left: 3px solid var(--color-gray-300, #d1d5db);
-  color: var(--color-gray-600, #4b5563);
+  border-left: 3px solid var(--kb-line);
+  color: var(--kb-muted);
 }
 .markdown-body :deep(table) {
   display: block;
@@ -124,28 +124,28 @@ const html = computed(() => (mounted.value ? renderMarkdown(props.source, { curr
 .markdown-body :deep(th),
 .markdown-body :deep(td) {
   padding: 0.35rem 0.75rem;
-  border: 1px solid var(--color-gray-300, #d1d5db);
+  border: 1px solid var(--kb-line);
 }
 .markdown-body :deep(th) {
-  background: var(--color-gray-50, #f9fafb);
+  background: var(--kb-raised);
   font-weight: 600;
 }
 .markdown-body :deep(.mention) {
   padding: 0 0.3rem;
   border-radius: 0.75rem;
-  background: var(--color-gray-200, #e5e7eb);
-  color: var(--color-gray-800, #1f2937);
+  background: var(--kb-line);
+  color: var(--kb-fg);
   font-weight: 600;
   white-space: nowrap;
 }
 /* Jira と同じく、自分へのメンションは青い背景で目立たせる */
 .markdown-body :deep(.mention-self) {
-  background: var(--color-blue-600, #2563eb);
-  color: #fff;
+  background: var(--kb-accent);
+  color: var(--kb-on-accent);
 }
 .markdown-body :deep(hr) {
   margin: 1rem 0;
   border: 0;
-  border-top: 1px solid var(--color-gray-200, #e5e7eb);
+  border-top: 1px solid var(--kb-line);
 }
 </style>

@@ -11,9 +11,9 @@ export const VERSION_STATUS_LABEL = {
 
 // 状態のバッジの色（Jira と同じく、未リリースは灰、リリース済みは緑、アーカイブは薄い灰）
 export const VERSION_STATUS_BADGE_CLASS = {
-  unreleased: 'bg-gray-100 text-gray-700',
-  released: 'bg-emerald-50 text-emerald-700',
-  archived: 'bg-gray-50 text-gray-400'
+  unreleased: 'bg-raised text-fg',
+  released: 'bg-success/10 text-success',
+  archived: 'bg-raised text-muted'
 };
 
 // バージョンの課題の進捗（ステータスのカテゴリごとの件数）

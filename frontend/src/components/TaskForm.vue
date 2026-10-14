@@ -1,9 +1,9 @@
 <template>
-  <div class="bg-white rounded-2xl px-8 pt-10 pb-6 shadow-2xl mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
+  <div class="bg-surface rounded-2xl px-8 pt-10 pb-6 shadow-2xl mx-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
     <!-- 閉じるボタン -->
     <button 
       @click="$emit('close')"
-      class="absolute top-4 right-4 bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 hover:text-gray-600 transition-all duration-200"
+      class="absolute top-4 right-4 bg-transparent border-0 text-muted text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:bg-raised hover:text-muted transition-all duration-200"
       title="閉じる"
     >
       ×
@@ -11,21 +11,21 @@
 
     <form @submit.prevent="handleSubmit">
       <div class="mb-4">
-        <label for="title" class="block mb-2 text-sm font-semibold text-gray-700">
-          タイトル <span class="text-red-500">*</span>
+        <label for="title" class="block mb-2 text-sm font-semibold text-fg">
+          タイトル <span class="text-danger">*</span>
         </label>
         <input
           id="title"
           v-model="formData.title"
           type="text"
           placeholder="タスクのタイトルを入力"
-          class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+          class="w-full px-3 py-2.5 border-2 border-line rounded-lg text-sm transition-all duration-200 text-fg bg-surface focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
           required
         />
       </div>
       
       <div>
-        <label for="description" class="block mb-2 text-sm font-semibold text-gray-700">
+        <label for="description" class="block mb-2 text-sm font-semibold text-fg">
           説明
         </label>
         <MarkdownEditor
@@ -39,7 +39,7 @@
       <!-- 短い値の項目は、ラベルと値を横に並べて内容の幅に合わせる -->
       <div class="flex flex-col gap-3 mt-4">
         <div class="flex items-center gap-4">
-          <label for="issueType" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+          <label for="issueType" class="w-24 shrink-0 text-sm font-semibold text-fg">
             課題タイプ
           </label>
           <div class="flex items-center gap-2 min-w-0">
@@ -53,7 +53,7 @@
         </div>
 
         <div class="flex items-center gap-4">
-          <label for="priority" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+          <label for="priority" class="w-24 shrink-0 text-sm font-semibold text-fg">
             優先度
           </label>
           <div class="flex items-center gap-2 min-w-0">
@@ -67,19 +67,19 @@
         </div>
 
         <div class="flex items-center gap-4">
-          <label for="deadline" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+          <label for="deadline" class="w-24 shrink-0 text-sm font-semibold text-fg">
             期限
           </label>
           <input
             id="deadline"
             v-model="formData.deadline"
             type="date"
-            class="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm transition-all duration-200 text-gray-900 bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-sm focus:shadow-blue-100"
+            class="px-3 py-2 border-2 border-line rounded-lg text-sm transition-all duration-200 text-fg bg-surface hover:border-line focus:outline-none focus:border-accent focus:shadow-sm focus:shadow-accent/20"
           />
         </div>
 
         <div class="flex items-center gap-4">
-          <label for="status" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+          <label for="status" class="w-24 shrink-0 text-sm font-semibold text-fg">
             ステータス
           </label>
           <OptionSelect
@@ -90,7 +90,7 @@
         </div>
 
         <div class="flex items-center gap-4">
-          <label for="storyPoints" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+          <label for="storyPoints" class="w-24 shrink-0 text-sm font-semibold text-fg">
             ストーリーポイント
           </label>
           <div class="min-w-0">
@@ -100,21 +100,21 @@
               type="text"
               inputmode="decimal"
               placeholder="未設定"
-              class="w-28 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+              class="w-28 px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface hover:border-line focus:outline-none focus:border-accent"
             />
-            <p v-if="storyPointsError" class="mt-1 mb-0 text-xs text-red-600">{{ storyPointsError }}</p>
+            <p v-if="storyPointsError" class="mt-1 mb-0 text-xs text-danger">{{ storyPointsError }}</p>
           </div>
         </div>
 
         <div class="flex items-start gap-4">
-          <label for="labels" class="w-24 shrink-0 pt-2.5 text-sm font-semibold text-gray-700">
+          <label for="labels" class="w-24 shrink-0 pt-2.5 text-sm font-semibold text-fg">
             ラベル
           </label>
           <LabelInput id="labels" v-model="formData.labels" />
         </div>
 
         <div v-if="spaces.length" class="flex items-center gap-4">
-          <label for="space" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+          <label for="space" class="w-24 shrink-0 text-sm font-semibold text-fg">
             スペース
           </label>
           <OptionSelect
@@ -126,7 +126,7 @@
         </div>
 
         <div class="flex items-center gap-4">
-          <label for="epic" class="w-24 shrink-0 text-sm font-semibold text-gray-700">
+          <label for="epic" class="w-24 shrink-0 text-sm font-semibold text-fg">
             エピック
           </label>
           <OptionSelect
@@ -142,7 +142,7 @@
         <button 
           type="submit" 
           :disabled="isSubmitting"
-          class="py-2.5 px-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 rounded-lg text-base font-semibold cursor-pointer transition-all duration-200 hover:enabled:-translate-y-0.5 hover:enabled:shadow-lg hover:enabled:shadow-blue-400 active:enabled:translate-y-0 active:enabled:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+          class="py-2.5 px-8 bg-accent text-on-accent border-0 rounded-lg hover:enabled:bg-accent-hover text-base font-semibold cursor-pointer transition-all duration-200 hover:enabled:-translate-y-0.5 hover:enabled:shadow-lg hover:enabled:shadow-accent/40 active:enabled:translate-y-0 active:enabled:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {{ isSubmitting ? '作成中...' : 'タスクを作成' }}
         </button>

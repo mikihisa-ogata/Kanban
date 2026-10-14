@@ -2,11 +2,11 @@
   <!-- リンクされた課題のセクション。課題の詳細（ページとモーダル）で使い、課題キーか要約で検索して追加・削除できる -->
   <section>
     <div class="flex items-center gap-2 mb-2">
-      <h2 class="m-0 text-sm font-semibold text-gray-700">リンクされた課題</h2>
+      <h2 class="m-0 text-sm font-semibold text-fg">リンクされた課題</h2>
       <button
         v-if="!adding"
         type="button"
-        class="ml-auto bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 text-lg leading-none cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+        class="ml-auto bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-muted text-lg leading-none cursor-pointer hover:bg-raised hover:text-fg"
         title="課題をリンク"
         @click="startAdding"
       >
@@ -16,26 +16,26 @@
 
     <!-- 名前（ブロックする・関連する…）ごとにまとめる。並びは bff が返す順 -->
     <div v-for="group in groups" :key="group.relation" class="mb-2">
-      <h3 class="m-0 mb-1 text-xs font-semibold text-gray-500">{{ linkRelationLabel(group.relation) }}</h3>
-      <ul class="m-0 p-0 list-none border border-gray-200 rounded-lg divide-y divide-gray-200">
+      <h3 class="m-0 mb-1 text-xs font-semibold text-muted">{{ linkRelationLabel(group.relation) }}</h3>
+      <ul class="m-0 p-0 list-none border border-line rounded-lg divide-y divide-line">
         <li v-for="link in group.links" :key="link.ID" class="flex items-center gap-2 px-3 py-2">
           <IssueTypeIcon :type="link.Issue.IssueType" />
           <button
             type="button"
-            class="shrink-0 bg-transparent border-0 p-0 font-mono text-xs font-semibold text-gray-500 cursor-pointer hover:text-blue-600 hover:underline"
+            class="shrink-0 bg-transparent border-0 p-0 font-mono text-xs font-semibold text-muted cursor-pointer hover:text-accent hover:underline"
             :title="`${link.Issue.Key} を開く`"
             @click="$emit('open', link.Issue.Key)"
           >
             {{ link.Issue.Key }}
           </button>
-          <span :class="['flex-1 min-w-0 truncate text-sm', isDoneCategory(link.Issue.StatusCategory) ? 'text-gray-400 line-through' : 'text-gray-900']">
+          <span :class="['flex-1 min-w-0 truncate text-sm', isDoneCategory(link.Issue.StatusCategory) ? 'text-muted line-through' : 'text-fg']">
             {{ link.Issue.Title }}
           </span>
           <PriorityIcon :priority="link.Issue.Priority" />
-          <span :class="['shrink-0 max-w-32 truncate px-1.5 py-0.5 rounded text-xs font-semibold', STATUS_CATEGORY_BADGE_CLASS[link.Issue.StatusCategory] || 'bg-gray-100 text-gray-600']">{{ link.Issue.StatusName }}</span>
+          <span :class="['shrink-0 max-w-32 truncate px-1.5 py-0.5 rounded text-xs font-semibold', STATUS_CATEGORY_BADGE_CLASS[link.Issue.StatusCategory] || 'bg-raised text-muted']">{{ link.Issue.StatusName }}</span>
           <button
             type="button"
-            class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 text-lg leading-none cursor-pointer hover:bg-red-100 hover:text-red-500"
+            class="shrink-0 bg-transparent border-0 p-0 w-6 h-6 flex items-center justify-center rounded text-muted text-lg leading-none cursor-pointer hover:bg-danger/10 hover:text-danger"
             :title="`${link.Issue.Key} とのリンクを削除`"
             @click="deleteLink(link)"
           >
@@ -44,14 +44,14 @@
         </li>
       </ul>
     </div>
-    <p v-if="!groups.length && !adding" class="m-0 text-sm text-gray-400">リンクされた課題はありません</p>
+    <p v-if="!groups.length && !adding" class="m-0 text-sm text-muted">リンクされた課題はありません</p>
 
     <form v-if="adding" class="mt-2 flex flex-col gap-2" @submit.prevent="addLink">
       <div class="flex items-start gap-2">
         <select
           v-model="relation"
           aria-label="リンクの種類"
-          class="shrink-0 px-2 py-1.5 border-2 border-gray-300 rounded-lg text-sm text-gray-800 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-blue-500"
+          class="shrink-0 px-2 py-1.5 border-2 border-line rounded-lg text-sm text-fg bg-surface cursor-pointer hover:border-line focus:outline-none focus:border-accent"
         >
           <option v-for="option in LINK_RELATION_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
@@ -60,13 +60,13 @@
           <button
             v-if="selected"
             type="button"
-            class="w-full px-3 py-1.5 flex items-center gap-2 border-2 border-blue-500 rounded-lg bg-white text-left cursor-pointer"
+            class="w-full px-3 py-1.5 flex items-center gap-2 border-2 border-accent rounded-lg bg-surface text-left cursor-pointer"
             title="別の課題を選ぶ"
             @click="clearSelection"
           >
             <IssueTypeIcon :type="selected.IssueType" />
-            <span class="shrink-0 font-mono text-xs font-semibold text-gray-500">{{ selected.Key }}</span>
-            <span class="flex-1 min-w-0 truncate text-sm text-gray-900">{{ selected.Title }}</span>
+            <span class="shrink-0 font-mono text-xs font-semibold text-muted">{{ selected.Key }}</span>
+            <span class="flex-1 min-w-0 truncate text-sm text-fg">{{ selected.Title }}</span>
           </button>
           <template v-else>
             <input
@@ -77,7 +77,7 @@
               aria-label="リンクする課題を検索"
               role="combobox"
               :aria-expanded="candidates.length > 0"
-              class="w-full px-3 py-1.5 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500"
+              class="w-full px-3 py-1.5 border-2 border-line rounded-lg text-sm text-fg bg-surface focus:outline-none focus:border-accent"
               @keydown.down.prevent="moveActive(1)"
               @keydown.up.prevent="moveActive(-1)"
               @keydown.enter="handleSearchEnter"
@@ -86,23 +86,23 @@
             <ul
               v-if="candidates.length"
               role="listbox"
-              class="absolute left-0 right-0 top-full mt-1 m-0 p-1 list-none bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto"
+              class="absolute left-0 right-0 top-full mt-1 m-0 p-1 list-none bg-surface border border-line rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto"
             >
               <li
                 v-for="(todo, index) in candidates"
                 :key="todo.ID"
                 role="option"
                 :aria-selected="index === activeIndex"
-                :class="['flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer', index === activeIndex ? 'bg-blue-50' : 'hover:bg-gray-100']"
+                :class="['flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer', index === activeIndex ? 'bg-accent/10' : 'hover:bg-raised']"
                 @mousedown.prevent="select(todo)"
                 @mouseenter="activeIndex = index"
               >
                 <IssueTypeIcon :type="todo.IssueType" />
-                <span class="shrink-0 font-mono text-xs font-semibold text-gray-500">{{ todo.Key }}</span>
-                <span class="flex-1 min-w-0 truncate text-sm text-gray-900">{{ todo.Title }}</span>
+                <span class="shrink-0 font-mono text-xs font-semibold text-muted">{{ todo.Key }}</span>
+                <span class="flex-1 min-w-0 truncate text-sm text-fg">{{ todo.Title }}</span>
               </li>
             </ul>
-            <p v-else-if="query.trim()" class="absolute left-0 right-0 top-full mt-1 m-0 px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 text-sm text-gray-500">
+            <p v-else-if="query.trim()" class="absolute left-0 right-0 top-full mt-1 m-0 px-3 py-2 bg-surface border border-line rounded-lg shadow-lg z-10 text-sm text-muted">
               一致する課題がありません
             </p>
           </template>
@@ -112,20 +112,20 @@
         <button
           type="submit"
           :disabled="!selected || busy"
-          class="px-3 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-3 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           リンク
         </button>
         <button
           type="button"
-          class="px-3 py-1.5 bg-transparent text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-100"
+          class="px-3 py-1.5 bg-transparent text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-raised"
           @click="stopAdding"
         >
           キャンセル
         </button>
       </div>
     </form>
-    <p v-if="error" class="mt-1 mb-0 text-xs text-red-600">{{ error }}</p>
+    <p v-if="error" class="mt-1 mb-0 text-xs text-danger">{{ error }}</p>
   </section>
 </template>
 

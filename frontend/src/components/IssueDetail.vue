@@ -1,9 +1,9 @@
 <template>
   <!-- 課題の詳細。全画面のページ（/browse/:key）と詳細モーダルの両方で使う。
        Jira と同じく左に要約・説明、右にステータスなどの詳細欄を置き、各項目はその場で編集する -->
-  <div class="text-gray-900">
+  <div class="text-fg">
     <div class="flex items-center gap-2 min-h-8">
-      <nav class="flex items-center gap-1.5 min-w-0 text-sm text-gray-500">
+      <nav class="flex items-center gap-1.5 min-w-0 text-sm text-muted">
         <span v-if="spaceTitle" class="truncate">{{ spaceTitle }}</span>
         <span v-if="spaceTitle" aria-hidden="true">/</span>
         <!-- サブタスクは Jira と同じく親課題をパンくずに出す -->
@@ -11,7 +11,7 @@
           <IssueTypeIcon :type="parentTask.IssueType" />
           <button
             type="button"
-            class="bg-transparent border-0 p-0 font-mono font-semibold text-gray-600 cursor-pointer hover:text-blue-600 hover:underline"
+            class="bg-transparent border-0 p-0 font-mono font-semibold text-muted cursor-pointer hover:text-accent hover:underline"
             :title="`親課題 ${parentTask.Key}「${parentTask.Title}」を開く`"
             @click="$emit('open', parentTask.Key)"
           >
@@ -20,13 +20,13 @@
           <span aria-hidden="true">/</span>
         </template>
         <IssueTypeIcon :type="task.IssueType" />
-        <NuxtLink :to="issuePath(task.Key)" class="font-mono font-semibold text-gray-600 no-underline hover:text-blue-600 hover:underline">
+        <NuxtLink :to="issuePath(task.Key)" class="font-mono font-semibold text-muted no-underline hover:text-accent hover:underline">
           {{ task.Key }}
         </NuxtLink>
       </nav>
       <button
         type="button"
-        class="shrink-0 bg-transparent border-0 p-1 rounded text-gray-400 cursor-pointer hover:bg-gray-100 hover:text-gray-600"
+        class="shrink-0 bg-transparent border-0 p-1 rounded text-muted cursor-pointer hover:bg-raised hover:text-muted"
         :title="copied ? 'コピーしました' : '課題キーをコピー'"
         @click="copyKey"
       >
@@ -34,11 +34,11 @@
           <rect x="9" y="9" width="12" height="12" rx="2" />
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
-        <svg v-else class="w-4 h-4 block text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg v-else class="w-4 h-4 block text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M5 13l4 4L19 7" />
         </svg>
       </button>
-      <span v-if="copied" class="text-xs font-semibold text-emerald-600">コピーしました</span>
+      <span v-if="copied" class="text-xs font-semibold text-success">コピーしました</span>
       <div class="ml-auto flex items-center gap-1">
         <WatchButton :task="task" />
         <slot name="actions" />
@@ -54,21 +54,21 @@
           v-model="draft"
           type="text"
           aria-label="要約"
-          class="w-full -mx-2 px-2 py-1 border-2 border-blue-500 rounded-md text-2xl font-semibold text-gray-900 bg-white focus:outline-none"
+          class="w-full -mx-2 px-2 py-1 border-2 border-accent rounded-md text-2xl font-semibold text-fg bg-surface focus:outline-none"
           @keydown.enter="handleTitleEnter"
           @keydown.esc="handleEsc"
           @blur="saveTitle"
         />
         <h1
           v-else
-          class="m-0 -mx-2 px-2 py-1 border-2 border-transparent rounded-md text-2xl font-semibold leading-snug break-words cursor-text hover:bg-gray-100"
+          class="m-0 -mx-2 px-2 py-1 border-2 border-transparent rounded-md text-2xl font-semibold leading-snug break-words cursor-text hover:bg-raised"
           title="クリックして編集"
           @click="startEdit('title', task.Title)"
         >
           {{ task.Title }}
         </h1>
 
-        <h2 class="mt-6 mb-2 text-sm font-semibold text-gray-700">説明</h2>
+        <h2 class="mt-6 mb-2 text-sm font-semibold text-fg">説明</h2>
         <div v-if="editing === 'description'">
           <MarkdownEditor
             ref="descriptionInput"
@@ -81,14 +81,14 @@
           <div class="flex gap-2 mt-2">
             <button
               type="button"
-              class="px-4 py-1.5 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700"
+              class="px-4 py-1.5 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover"
               @click="saveDescription"
             >
               保存
             </button>
             <button
               type="button"
-              class="px-4 py-1.5 bg-transparent text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-100"
+              class="px-4 py-1.5 bg-transparent text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-raised"
               @click="cancelEdit"
             >
               キャンセル
@@ -98,12 +98,12 @@
         <!-- Markdown を整形して表示する。リンクやチェックボックスを押したときは編集に入らない -->
         <div
           v-else
-          class="-mx-2 px-2 py-1.5 rounded-md cursor-text hover:bg-gray-100"
+          class="-mx-2 px-2 py-1.5 rounded-md cursor-text hover:bg-raised"
           title="クリックして編集"
           @click="handleDescriptionClick"
         >
           <MarkdownView v-if="task.Description" :source="task.Description" />
-          <span v-else class="text-sm text-gray-400">説明を追加...</span>
+          <span v-else class="text-sm text-muted">説明を追加...</span>
         </div>
 
         <AttachmentSection class="mt-6" :task="task" />
@@ -137,11 +137,11 @@
 
       <!-- 右: 詳細欄 -->
       <aside class="md:w-80 shrink-0">
-        <section class="border border-gray-200 rounded-lg">
-          <h2 class="m-0 px-4 py-3 border-b border-gray-200 text-sm font-semibold text-gray-700">詳細</h2>
+        <section class="border border-line rounded-lg">
+          <h2 class="m-0 px-4 py-3 border-b border-line text-sm font-semibold text-fg">詳細</h2>
           <dl class="m-0 px-4 py-3 grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-3 items-center text-sm">
             <!-- Jira と同じく、担当者は詳細欄の先頭。その下に「自分に割り当て」を置く -->
-            <dt class="self-start pt-1.5 text-gray-600 font-semibold"><label :for="fieldId('assignee')">担当者</label></dt>
+            <dt class="self-start pt-1.5 text-muted font-semibold"><label :for="fieldId('assignee')">担当者</label></dt>
             <dd class="m-0 min-w-0">
               <UserPicker
                 :id="fieldId('assignee')"
@@ -152,14 +152,14 @@
               <button
                 v-if="currentUser && task.AssigneeID !== currentUser.ID"
                 type="button"
-                class="mt-0.5 bg-transparent border-0 p-0 text-xs font-semibold text-blue-600 cursor-pointer hover:underline"
+                class="mt-0.5 bg-transparent border-0 p-0 text-xs font-semibold text-accent cursor-pointer hover:underline"
                 @click="save({ assigneeId: currentUser.ID })"
               >
                 自分に割り当て
               </button>
             </dd>
 
-            <dt class="text-gray-600 font-semibold"><label :for="fieldId('reporter')">報告者</label></dt>
+            <dt class="text-muted font-semibold"><label :for="fieldId('reporter')">報告者</label></dt>
             <dd class="m-0 min-w-0">
               <UserPicker
                 :id="fieldId('reporter')"
@@ -168,11 +168,11 @@
               />
             </dd>
 
-            <dt class="text-gray-600 font-semibold"><label :for="fieldId('issueType')">課題タイプ</label></dt>
+            <dt class="text-muted font-semibold"><label :for="fieldId('issueType')">課題タイプ</label></dt>
             <dd class="m-0 min-w-0 flex items-center gap-2">
               <IssueTypeIcon :type="task.IssueType" />
               <!-- サブタスクは他の課題タイプに変えられない -->
-              <span v-if="isSubtask" :id="fieldId('issueType')" class="text-sm text-gray-800">サブタスク</span>
+              <span v-if="isSubtask" :id="fieldId('issueType')" class="text-sm text-fg">サブタスク</span>
               <OptionSelect
                 v-else
                 :id="fieldId('issueType')"
@@ -182,7 +182,7 @@
               />
             </dd>
 
-            <dt class="text-gray-600 font-semibold"><label :for="fieldId('status')">ステータス</label></dt>
+            <dt class="text-muted font-semibold"><label :for="fieldId('status')">ステータス</label></dt>
             <dd class="m-0 min-w-0">
               <!-- 課題のスペースのワークフローのステータスから選ぶ -->
               <OptionSelect
@@ -193,7 +193,7 @@
               />
             </dd>
 
-            <dt class="text-gray-600 font-semibold"><label :for="fieldId('priority')">優先度</label></dt>
+            <dt class="text-muted font-semibold"><label :for="fieldId('priority')">優先度</label></dt>
             <dd class="m-0 min-w-0 flex items-center gap-2">
               <PriorityIcon :priority="task.Priority" />
               <OptionSelect
@@ -204,7 +204,7 @@
               />
             </dd>
 
-            <dt class="text-gray-600 font-semibold"><label :for="fieldId('storyPoints')">ストーリーポイント</label></dt>
+            <dt class="text-muted font-semibold"><label :for="fieldId('storyPoints')">ストーリーポイント</label></dt>
             <dd class="m-0 min-w-0">
               <template v-if="editing === 'storyPoints'">
                 <input
@@ -214,45 +214,45 @@
                   type="text"
                   inputmode="decimal"
                   placeholder="未設定"
-                  class="w-28 px-3 py-1.5 border-2 border-blue-500 rounded-lg text-sm text-gray-900 bg-white focus:outline-none"
+                  class="w-28 px-3 py-1.5 border-2 border-accent rounded-lg text-sm text-fg bg-surface focus:outline-none"
                   @keydown.enter="handleStoryPointsEnter"
                   @keydown.esc="handleEsc"
                   @blur="saveStoryPoints"
                 />
-                <p v-if="storyPointsError" class="mt-1 mb-0 text-xs text-red-600">{{ storyPointsError }}</p>
+                <p v-if="storyPointsError" class="mt-1 mb-0 text-xs text-danger">{{ storyPointsError }}</p>
               </template>
               <button
                 v-else
                 type="button"
-                class="-mx-2 px-2 py-1.5 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-gray-100"
+                class="-mx-2 px-2 py-1.5 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-raised"
                 title="クリックして編集"
                 @click="startEdit('storyPoints', task.StoryPoints == null ? '' : formatStoryPoints(task.StoryPoints))"
               >
                 <span
                   v-if="task.StoryPoints != null"
-                  class="inline-flex min-w-6 h-6 px-1.5 rounded-full bg-gray-200 text-xs font-semibold text-gray-700 items-center justify-center"
+                  class="inline-flex min-w-6 h-6 px-1.5 rounded-full bg-line text-xs font-semibold text-fg items-center justify-center"
                 >
                   {{ formatStoryPoints(task.StoryPoints) }}
                 </span>
-                <span v-else class="text-sm text-gray-400">なし</span>
+                <span v-else class="text-sm text-muted">なし</span>
               </button>
             </dd>
 
-            <dt class="self-start pt-2 text-gray-600 font-semibold"><label :for="fieldId('labels')">ラベル</label></dt>
+            <dt class="self-start pt-2 text-muted font-semibold"><label :for="fieldId('labels')">ラベル</label></dt>
             <dd class="m-0 min-w-0">
               <div v-if="editing === 'labels'">
                 <LabelInput :id="fieldId('labels')" v-model="labelsDraft" />
                 <div class="flex gap-2 mt-2">
                   <button
                     type="button"
-                    class="px-3 py-1 bg-blue-600 text-white border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-blue-700"
+                    class="px-3 py-1 bg-accent text-on-accent border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-accent-hover"
                     @click="saveLabels"
                   >
                     保存
                   </button>
                   <button
                     type="button"
-                    class="px-3 py-1 bg-transparent text-gray-700 border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                    class="px-3 py-1 bg-transparent text-fg border-0 rounded-md text-sm font-semibold cursor-pointer hover:bg-raised"
                     @click="cancelEdit"
                   >
                     キャンセル
@@ -262,36 +262,36 @@
               <button
                 v-else
                 type="button"
-                class="w-full -mx-2 px-2 py-1.5 flex flex-wrap gap-1 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-gray-100"
+                class="w-full -mx-2 px-2 py-1.5 flex flex-wrap gap-1 bg-transparent border-0 rounded-md text-left cursor-pointer hover:bg-raised"
                 title="クリックして編集"
                 @click="startEditLabels"
               >
                 <span
                   v-for="label in task.Labels"
                   :key="label"
-                  class="max-w-full truncate px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs text-gray-800"
+                  class="max-w-full truncate px-1.5 py-0.5 rounded bg-raised border border-line text-xs text-fg"
                 >
                   {{ label }}
                 </span>
-                <span v-if="!task.Labels || !task.Labels.length" class="text-sm text-gray-400">なし</span>
+                <span v-if="!task.Labels || !task.Labels.length" class="text-sm text-muted">なし</span>
               </button>
             </dd>
 
-            <dt class="self-start pt-1.5 text-gray-600 font-semibold"><label :for="fieldId('components')">コンポーネント</label></dt>
+            <dt class="self-start pt-1.5 text-muted font-semibold"><label :for="fieldId('components')">コンポーネント</label></dt>
             <dd class="m-0 min-w-0">
               <ComponentField :id="fieldId('components')" :task="task" @changed="$emit('components-changed')" />
             </dd>
 
-            <dt class="self-start pt-1.5 text-gray-600 font-semibold"><label :for="fieldId('fixVersions')">修正バージョン</label></dt>
+            <dt class="self-start pt-1.5 text-muted font-semibold"><label :for="fieldId('fixVersions')">修正バージョン</label></dt>
             <dd class="m-0 min-w-0">
               <FixVersionField :id="fieldId('fixVersions')" :task="task" @changed="$emit('fix-versions-changed')" />
             </dd>
 
             <template v-if="spaces.length">
-              <dt class="text-gray-600 font-semibold"><label :for="fieldId('space')">スペース</label></dt>
+              <dt class="text-muted font-semibold"><label :for="fieldId('space')">スペース</label></dt>
               <dd class="m-0 min-w-0">
                 <!-- サブタスクのスペース・エピックは親課題と同じ -->
-                <span v-if="isSubtask" :id="fieldId('space')" class="text-sm text-gray-800" title="親課題と同じ">{{ spaceTitle || 'なし' }}</span>
+                <span v-if="isSubtask" :id="fieldId('space')" class="text-sm text-fg" title="親課題と同じ">{{ spaceTitle || 'なし' }}</span>
                 <OptionSelect
                   v-else
                   :id="fieldId('space')"
@@ -303,9 +303,9 @@
               </dd>
             </template>
 
-            <dt class="text-gray-600 font-semibold"><label :for="fieldId('epic')">エピック</label></dt>
+            <dt class="text-muted font-semibold"><label :for="fieldId('epic')">エピック</label></dt>
             <dd class="m-0 min-w-0">
-              <span v-if="isSubtask" :id="fieldId('epic')" class="text-sm text-gray-800" title="親課題と同じ">{{ epicTitle || 'なし' }}</span>
+              <span v-if="isSubtask" :id="fieldId('epic')" class="text-sm text-fg" title="親課題と同じ">{{ epicTitle || 'なし' }}</span>
               <OptionSelect
                 v-else
                 :id="fieldId('epic')"
@@ -316,13 +316,13 @@
               />
             </dd>
 
-            <dt class="text-gray-600 font-semibold"><label :for="fieldId('deadline')">期限</label></dt>
+            <dt class="text-muted font-semibold"><label :for="fieldId('deadline')">期限</label></dt>
             <dd class="m-0 min-w-0">
               <input
                 :id="fieldId('deadline')"
                 :value="task.Deadline"
                 type="date"
-                class="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+                class="px-3 py-2 border-2 border-line rounded-lg text-sm text-fg bg-surface hover:border-line focus:outline-none focus:border-accent"
                 @change="save({ deadline: $event.target.value })"
               />
             </dd>
@@ -336,7 +336,7 @@
           @worklogs-changed="$emit('worklogs-changed')"
         />
 
-        <dl class="mt-3 mb-0 px-1 flex flex-col gap-1 text-xs text-gray-500">
+        <dl class="mt-3 mb-0 px-1 flex flex-col gap-1 text-xs text-muted">
           <div v-if="task.CreatedAt" class="flex gap-1">
             <dt>作成</dt>
             <dd class="m-0">{{ formatDateTime(task.CreatedAt) }}</dd>

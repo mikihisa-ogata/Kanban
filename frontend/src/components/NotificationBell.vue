@@ -15,7 +15,7 @@
       </svg>
       <span
         v-if="unread"
-        class="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-bold leading-5 text-center"
+        class="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 rounded-full bg-danger text-on-danger text-[11px] font-bold leading-5 text-center"
         aria-hidden="true"
       >
         {{ unread > 99 ? '99+' : unread }}
@@ -24,61 +24,61 @@
 
     <div
       v-if="open"
-      class="absolute left-0 bottom-full mb-2 w-96 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+      class="absolute left-0 bottom-full mb-2 w-96 max-w-[calc(100vw-2rem)] bg-surface border border-line rounded-lg shadow-lg z-50"
       role="dialog"
       aria-label="通知"
     >
-      <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-200">
-        <h2 class="m-0 text-base font-bold text-gray-900">通知</h2>
-        <label class="ml-auto flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-line">
+        <h2 class="m-0 text-base font-bold text-fg">通知</h2>
+        <label class="ml-auto flex items-center gap-1.5 text-xs text-muted cursor-pointer select-none">
           <input v-model="unreadOnly" type="checkbox" class="cursor-pointer" />
           未読のみ
         </label>
         <button
           type="button"
           :disabled="!unread || busy"
-          class="bg-transparent border-0 p-0 text-xs font-semibold text-blue-600 cursor-pointer hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+          class="bg-transparent border-0 p-0 text-xs font-semibold text-accent cursor-pointer hover:underline disabled:text-muted disabled:no-underline disabled:cursor-not-allowed"
           @click="markAllRead"
         >
           すべて既読にする
         </button>
       </div>
 
-      <p v-if="error" class="m-0 px-4 py-2 text-xs text-red-600">{{ error }}</p>
+      <p v-if="error" class="m-0 px-4 py-2 text-xs text-danger">{{ error }}</p>
       <ul v-if="visible.length" class="m-0 p-0 list-none max-h-[28rem] overflow-y-auto">
         <li v-for="notification in visible" :key="notification.ID">
           <button
             type="button"
             :class="[
-              'w-full flex items-start gap-3 px-4 py-3 border-0 border-b border-gray-100 text-left cursor-pointer',
-              notification.Read ? 'bg-white hover:bg-gray-50' : 'bg-blue-50 hover:bg-blue-100'
+              'w-full flex items-start gap-3 px-4 py-3 border-0 border-b border-line text-left cursor-pointer',
+              notification.Read ? 'bg-surface hover:bg-raised' : 'bg-accent/10 hover:bg-accent/15'
             ]"
             @click="openNotification(notification)"
           >
             <UserAvatar v-if="notification.Actor" :user="notification.Actor" />
-            <span v-else class="shrink-0 w-8 h-8 rounded-full bg-gray-200" aria-hidden="true" />
+            <span v-else class="shrink-0 w-8 h-8 rounded-full bg-line" aria-hidden="true" />
             <span class="min-w-0 flex-1">
-              <span class="block text-sm text-gray-900">
+              <span class="block text-sm text-fg">
                 <span class="font-semibold">{{ notification.Actor ? notification.Actor.DisplayName : '誰か' }}</span>
                 が
                 <span class="font-mono font-semibold">{{ notification.IssueKey }}</span>
                 {{ KIND_TEXTS[notification.Kind] ?? 'を変更しました' }}
               </span>
-              <span class="block mt-0.5 text-xs text-gray-600 truncate">{{ notification.IssueTitle }}</span>
-              <span class="block mt-0.5 text-xs text-gray-500 line-clamp-2 break-words">{{ describe(notification) }}</span>
+              <span class="block mt-0.5 text-xs text-muted truncate">{{ notification.IssueTitle }}</span>
+              <span class="block mt-0.5 text-xs text-muted line-clamp-2 break-words">{{ describe(notification) }}</span>
               <time
-                class="block mt-1 text-xs text-gray-400"
+                class="block mt-1 text-xs text-muted"
                 :datetime="notification.CreatedAt"
                 :title="formatDateTime(notification.CreatedAt)"
               >
                 {{ formatRelativeTime(notification.CreatedAt, now) }}
               </time>
             </span>
-            <span v-if="!notification.Read" class="shrink-0 mt-1.5 w-2 h-2 rounded-full bg-blue-600" aria-label="未読" />
+            <span v-if="!notification.Read" class="shrink-0 mt-1.5 w-2 h-2 rounded-full bg-accent" aria-label="未読" />
           </button>
         </li>
       </ul>
-      <p v-else-if="!error" class="m-0 px-4 py-8 text-sm text-gray-500 text-center">
+      <p v-else-if="!error" class="m-0 px-4 py-8 text-sm text-muted text-center">
         {{ unreadOnly ? '未読の通知はありません' : '通知はありません' }}
       </p>
     </div>

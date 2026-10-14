@@ -5,21 +5,21 @@
       type="button"
       :class="[
         'flex items-center gap-1 px-3 py-1.5 border-0 rounded-md text-sm font-semibold cursor-pointer',
-        modelValue.length ? 'bg-blue-50 text-blue-700' : 'bg-white/90 text-gray-700 hover:bg-white'
+        modelValue.length ? 'bg-accent/10 text-accent' : 'bg-surface text-fg hover:bg-raised'
       ]"
       aria-haspopup="listbox"
       :aria-expanded="open"
       @click="open = !open"
     >
       {{ label }}
-      <span v-if="modelValue.length" class="px-1.5 rounded-full bg-blue-600 text-white text-xs leading-5">{{ modelValue.length }}</span>
+      <span v-if="modelValue.length" class="px-1.5 rounded-full bg-accent text-on-accent text-xs leading-5">{{ modelValue.length }}</span>
       <svg class="w-4 h-4 block" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
         <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
       </svg>
     </button>
     <div
       v-if="open"
-      class="absolute left-0 top-full mt-1 w-60 max-h-72 overflow-y-auto p-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30"
+      class="absolute left-0 top-full mt-1 w-60 max-h-72 overflow-y-auto p-1 bg-surface border border-line rounded-lg shadow-lg z-30"
       role="listbox"
       :aria-label="label"
       aria-multiselectable="true"
@@ -27,7 +27,7 @@
       <label
         v-for="option in options"
         :key="option.value"
-        class="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-gray-800 cursor-pointer hover:bg-gray-100"
+        class="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-fg cursor-pointer hover:bg-raised"
       >
         <input
           type="checkbox"
@@ -37,7 +37,7 @@
         />
         <span class="min-w-0 truncate">{{ option.label }}</span>
       </label>
-      <p v-if="!options.length" class="m-0 px-2 py-1.5 text-sm text-gray-500">{{ emptyText }}</p>
+      <p v-if="!options.length" class="m-0 px-2 py-1.5 text-sm text-muted">{{ emptyText }}</p>
     </div>
   </div>
 </template>
