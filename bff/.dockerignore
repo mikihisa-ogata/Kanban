@@ -2,3 +2,5 @@
 *.csv
 # 添付ファイルの保存先をイメージに含めない
 attachments/
+# docker compose のパスワード
+.env

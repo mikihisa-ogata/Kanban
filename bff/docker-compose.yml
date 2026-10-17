@@ -1,10 +1,13 @@
 services:
   bff:
     build: .
+    # 同じネットワークの他の端末から使えないよう、ホストの localhost にだけ公開する
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
-      DB_DSN: kanban:kanban@tcp(mysql:3306)/kanban
+      # コンテナの中では全インターフェースで待ち受けないと、ホストからのポート転送が届かない
+      LISTEN_ADDR: ":8080"
+      DB_DSN: ${MYSQL_USER:-kanban}:${MYSQL_PASSWORD:-kanban}@tcp(mysql:3306)/kanban
       ATTACHMENTS_DIR: /app/attachments
     volumes:
       - attachments-data:/app/attachments
@@ -15,13 +18,15 @@ services:
 
   mysql:
     image: mysql:8.4
+    # 同じネットワークの他の端末から接続できないよう、ホストの localhost にだけ公開する
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
+    # パスワードは bff/.env（git 管理外）で上書きできる。初回起動（ボリュームが空）のときだけ反映される
     environment:
       MYSQL_DATABASE: kanban
-      MYSQL_USER: kanban
-      MYSQL_PASSWORD: kanban
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: ${MYSQL_USER:-kanban}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-kanban}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:

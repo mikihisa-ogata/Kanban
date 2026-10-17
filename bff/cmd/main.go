@@ -178,9 +178,18 @@ func main() {
 	api.GET("/dashboard/status-counts", dashboardHandler.GetStatusCounts)
 	api.GET("/dashboard/created-vs-resolved", dashboardHandler.GetCreatedVsResolved)
 
-	if err := r.Run(":8080"); err != nil {
+	if err := r.Run(listenAddr()); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// listenAddr は API を待ち受けるアドレスを返す。環境変数 LISTEN_ADDR が未設定なら、
+// 同じネットワークの他の端末から使えないよう localhost の 8080 番だけで待ち受ける
+func listenAddr() string {
+	if addr := os.Getenv("LISTEN_ADDR"); addr != "" {
+		return addr
+	}
+	return "localhost:8080"
 }
 
 // attachmentsDir は添付ファイルの保存先のディレクトリを返す。環境変数 ATTACHMENTS_DIR が未設定なら、

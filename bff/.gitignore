@@ -5,3 +5,6 @@ spaces.csv
 
 # 添付ファイルの保存先（環境変数 ATTACHMENTS_DIR の既定）
 attachments/
+
+# docker compose のパスワードなど（雛形は .env.example）
+.env

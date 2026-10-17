@@ -48,7 +48,9 @@ Dockerを使用することで、環境構築なしでサーバーを起動で�
 docker compose up -d
 ```
 
-サーバーは `http://localhost:8080` で起動します。
+サーバーは `http://localhost:8080` で起動します。8080（bff）と 3306（MySQL）は、同じネットワークの他の端末から使えないよう、ホストの localhost にだけ公開します。
+
+MySQL のパスワードは、`.env.example` を `.env`（git 管理外）にコピーして変えられます。`docker compose` が `.env` を読み、MySQL と bff の接続先の両方に使います。MySQL のパスワードは初回起動（ボリュームが空）のときだけ反映されるので、既存のボリュームで変えるときは、先に MySQL で `ALTER USER` を実行してから `.env` を書き換えてください。
 
 ログを確認する場合：
 ```bash
@@ -73,6 +75,8 @@ go run ./cmd/main.go
 ```
 
 接続先は環境変数 `DB_DSN` で指定します（未設定の場合は `kanban:kanban@tcp(localhost:3306)/kanban`）。起動時にテーブルがなければ作成します。
+
+待ち受けるアドレスは環境変数 `LISTEN_ADDR` で指定します（未設定の場合は `localhost:8080`。同じネットワークの他の端末からは使えません）。Docker のコンテナでは `:8080` にしています。
 
 添付ファイルの本体は、環境変数 `ATTACHMENTS_DIR` のディレクトリに保存します（未設定の場合は起動したディレクトリの `attachments/`。`bff/` で起動すれば `bff/attachments/`）。ディレクトリは最初の添付のときに作成します。`bff/attachments/` は `.gitignore` 済みです。データベースだけをバックアップ・移行すると添付ファイルの本体が欠けるので、このディレクトリも一緒に扱ってください。
 
