@@ -27,7 +27,7 @@ const (
 	HistoryFieldKey               = "key"
 	HistoryFieldAssignee          = "assignee"    // 値は担当者の表示名
 	HistoryFieldReporter          = "reporter"    // 値は報告者の表示名
-	HistoryFieldSprint            = "sprint"      // 値はスプリントの名前。一括変更で記録する
+	HistoryFieldSprint            = "sprint"      // 値はスプリントの名前。OldRefID・NewRefID にスプリントの ID も残す
 	HistoryFieldFixVersions       = "fixVersions" // 値は修正バージョンの名前を「, 」でつないだもの。一括変更で記録する
 )
 
@@ -40,6 +40,10 @@ type HistoryEntry struct {
 	Field    string
 	OldValue *string
 	NewValue *string
+	// OldRefID・NewRefID は項目が指すものの変更前・変更後の ID（スプリントの 0 はバックログ）。
+	// スプリント（sprint）だけが持ち、それ以外の項目と、ID を残す前の記録は nil。名前が変わっても同じスプリントだと分かるように使う
+	OldRefID *int
+	NewRefID *int
 	// UserID は変更したユーザーの ID。0 はユーザー機能の追加前の記録（変更者なし）
 	UserID int
 	// User は変更したユーザーの概要。変更者なしなら nil。API の出力専用
@@ -134,4 +138,14 @@ func equalValue(a, b *string) bool {
 		return a == b
 	}
 	return *a == *b
+}
+
+// SprintChange は課題のスプリントの変更（0 はバックログ）を、スプリントの名前と ID を残した履歴にして返す。
+// 変わっていなければ ok は false
+func SprintChange(todoID, oldID, newID int, names map[int]string) (entry HistoryEntry, ok bool) {
+	if oldID == newID {
+		return HistoryEntry{}, false
+	}
+	return HistoryEntry{TodoID: todoID, Field: HistoryFieldSprint, OldValue: nameText(names, oldID), NewValue: nameText(names, newID),
+		OldRefID: &oldID, NewRefID: &newID}, true
 }

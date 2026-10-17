@@ -197,6 +197,12 @@ func addedColumns() []column {
 		{"epics", "due_date", "DATE NULL"},
 		// エピックのタイムラインのバーの色（#RRGGBB）。空文字は既定の色
 		{"epics", "color", "VARCHAR(7) NOT NULL DEFAULT ''"},
+		// スプリントを開始した日時（UTC。バーンダウンの起点）。NULL は未開始か、追加前に開始したスプリント
+		{"sprints", "started_at", "DATETIME NULL"},
+		// 履歴の項目が指すものの ID（いまはスプリントの変更だけで、変更前・変更後の sprints.id。0 はバックログ）。
+		// NULL は ID を持たない項目か、追加前の記録
+		{"issue_history", "old_ref_id", "INT NULL"},
+		{"issue_history", "new_ref_id", "INT NULL"},
 	}
 }
 

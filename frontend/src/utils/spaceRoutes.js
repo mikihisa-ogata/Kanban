@@ -8,6 +8,10 @@ export const backlogPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/
 // スペースのタイムライン（エピックを日付軸のバーで並べる、Jira のロードマップ）
 export const timelinePath = (space) => `/spaces/${encodeURIComponent(space.Key)}/timeline`;
 
+// スペースのレポート（スプリントのバーンダウンなど）。sprintId を渡すとそのスプリントを開く
+export const reportsPath = (space, sprintId) =>
+  `/spaces/${encodeURIComponent(space.Key)}/reports${sprintId ? `?sprint=${sprintId}` : ''}`;
+
 // スペースのリリース（バージョンの一覧）と、バージョンの詳細
 export const releasesPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/releases`;
 export const versionPath = (space, versionId) => `${releasesPath(space)}/${versionId}`;

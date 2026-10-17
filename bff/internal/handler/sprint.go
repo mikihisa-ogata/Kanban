@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -110,7 +111,7 @@ func (h *SprintHandler) CompleteSprint(c *gin.Context) {
 		})
 		return
 	}
-	sprint, err := h.service.CompleteSprint(id, req.MoveTo)
+	sprint, err := h.service.CompleteSprint(id, req.MoveTo, actorID(c))
 	if err != nil {
 		respondSprintError(c, err)
 		return
@@ -127,7 +128,7 @@ func (h *SprintHandler) DeleteSprint(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.DeleteSprint(id); err != nil {
+	if err := h.service.DeleteSprint(id, actorID(c)); err != nil {
 		respondSprintError(c, err)
 		return
 	}
@@ -150,6 +151,31 @@ func (h *SprintHandler) GetSprintIssues(c *gin.Context) {
 	c.JSON(http.StatusOK, issues)
 }
 
+// GetBurndown はスプリント（:id）のバーンダウンを返す。日付はクエリ tz（IANA のタイムゾーン名。省略時はサーバーのタイムゾーン）で区切る
+func (h *SprintHandler) GetBurndown(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	loc := time.Local
+	if tz := c.Query("tz"); tz != "" {
+		l, err := time.LoadLocation(tz)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "タイムゾーン（tz）が正しくありません",
+			})
+			return
+		}
+		loc = l
+	}
+	burndown, err := h.service.GetBurndown(id, loc)
+	if err != nil {
+		respondSprintError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, burndown)
+}
+
 // SetTodoSprint は課題（:id）とそのサブタスクを sprintId のスプリント（0 はバックログ）に入れる
 func (h *SprintHandler) SetTodoSprint(c *gin.Context) {
 	id, ok := parseID(c)
@@ -165,7 +191,7 @@ func (h *SprintHandler) SetTodoSprint(c *gin.Context) {
 		})
 		return
 	}
-	if err := h.service.SetTodoSprint(id, req.SprintID); err != nil {
+	if err := h.service.SetTodoSprint(id, req.SprintID, actorID(c)); err != nil {
 		respondSprintError(c, err)
 		return
 	}
@@ -192,7 +218,8 @@ func respondSprintError(c *gin.Context, err error) {
 		errors.Is(err, service.ErrSprintNotDeletable),
 		errors.Is(err, service.ErrInvalidSprintMoveTo),
 		errors.Is(err, service.ErrSprintOtherSpace),
-		errors.Is(err, service.ErrSubtaskSprint):
+		errors.Is(err, service.ErrSubtaskSprint),
+		errors.Is(err, domain.ErrSprintNotStarted):
 		status = http.StatusBadRequest
 	}
 	c.JSON(status, gin.H{

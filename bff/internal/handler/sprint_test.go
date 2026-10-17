@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,7 +21,7 @@ func setupSprintRouter(t *testing.T) *gin.Engine {
 	sh := NewSpaceHandler(service.NewSpaceService(repos.space, repos.epic, repos.todo, repos.history, repos.status))
 	r.POST("/spaces", sh.CreateSpace)
 	r.DELETE("/spaces/:id", sh.DeleteSpace)
-	h := NewSprintHandler(service.NewSprintService(repos.sprint, repos.todo, repos.space))
+	h := NewSprintHandler(service.NewSprintService(repos.sprint, repos.todo, repos.space, repos.history))
 	r.GET("/sprints", h.GetSprints)
 	r.POST("/spaces/:id/sprints", h.CreateSprint)
 	r.PUT("/sprints/:id", h.UpdateSprint)
@@ -28,6 +29,7 @@ func setupSprintRouter(t *testing.T) *gin.Engine {
 	r.POST("/sprints/:id/complete", h.CompleteSprint)
 	r.DELETE("/sprints/:id", h.DeleteSprint)
 	r.GET("/sprints/:id/issues", h.GetSprintIssues)
+	r.GET("/sprints/:id/burndown", h.GetBurndown)
 	r.PUT("/todos/:id/sprint", h.SetTodoSprint)
 	return r
 }
@@ -231,5 +233,104 @@ func TestSprint_DeleteAndSpaceChange(t *testing.T) {
 	}
 	if got := sprintOf(t, r, 1); got != 0 {
 		t.Errorf("sprint after space delete = %d, want 0", got)
+	}
+}
+
+// スプリントの出し入れ（完了時の移動・削除を含む）は、スプリントの ID 付きで履歴に残り、バーンダウンはその履歴から再計算する
+func TestSprint_HistoryAndBurndown(t *testing.T) {
+	r := setupSprintRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"Title":"開発","Key":"DEV"}`, http.StatusCreated)
+	s1 := createSprint(t, r, 1, `{}`)
+	s2 := createSprint(t, r, 1, `{}`)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"A","spaceId":1,"storyPoints":3}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"B","spaceId":1,"storyPoints":5}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"C","spaceId":1,"storyPoints":2}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"a1","parentId":1,"storyPoints":1}`, http.StatusCreated)
+	setSprint(t, r, 1, s1.ID, http.StatusOK)
+	setSprint(t, r, 2, s1.ID, http.StatusOK)
+
+	// 親課題とサブタスクの両方に、スプリントの名前と ID が残る
+	lastSprintEntry := func(todoID int) domain.HistoryEntry {
+		t.Helper()
+		var found domain.HistoryEntry
+		for _, e := range getJSON[[]domain.HistoryEntry](t, r, fmt.Sprintf("/todos/%d/history", todoID)) {
+			if e.Field == domain.HistoryFieldSprint {
+				found = e
+			}
+		}
+		if found.ID == 0 {
+			t.Fatalf("todo %d has no sprint history", todoID)
+		}
+		return found
+	}
+	for _, todoID := range []int{1, 4} {
+		e := lastSprintEntry(todoID)
+		if e.OldValue != nil || e.NewValue == nil || *e.NewValue != s1.Name || e.OldRefID == nil || *e.OldRefID != 0 || e.NewRefID == nil || *e.NewRefID != s1.ID {
+			t.Errorf("todo %d sprint history = %+v", todoID, e)
+		}
+	}
+
+	// 未開始・存在しないスプリントは表示できない
+	burndownPath := fmt.Sprintf("/sprints/%d/burndown?tz=Asia/Tokyo", s1.ID)
+	mustStatus(t, r, http.MethodGet, burndownPath, "", http.StatusBadRequest)
+	mustStatus(t, r, http.MethodGet, "/sprints/99/burndown", "", http.StatusNotFound)
+
+	tokyo, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	today := time.Now().In(tokyo)
+	mustStatus(t, r, http.MethodPost, fmt.Sprintf("/sprints/%d/start", s1.ID),
+		fmt.Sprintf(`{"name":"DEV 1","startDate":%q,"endDate":%q}`, today.Format("2006-01-02"), today.AddDate(0, 0, 4).Format("2006-01-02")), http.StatusOK)
+	if started := findSprint(t, r, s1.ID); started.StartedAt == nil {
+		t.Errorf("StartedAt is not recorded: %+v", started)
+	}
+	// 履歴の日時は秒単位なので、開始と同じ秒の変更にならないようにする
+	time.Sleep(1100 * time.Millisecond)
+
+	// 開始後: C を追加、B を完了、A を 3 → 8 pt
+	setSprint(t, r, 3, s1.ID, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"B","status":"Closed","spaceId":1,"storyPoints":5}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPut, "/todos/1", `{"title":"A","spaceId":1,"storyPoints":8}`, http.StatusOK)
+	mustStatus(t, r, http.MethodGet, fmt.Sprintf("/sprints/%d/burndown?tz=Mars/Base", s1.ID), "", http.StatusBadRequest)
+
+	check := func() {
+		t.Helper()
+		b := getJSON[domain.Burndown](t, r, burndownPath)
+		if b.StartPoints != 8 {
+			t.Errorf("StartPoints = %v, want 8 (A 3 + B 5)", b.StartPoints)
+		}
+		want := []struct {
+			todoID    int
+			kind      domain.BurndownEventKind
+			remaining float64
+		}{{3, domain.BurndownAdded, 10}, {2, domain.BurndownCompleted, 5}, {1, domain.BurndownEstimate, 10}}
+		if len(b.Events) != len(want) {
+			t.Fatalf("events = %+v", b.Events)
+		}
+		for i, w := range want {
+			if e := b.Events[i]; e.TodoID != w.todoID || e.Kind != w.kind || e.Remaining != w.remaining || e.Key == "" {
+				t.Errorf("event %d = %+v, want %+v", i, e, w)
+			}
+		}
+		if len(b.Days) != 5 || b.Days[0].Date != today.Format("2006-01-02") || b.Days[0].Remaining == nil || *b.Days[0].Remaining != 10 || b.Days[4].Remaining != nil {
+			t.Errorf("days = %+v", b.Days)
+		}
+	}
+	check()
+
+	// 完了: 未完了の A（とサブタスク）・C を次のスプリントへ。移動は履歴に残るが、完了したスプリントのバーンダウンは変わらない
+	mustStatus(t, r, http.MethodPost, fmt.Sprintf("/sprints/%d/complete", s1.ID), fmt.Sprintf(`{"moveTo":%d}`, s2.ID), http.StatusOK)
+	for _, todoID := range []int{1, 3, 4} {
+		if e := lastSprintEntry(todoID); e.OldRefID == nil || *e.OldRefID != s1.ID || e.NewRefID == nil || *e.NewRefID != s2.ID || *e.NewValue != s2.Name {
+			t.Errorf("todo %d sprint history after complete = %+v", todoID, e)
+		}
+	}
+	check()
+
+	// 未開始のスプリントを削除すると、バックログに戻ったことが履歴に残る
+	mustStatus(t, r, http.MethodDelete, fmt.Sprintf("/sprints/%d", s2.ID), "", http.StatusOK)
+	if e := lastSprintEntry(3); e.OldValue == nil || *e.OldValue != s2.Name || e.NewValue != nil || *e.NewRefID != 0 {
+		t.Errorf("sprint history after delete = %+v", e)
 	}
 }

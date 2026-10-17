@@ -49,6 +49,17 @@ export const sprintsApi = {
     return send(`${API_BASE_URL}/sprints/${id}`, 'DELETE', undefined, 'Failed to delete sprint');
   },
 
+  // バーンダウン（開始中・完了したスプリントだけ）。日付はブラウザのタイムゾーンで区切る
+  async burndown(id) {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    const response = await apiFetch(`${API_BASE_URL}/sprints/${id}/burndown?tz=${encodeURIComponent(tz)}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to fetch burndown');
+    }
+    return response.json();
+  },
+
   // 課題（とそのサブタスク）をスプリント（0 はバックログ）に入れる
   async setTodoSprint(todoId, sprintId) {
     return send(`${API_BASE_URL}/todos/${todoId}/sprint`, 'PUT', { sprintId }, 'Failed to set sprint');

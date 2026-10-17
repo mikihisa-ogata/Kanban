@@ -29,6 +29,8 @@ type Sprint struct {
 	// StartDate・EndDate は期間（例: 2026-10-12）。開始前は空文字のこともある
 	StartDate string
 	EndDate   string
+	// StartedAt は開始した日時（UTC）。未開始か、開始した日時を記録する前に開始したスプリントは nil
+	StartedAt *time.Time
 	// CompletedAt は完了した日時（UTC）。完了していなければ nil
 	CompletedAt *time.Time
 	CreatedAt   time.Time

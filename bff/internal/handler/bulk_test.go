@@ -23,7 +23,7 @@ func newBulkRouter(t *testing.T) (*gin.Engine, testRepos) {
 	auth := NewAuthHandler(service.NewAuthService(repos.user, repos.session))
 	todo := NewTodoHandler(service.NewTodoService(repos.todo, repos.epic, repos.space, repos.link, repos.history, repos.attachment, repos.status, repos.user, repos.watcher, repos.notification))
 	space := NewSpaceHandler(service.NewSpaceService(repos.space, repos.epic, repos.todo, repos.history, repos.status))
-	sprint := NewSprintHandler(service.NewSprintService(repos.sprint, repos.todo, repos.space))
+	sprint := NewSprintHandler(service.NewSprintService(repos.sprint, repos.todo, repos.space, repos.history))
 	version := NewVersionHandler(service.NewVersionService(repos.version, repos.todo, repos.space))
 	epic := NewEpicHandler(service.NewEpicService(repos.epic, repos.todo, repos.space, repos.history, repos.status))
 	attachment := NewAttachmentHandler(service.NewAttachmentService(repos.attachment, repos.todo))

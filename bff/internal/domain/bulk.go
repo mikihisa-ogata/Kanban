@@ -31,7 +31,9 @@ func DiffPlanning(before, after Todo, names PlanningNames) []HistoryEntry {
 		}
 		entries = append(entries, HistoryEntry{TodoID: after.ID, Field: field, OldValue: oldValue, NewValue: newValue})
 	}
-	add(HistoryFieldSprint, nameText(names.Sprints, before.SprintID), nameText(names.Sprints, after.SprintID))
+	if entry, ok := SprintChange(after.ID, before.SprintID, after.SprintID, names.Sprints); ok {
+		entries = append(entries, entry)
+	}
 	add(HistoryFieldFixVersions, versionsText(names.Versions, before.FixVersionIDs), versionsText(names.Versions, after.FixVersionIDs))
 	return entries
 }

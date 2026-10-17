@@ -68,7 +68,7 @@ func main() {
 	watcherHandler := handler.NewWatcherHandler(service.NewWatcherService(watcherRepo, repo))
 	sprintRepo := repository.NewSprintMySQLRepository(db)
 	versionRepo := repository.NewVersionMySQLRepository(db)
-	sprintHandler := handler.NewSprintHandler(service.NewSprintService(sprintRepo, repo, spaceRepo))
+	sprintHandler := handler.NewSprintHandler(service.NewSprintService(sprintRepo, repo, spaceRepo, historyRepo))
 	versionHandler := handler.NewVersionHandler(service.NewVersionService(versionRepo, repo, spaceRepo))
 	jqlHandler := handler.NewJQLHandler(service.NewJQLService(repo, spaceRepo, statusRepo, userRepo, epicRepo, sprintRepo, versionRepo))
 	filterHandler := handler.NewFilterHandler(service.NewFilterService(repository.NewFilterMySQLRepository(db)), service.NewIssueViewService(repository.NewIssueViewMySQLRepository(db), repo))
@@ -146,6 +146,7 @@ func main() {
 	api.POST("/sprints/:id/complete", sprintHandler.CompleteSprint)
 	api.DELETE("/sprints/:id", sprintHandler.DeleteSprint)
 	api.GET("/sprints/:id/issues", sprintHandler.GetSprintIssues)
+	api.GET("/sprints/:id/burndown", sprintHandler.GetBurndown)
 	api.PUT("/todos/:id/sprint", sprintHandler.SetTodoSprint)
 
 	api.GET("/versions", versionHandler.GetVersions)

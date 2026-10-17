@@ -229,7 +229,7 @@ import NotificationBell from './NotificationBell.vue';
 import { spacesApi } from '../api/spaces';
 import { todosApi } from '../api/todos';
 import { normalizeSpaceKey, spaceKeyError } from '../utils/spaceKey';
-import { boardPath, timelinePath, backlogPath, issuesPath, releasesPath, settingsPath } from '../utils/spaceRoutes';
+import { boardPath, timelinePath, backlogPath, issuesPath, releasesPath, reportsPath, settingsPath } from '../utils/spaceRoutes';
 import { spaceColor, readableTextOn } from '../utils/spaceColors';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { useSavedFilters } from '../composables/useSavedFilters';
@@ -311,6 +311,7 @@ const navItems = computed(() => {
   }
   list.push({ label: '課題一覧', to: issuesPath(space), filters: true, icon: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'] });
   if (space) {
+    list.push({ label: 'レポート', to: reportsPath(space), icon: ['M3 3v18h18', 'M7 14l4-4 3 3 5-6'] });
     list.push({ label: 'リリース', to: releasesPath(space), icon: ['M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z', 'M7 7h.01'] });
     list.push({ label: '設定', to: settingsPath(space), icon: SETTINGS_ICON });
   }

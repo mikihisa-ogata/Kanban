@@ -9,7 +9,8 @@ type SprintRepository interface {
 	FindByID(id int) (*domain.Sprint, error)
 	// Create は未開始（future）のスプリントを作成し、その ID を返す
 	Create(sprint domain.Sprint) (int, error)
-	// Update はスプリントの名前・ゴール・期間・状態を変える。存在しなければ not found のエラーを返す
+	// Update はスプリントの名前・ゴール・期間・状態を変える。初めて開始中（active）にしたときは、開始した日時を記録する。
+	// 存在しなければ not found のエラーを返す
 	Update(sprint domain.Sprint) error
 	// Complete はスプリントを完了（closed）にする。issues（スプリントの課題）を記録し、
 	// moveIDs の課題とそのサブタスクを moveTo のスプリント（0 はバックログ）へ移す。まとめて 1 つのトランザクションで行う

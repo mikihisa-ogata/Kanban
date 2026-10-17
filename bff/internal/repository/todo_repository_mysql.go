@@ -439,9 +439,7 @@ func (r *todoMySQLRepository) UpdateMany(changes []domain.BulkIssueChange) error
 			}
 		}
 		for _, entry := range change.History {
-			if _, err := tx.Exec(
-				`INSERT INTO issue_history (todo_id, field, old_value, new_value, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-				entry.TodoID, entry.Field, entry.OldValue, entry.NewValue, entry.UserID, now); err != nil {
+			if err := insertHistory(tx, entry, now); err != nil {
 				return err
 			}
 		}

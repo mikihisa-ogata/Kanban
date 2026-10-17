@@ -574,11 +574,12 @@ GET /todos/:id/history
 [
   { "ID": 1, "TodoID": 3, "Field": "created", "OldValue": null, "NewValue": null, "UserID": 1, "User": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" }, "CreatedAt": "2026-10-11T01:00:00Z" },
   { "ID": 2, "TodoID": 3, "Field": "status", "OldValue": "オープン", "NewValue": "進行中", "UserID": 1, "User": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" }, "CreatedAt": "2026-10-11T01:05:00Z" },
-  { "ID": 3, "TodoID": 3, "Field": "storyPoints", "OldValue": "3", "NewValue": "5", "UserID": 0, "User": null, "CreatedAt": "2026-10-11T01:05:00Z" }
+  { "ID": 3, "TodoID": 3, "Field": "storyPoints", "OldValue": "3", "NewValue": "5", "UserID": 0, "User": null, "CreatedAt": "2026-10-11T01:05:00Z" },
+  { "ID": 4, "TodoID": 3, "Field": "sprint", "OldValue": null, "NewValue": "DEV スプリント 1", "OldRefID": 0, "NewRefID": 3, "UserID": 1, "User": { "ID": 1, "DisplayName": "山田 太郎", "AvatarColor": "#0052CC" }, "CreatedAt": "2026-10-12T02:00:00Z" }
 ]
 ```
 
-`UserID` は変更したユーザーの ID、`User` はその概要です。ユーザー機能の追加前の記録は `UserID` が `0`、`User` が `null`（変更者なし）です。
+`UserID` は変更したユーザーの ID、`User` はその概要です。`OldRefID`・`NewRefID` は項目が指すものの変更前・変更後の ID で、`sprint` だけが持ちます（スプリントの ID。`0` はバックログ）。それ以外の項目と、ID を残す前の `sprint` の記録は `null` です。ユーザー機能の追加前の記録は `UserID` が `0`、`User` が `null`（変更者なし）です。
 
 課題の作成（`Field` が `created`）と、項目の変更を 1 項目 1 件で記録します。値は変更時点の文字列で、`null` は「なし」です。同じ内容のままの更新は記録しません。
 
@@ -596,10 +597,10 @@ GET /todos/:id/history
 | `epic` / `space` | 変更時点のエピック・スペースの名前 |
 | `key` | 課題キー（スペースの変更で変わる） |
 | `assignee` / `reporter` | 変更時点の担当者・報告者の表示名（`null` はなし） |
-| `sprint` | 変更時点のスプリントの名前（`null` はバックログ。一括変更でだけ記録） |
+| `sprint` | 変更時点のスプリントの名前（`null` はバックログ）。`PUT /todos/:id/sprint`・一括変更・スプリントの完了（未完了の課題の移動）・削除で記録 |
 | `fixVersions` | 変更時点の修正バージョンの名前を名前順に `, ` でつないだもの（一括変更でだけ記録） |
 
-`PUT /todos/:id`・一括変更（`POST /issues/bulk-update`）のほか、エピックのスペース変更・エピックやスペースの削除・親課題の移動で課題が変わった場合も記録します。ステータスとストーリーポイントは値と日時を残すので、ある時点のステータスとポイントを後から再計算できます。
+`PUT /todos/:id`・一括変更（`POST /issues/bulk-update`）のほか、エピックのスペース変更・エピックやスペースの削除・親課題の移動で課題が変わった場合も記録します。ステータス・ストーリーポイント・スプリントは値と日時を残すので、ある時点のステータスとポイントとスプリントの課題を後から再計算できます（バーンダウンで使います）。
 
 ### コメント
 
@@ -677,6 +678,7 @@ POST   /sprints/:id/start      {"name": "DEV スプリント 1", "goal": "ログ
 POST   /sprints/:id/complete   {"moveTo": 5}
 DELETE /sprints/:id
 GET    /sprints/:id/issues
+GET    /sprints/:id/burndown?tz=Asia/Tokyo
 PUT    /todos/:id/sprint       {"sprintId": 3}
 ```
 
@@ -686,18 +688,37 @@ Jira のスクラムのスプリントです。スプリントはスペースに
 [
   {
     "ID": 3, "SpaceID": 1, "Name": "DEV スプリント 1", "Goal": "ログインを作る", "State": "closed",
-    "StartDate": "2026-10-12", "EndDate": "2026-10-26", "CompletedAt": "2026-10-26T09:00:00Z", "CreatedAt": "2026-10-10T12:00:00Z",
+    "StartDate": "2026-10-12", "EndDate": "2026-10-26", "StartedAt": "2026-10-12T00:30:00Z", "CompletedAt": "2026-10-26T09:00:00Z", "CreatedAt": "2026-10-10T12:00:00Z",
     "CompletedIssues": 4, "IncompleteIssues": 1, "CompletedPoints": 13
   }
 ]
 ```
 
-- `GET /sprints` はすべてのスプリントを、スペース・作成順に返します。`StartDate`・`EndDate` は期間（未設定は空文字）、`CompletedAt` は完了した日時（未完了は `null`）です。`CompletedIssues`・`IncompleteIssues`・`CompletedPoints` は完了したときに記録した、完了した課題・完了していない課題の件数と、完了した課題のストーリーポイントの合計です（完了していないスプリントは 0）。
+- `GET /sprints` はすべてのスプリントを、スペース・作成順に返します。`StartDate`・`EndDate` は期間（未設定は空文字）、`StartedAt` は開始した日時（未開始と、開始した日時を記録する前に開始したスプリントは `null`）、`CompletedAt` は完了した日時（未完了は `null`）です。`CompletedIssues`・`IncompleteIssues`・`CompletedPoints` は完了したときに記録した、完了した課題・完了していない課題の件数と、完了した課題のストーリーポイントの合計です（完了していないスプリントは 0）。
 - `POST /spaces/:id/sprints` は未開始のスプリントを作り、201 で `sprint` に入れて返します。`name` を省略すると「`<スペースのキー>` スプリント `<スペースのスプリントの通し番号>`」になります。スペース未割り当て（`:id` が 0）は 400、存在しないスペースは 404 です。
 - `PUT /sprints/:id` は名前・ゴール・期間を変えます（完了したスプリントは 400）。`POST /sprints/:id/start` は未開始のスプリントを、名前・ゴール・期間を決めて開始します。同じスペースに開始中のスプリントがあれば 409、未開始でなければ 400 です。名前は前後の空白を除いて 1〜100 文字、ゴールは 1000 文字以内、期間は `YYYY-MM-DD` で終了日を開始日以降にします。開始中・開始するスプリントでは期間が必須です（未開始なら両方空にできます）。
 - `POST /sprints/:id/complete` は開始中のスプリントを完了します。そのときのスプリントの課題（サブタスクを除く）を、ストーリーポイントと完了していたか（ステータスのカテゴリが `Done`）とあわせて記録し、完了していない課題（とそのサブタスク）を `moveTo`（同じスペースの未開始のスプリントの ID。`0` か省略はバックログ）へ移します。完了した課題は完了したスプリントに残ります。開始中でなければ 400、`moveTo` が別のスペースのスプリントや未開始でないスプリントなら 400 です。
 - `DELETE /sprints/:id` は未開始のスプリントを削除し、その課題をバックログに戻します（開始中・完了したスプリントは 400）。
 - `GET /sprints/:id/issues` は完了したときに記録した課題 `[{"SprintID": 3, "TodoID": 12, "StoryPoints": 5, "Completed": true}]` を課題の ID 順に返します（`StoryPoints` は未設定なら `null`）。
+- `GET /sprints/:id/burndown` は開始中・完了したスプリントのバーンダウン（Jira のスプリントバーンダウン）を、変更履歴から再計算して返します。未開始のスプリントは 400、存在しなければ 404 です。日付はクエリ `tz`（IANA のタイムゾーン名。省略するとサーバーのタイムゾーン、正しくなければ 400）で区切ります。
+
+  ```json
+  {
+    "SprintID": 3, "Start": "2026-10-12T00:30:00Z", "End": "2026-10-26T15:00:00Z", "Until": "2026-10-20T03:00:00Z", "StartPoints": 13,
+    "Events": [
+      { "Time": "2026-10-13T02:00:00Z", "Date": "2026-10-13", "TodoID": 12, "Key": "DEV-12", "Title": "ログイン画面", "Kind": "completed", "Points": 5, "Change": -5, "Remaining": 8 }
+    ],
+    "Days": [
+      { "Date": "2026-10-12", "Added": 0, "Removed": 0, "Estimate": 0, "Completed": 0, "Remaining": 13 },
+      { "Date": "2026-10-13", "Added": 0, "Removed": 0, "Estimate": 0, "Completed": -5, "Remaining": 8 }
+    ]
+  }
+  ```
+
+  - 残りポイントは、スプリントに入っている未完了（ステータスのカテゴリが `Done` でない）の課題（サブタスクを除く）のストーリーポイントの合計です（未設定は 0）。`StartPoints` は起点 `Start`（開始した日時。記録がなければ開始日の 0 時）の残りポイントで、理想線は `Start` の `StartPoints` から計画の終わり `End`（終了日の翌日の 0 時）の 0 を結びます。`Until` は実績の終わり（完了した日時。開始中なら現在）です。
+  - `Events` は起点から `Until` までに残りポイントを変えた出来事を起きた順に並べます。`Kind` は `added`（追加。スプリント中に作成した課題を含む）・`removed`（除外。スペースの移動を含む）・`completed`（完了）・`reopened`（再開）・`estimate`（未完了の課題のポイント変更）で、`Change` は残りポイントの増減、`Remaining` はその後の残りポイント、`Points` はその後の課題のポイント（未設定は `null`）です。追加・除外・完了・再開はポイントが 0 でも含めます。完了したスプリントでは、完了したときの未完了の課題の移動は含めません。
+  - `Days` は開始日から終了日（実績が終了日より後まであればその日）までの日ごとの増減（`Completed` は完了で減った分と再開で増えた分の合計）と、その日の終わりの残りポイントです。まだ来ていない日の `Remaining` は `null` です。
+  - 履歴のない課題は、今（完了したスプリントでは完了したときに記録した課題も）スプリントに入っていれば最初から入っていたものとし、履歴のない項目は今の値のままだったものとして数えます。
 - `PUT /todos/:id/sprint` は課題とそのサブタスクを `sprintId` のスプリント（`0` はバックログ）に入れます。スプリントは課題と同じスペースで、完了していないものに限ります（違えば 400）。サブタスクのスプリントは親課題と同じになるので、サブタスクを指定すると 400 です。課題・スプリントが存在しなければ 404 です。
 - サブタスクを作ると、親課題と同じスプリントに入ります。課題のスペースが変わると（エピックのスペース変更やスペースの削除を含む）、スプリントはスペースに属するのでバックログに戻ります。スペースを削除すると、そのスプリントも削除します。
 
@@ -834,13 +855,13 @@ DELETE /spaces/:id
 - ワークフローのステータスは `statuses` に、スペース `space_id`（0 は未割り当て）・名前 `name`・カテゴリ `category`・並び順 `position`・導入前のステータス `legacy_key`（既定の 4 ステータスだけ）・列の最大件数 `wip_limit`（`NULL` は制限なし）で保存し、課題は `todos.status_id` で指します。`todos.status` には互換用の値を書き込みます。ワークフローの導入前のデータベースでは、起動時に `Migrate` が各スペースと未割り当てに既定の 4 ステータス（オープン=To Do、進行中・待ち状況=In Progress、クローズ=Done）を作り、課題を同じスペースの同じステータスに対応付け、`done` をカテゴリに合わせます（何度実行しても同じ結果になります）。
 - 初期見積もり・残り時間は `todos.original_estimate`・`todos.remaining_estimate`（分、`NULL` は未設定）、作業ログは `worklogs` に課題 `todo_id`・作業時間 `minutes`（分）・開始日時 `started_at`・メモ `note`・記録日時 `created_at`・編集日時 `updated_at` で保存します。
 - 添付ファイルは `attachments` に、課題 `todo_id`・ファイル名 `file_name`・種類 `content_type`・バイト数 `size`・保存名 `storage_name`・添付日時 `created_at` で保存します。本体は `ATTACHMENTS_DIR` に `storage_name`（推測できないランダムな名前）で置きます。読み書きは `internal/repository` の添付ファイルの Repository だけが行います。
-- 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・変更者 `user_id`（0 はなし）・記録日時 `created_at` で保存します。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
+- 変更履歴は `issue_history` に、課題 `todo_id`・項目名 `field`・変更前 `old_value`・変更後 `new_value`・項目が指すものの変更前・変更後の ID `old_ref_id`・`new_ref_id`（スプリントの変更だけ。それ以外は `NULL`）・変更者 `user_id`（0 はなし）・記録日時 `created_at` で保存します。`old_ref_id`・`new_ref_id` と `sprints.started_at` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の行は `NULL`）。記録はサービス層（`internal/service` の `historyRecorder`）で行います。
 - コメントは `comments` に、課題 `todo_id`・本文 `body`・投稿者 `author_id`（0 はなし）・投稿日時 `created_at`・編集日時 `updated_at`（`NULL` は未編集）で保存します。
 - ウォッチャーは `watchers`（`todo_id`・`user_id`・`created_at`）、通知は `notifications` に保存します。通知の列は、受け取るユーザー `user_id`・課題 `todo_id`・変更したユーザー `actor_id`・種類 `kind`・内容 `detail`・既読にした日時 `read_at`（`NULL` は未読）・`created_at` です。通知は、サービス層の `WithNotifications` で包んだ変更履歴の Repository が、記録に合わせて作ります。
 - 課題の担当者・報告者は `todos.assignee_id`・`todos.reporter_id`（`users.id`。0 はなし）です。これらの列と `comments.author_id`・`issue_history.user_id` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の行は 0 = なし）。
 - 課題リンクは `issue_links` に、リンク元 `source_id`・リンク先 `target_id`・種類 `link_type`（`Blocks`・`Relates`・`Duplicates`・`Clones`）で保存します。`source_id` の課題が `target_id` の課題を `link_type` する（例: source blocks target）という向きです。
 - ストーリーポイントは `todos.story_points`（`DECIMAL(8,2)`、`NULL` は未設定）です。
-- スプリントは `sprints` に、スペース `space_id`・名前 `name`・ゴール `goal`・状態 `state`（`future`・`active`・`closed`）・期間 `start_date`・`end_date`（`DATE`、`NULL` は未設定）・完了した日時 `completed_at`（`NULL` は未完了）・作成日時 `created_at` で保存し、課題は `todos.sprint_id`（0 はバックログ）で指します。完了したときの記録は `sprint_issues` に、スプリント `sprint_id`・課題 `todo_id`・その時点のストーリーポイント `story_points`・完了していたか `completed` で保存します。`todos.sprint_id` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の課題は 0 = バックログ）。
+- スプリントは `sprints` に、スペース `space_id`・名前 `name`・ゴール `goal`・状態 `state`（`future`・`active`・`closed`）・期間 `start_date`・`end_date`（`DATE`、`NULL` は未設定）・開始した日時 `started_at`（`NULL` は未開始か記録前）・完了した日時 `completed_at`（`NULL` は未完了）・作成日時 `created_at` で保存し、課題は `todos.sprint_id`（0 はバックログ）で指します。完了したときの記録は `sprint_issues` に、スプリント `sprint_id`・課題 `todo_id`・その時点のストーリーポイント `story_points`・完了していたか `completed` で保存します。`todos.sprint_id` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の課題は 0 = バックログ）。
 - バージョンは `versions` に、スペース `space_id`・名前 `name`・説明 `description`・状態 `status`（`unreleased`・`released`・`archived`）・開始日 `start_date`・リリース日 `release_date`（`DATE`、`NULL` は未設定）・作成日時 `created_at` で保存します。課題の修正バージョンは多対多を `todo_versions`（`todo_id`・`version_id`）で表します。課題やバージョンを削除すると `todo_versions` の行も削除します。
 - コンポーネントは `components` に、スペース `space_id`・名前 `name`・説明 `description`・既定の担当者 `default_assignee_id`（`users.id`。0 はなし）・作成日時 `created_at` で保存します。課題のコンポーネントは多対多を `todo_components`（`todo_id`・`component_id`）で表します。課題やコンポーネントを削除すると `todo_components` の行も削除します。
 - 保存済みフィルターは `saved_filters` に、作ったユーザー `owner_id`（`users.id`）・名前 `name`・JQL `jql`・お気に入り `favourite`・作成日時 `created_at`・更新日時 `updated_at` で保存します。課題を表示した記録は `issue_views` に、ユーザー `user_id`・課題 `todo_id`・最後に表示した日時 `viewed_at`（`DATETIME(3)`、UTC）で保存します。課題を削除すると `issue_views` の行も削除します。

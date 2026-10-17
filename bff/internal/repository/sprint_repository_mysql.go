@@ -17,7 +17,7 @@ func NewSprintMySQLRepository(db *sql.DB) SprintRepository {
 }
 
 // selectSprints はスプリントを読む SELECT。完了したときに記録した件数とポイントも読む（scanSprint と列を合わせる）
-const selectSprints = `SELECT s.id, s.space_id, s.name, s.goal, s.state, s.start_date, s.end_date, s.completed_at, s.created_at,
+const selectSprints = `SELECT s.id, s.space_id, s.name, s.goal, s.state, s.start_date, s.end_date, s.started_at, s.completed_at, s.created_at,
 		        (SELECT COUNT(*) FROM sprint_issues i WHERE i.sprint_id = s.id AND i.completed),
 		        (SELECT COUNT(*) FROM sprint_issues i WHERE i.sprint_id = s.id AND NOT i.completed),
 		        (SELECT COALESCE(SUM(i.story_points), 0) FROM sprint_issues i WHERE i.sprint_id = s.id AND i.completed)
@@ -55,8 +55,8 @@ func (r *sprintMySQLRepository) FindByID(id int) (*domain.Sprint, error) {
 func scanSprint(row interface{ Scan(dest ...any) error }) (domain.Sprint, error) {
 	var s domain.Sprint
 	var state string
-	var start, end, completedAt sql.NullTime
-	if err := row.Scan(&s.ID, &s.SpaceID, &s.Name, &s.Goal, &state, &start, &end, &completedAt, &s.CreatedAt,
+	var start, end, startedAt, completedAt sql.NullTime
+	if err := row.Scan(&s.ID, &s.SpaceID, &s.Name, &s.Goal, &state, &start, &end, &startedAt, &completedAt, &s.CreatedAt,
 		&s.CompletedIssues, &s.IncompleteIssues, &s.CompletedPoints); err != nil {
 		return domain.Sprint{}, err
 	}
@@ -66,6 +66,10 @@ func scanSprint(row interface{ Scan(dest ...any) error }) (domain.Sprint, error)
 	}
 	if end.Valid {
 		s.EndDate = end.Time.Format(deadlineLayout)
+	}
+	if startedAt.Valid {
+		t := startedAt.Time
+		s.StartedAt = &t
 	}
 	if completedAt.Valid {
 		t := completedAt.Time
@@ -106,8 +110,8 @@ func (r *sprintMySQLRepository) Update(sprint domain.Sprint) error {
 		return err
 	}
 	result, err := r.db.Exec(
-		`UPDATE sprints SET name = ?, goal = ?, state = ?, start_date = ?, end_date = ? WHERE id = ?`,
-		sprint.Name, sprint.Goal, string(sprint.State), start, end, sprint.ID)
+		`UPDATE sprints SET name = ?, goal = ?, state = ?, start_date = ?, end_date = ?, started_at = IF(? AND started_at IS NULL, ?, started_at) WHERE id = ?`,
+		sprint.Name, sprint.Goal, string(sprint.State), start, end, sprint.State == domain.SprintStateActive, currentTime(), sprint.ID)
 	if err != nil {
 		return err
 	}

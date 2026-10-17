@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"todo-api/internal/domain"
 	"todo-api/internal/repository"
@@ -32,24 +33,27 @@ type SprintService interface {
 	// StartSprint は未開始のスプリントを、名前・ゴール・期間を決めて開始する。スペースごとに同時に 1 つまで
 	StartSprint(id int, name, goal, startDate, endDate string) (domain.Sprint, error)
 	// CompleteSprint は開始中のスプリントを完了する。スプリントの課題を記録し、
-	// 完了していない課題は moveTo（同じスペースの未開始のスプリント。0 はバックログ）へ移す
-	CompleteSprint(id int, moveTo int) (domain.Sprint, error)
-	// DeleteSprint は未開始のスプリントを削除する。その課題はバックログに戻る
-	DeleteSprint(id int) error
-	// SetTodoSprint は課題（とそのサブタスク）を sprintID のスプリント（0 はバックログ）に入れる
-	SetTodoSprint(todoID int, sprintID int) error
+	// 完了していない課題は moveTo（同じスペースの未開始のスプリント。0 はバックログ）へ移す。移した課題のスプリントの変更は actorID の変更として履歴に記録する
+	CompleteSprint(id int, moveTo int, actorID int) (domain.Sprint, error)
+	// DeleteSprint は未開始のスプリントを削除する。その課題はバックログに戻る（履歴に記録する）
+	DeleteSprint(id int, actorID int) error
+	// SetTodoSprint は課題（とそのサブタスク）を sprintID のスプリント（0 はバックログ）に入れ、変わった課題を履歴に記録する
+	SetTodoSprint(todoID int, sprintID int, actorID int) error
 	// GetSprintIssues は完了したときに記録したスプリントの課題を返す
 	GetSprintIssues(id int) ([]domain.SprintIssue, error)
+	// GetBurndown はスプリントのバーンダウンを、変更履歴から再計算して返す。日付は loc のタイムゾーンで区切る
+	GetBurndown(id int, loc *time.Location) (domain.Burndown, error)
 }
 
 type sprintService struct {
 	repo      repository.SprintRepository
 	todoRepo  repository.TodoRepository
 	spaceRepo repository.SpaceRepository
+	history   repository.HistoryRepository
 }
 
-func NewSprintService(r repository.SprintRepository, t repository.TodoRepository, s repository.SpaceRepository) SprintService {
-	return &sprintService{repo: r, todoRepo: t, spaceRepo: s}
+func NewSprintService(r repository.SprintRepository, t repository.TodoRepository, s repository.SpaceRepository, h repository.HistoryRepository) SprintService {
+	return &sprintService{repo: r, todoRepo: t, spaceRepo: s, history: h}
 }
 
 func (s *sprintService) GetSprints() ([]domain.Sprint, error) {
@@ -140,7 +144,7 @@ func (s *sprintService) StartSprint(id int, name, goal, startDate, endDate strin
 	return s.find(id)
 }
 
-func (s *sprintService) CompleteSprint(id int, moveTo int) (domain.Sprint, error) {
+func (s *sprintService) CompleteSprint(id int, moveTo int, actorID int) (domain.Sprint, error) {
 	sprint, err := s.find(id)
 	if err != nil {
 		return domain.Sprint{}, err
@@ -177,10 +181,17 @@ func (s *sprintService) CompleteSprint(id int, moveTo int) (domain.Sprint, error
 	if err := s.repo.Complete(id, issues, moveIDs, moveTo); err != nil {
 		return domain.Sprint{}, err
 	}
+	moved := map[int]bool{}
+	for _, todoID := range moveIDs {
+		moved[todoID] = true
+	}
+	if err := s.recordSprintChanges(todos, func(todo domain.Todo) bool { return moved[todo.ID] || moved[todo.ParentID] }, moveTo, actorID); err != nil {
+		return domain.Sprint{}, err
+	}
 	return s.find(id)
 }
 
-func (s *sprintService) DeleteSprint(id int) error {
+func (s *sprintService) DeleteSprint(id int, actorID int) error {
 	sprint, err := s.find(id)
 	if err != nil {
 		return err
@@ -188,10 +199,22 @@ func (s *sprintService) DeleteSprint(id int) error {
 	if sprint.State != domain.SprintStateFuture {
 		return ErrSprintNotDeletable
 	}
-	return s.repo.Delete(id)
+	// 削除するとスプリントの名前が分からなくなるので、履歴に残す課題は削除の前に読んでおく
+	todos, err := s.todoRepo.FindAll()
+	if err != nil {
+		return err
+	}
+	names, err := s.sprintNames()
+	if err != nil {
+		return err
+	}
+	if err := s.repo.Delete(id); err != nil {
+		return err
+	}
+	return s.addSprintHistory(todos, func(todo domain.Todo) bool { return todo.SprintID == id }, 0, names, actorID)
 }
 
-func (s *sprintService) SetTodoSprint(todoID int, sprintID int) error {
+func (s *sprintService) SetTodoSprint(todoID int, sprintID int, actorID int) error {
 	todos, err := s.todoRepo.FindAll()
 	if err != nil {
 		return err
@@ -220,7 +243,74 @@ func (s *sprintService) SetTodoSprint(todoID int, sprintID int) error {
 			return ErrSprintOtherSpace
 		}
 	}
-	return s.repo.SetTodoSprint(todoID, sprintID)
+	if err := s.repo.SetTodoSprint(todoID, sprintID); err != nil {
+		return err
+	}
+	return s.recordSprintChanges(todos, func(todo domain.Todo) bool { return todo.ID == todoID || todo.ParentID == todoID }, sprintID, actorID)
+}
+
+// recordSprintChanges は、todos（変更前の課題）のうち target に当たる課題のスプリントが sprintID に変わったことを履歴に記録する
+func (s *sprintService) recordSprintChanges(todos []domain.Todo, target func(domain.Todo) bool, sprintID int, actorID int) error {
+	names, err := s.sprintNames()
+	if err != nil {
+		return err
+	}
+	return s.addSprintHistory(todos, target, sprintID, names, actorID)
+}
+
+func (s *sprintService) addSprintHistory(todos []domain.Todo, target func(domain.Todo) bool, sprintID int, names map[int]string, actorID int) error {
+	entries := []domain.HistoryEntry{}
+	for _, todo := range todos {
+		if !target(todo) {
+			continue
+		}
+		if entry, ok := domain.SprintChange(todo.ID, todo.SprintID, sprintID, names); ok {
+			entry.UserID = actorID
+			entries = append(entries, entry)
+		}
+	}
+	return s.history.Add(entries)
+}
+
+// sprintNames はスプリントの ID から名前への対応を返す
+func (s *sprintService) sprintNames() (map[int]string, error) {
+	sprints, err := s.repo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	names := map[int]string{}
+	for _, sprint := range sprints {
+		names[sprint.ID] = sprint.Name
+	}
+	return names, nil
+}
+
+// burndownFields はバーンダウンの再計算に使う履歴の項目
+var burndownFields = []string{domain.HistoryFieldSprint, domain.HistoryFieldSpace, domain.HistoryFieldStatusCategory, domain.HistoryFieldDone, domain.HistoryFieldStoryPoints}
+
+func (s *sprintService) GetBurndown(id int, loc *time.Location) (domain.Burndown, error) {
+	sprint, err := s.find(id)
+	if err != nil {
+		return domain.Burndown{}, err
+	}
+	if sprint.State == domain.SprintStateFuture {
+		return domain.Burndown{}, domain.ErrSprintNotStarted
+	}
+	todos, err := s.todoRepo.FindAll()
+	if err != nil {
+		return domain.Burndown{}, err
+	}
+	recorded, err := s.repo.FindIssues(id)
+	if err != nil {
+		return domain.Burndown{}, err
+	}
+	history, err := s.history.FindByFields(burndownFields)
+	if err != nil {
+		return domain.Burndown{}, err
+	}
+	return domain.ComputeBurndown(domain.BurndownInput{
+		Sprint: sprint, Todos: todos, Recorded: recorded, History: history, Now: time.Now().UTC(), Location: loc,
+	})
 }
 
 func (s *sprintService) GetSprintIssues(id int) ([]domain.SprintIssue, error) {

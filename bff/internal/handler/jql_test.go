@@ -19,7 +19,7 @@ func TestSearchJQL(t *testing.T) {
 	spaces := NewSpaceHandler(service.NewSpaceService(repos.space, repos.epic, repos.todo, repos.history, repos.status))
 	api.POST("/spaces", spaces.CreateSpace)
 	api.POST("/epics", NewEpicHandler(service.NewEpicService(repos.epic, repos.todo, repos.space, repos.history, repos.status)).CreateEpic)
-	sprints := NewSprintHandler(service.NewSprintService(repos.sprint, repos.todo, repos.space))
+	sprints := NewSprintHandler(service.NewSprintService(repos.sprint, repos.todo, repos.space, repos.history))
 	api.POST("/spaces/:id/sprints", sprints.CreateSprint)
 	api.POST("/sprints/:id/start", sprints.StartSprint)
 	api.PUT("/todos/:id/sprint", sprints.SetTodoSprint)
