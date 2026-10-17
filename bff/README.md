@@ -781,12 +781,14 @@ POST   /todos/:id/view
 
 ```
 GET /epics
-POST /epics        {"Title": "エピック名", "SpaceID": 0}
-PUT /epics/:id     {"Title": "エピック名", "SpaceID": 2}
+POST /epics        {"Title": "エピック名", "SpaceID": 0, "StartDate": "2026-10-01", "DueDate": "2026-10-31", "Color": "#6554C0"}
+PUT /epics/:id     {"Title": "エピック名", "SpaceID": 2, "StartDate": "2026-10-05", "DueDate": "2026-11-10"}
 DELETE /epics/:id
 ```
 
-レスポンスは `{"ID": 1, "Title": "エピック名", "SpaceID": 0, "CreatedAt": "2026-10-10T12:00:00Z", "UpdatedAt": "2026-10-10T12:00:00Z"}` の配列です。作成日時・最終更新日時はタスクと同じ形式で、`PUT` で `UpdatedAt` が変わります。`PUT` でスペースを変えると、子タスクも同じスペースへ移動します。削除すると子タスクはエピック未割り当てになります。
+レスポンスは `{"ID": 1, "Title": "エピック名", "SpaceID": 0, "StartDate": "2026-10-01", "DueDate": "2026-10-31", "Color": "#6554C0", "CreatedAt": "2026-10-10T12:00:00Z", "UpdatedAt": "2026-10-10T12:00:00Z"}` の配列です。作成日時・最終更新日時はタスクと同じ形式で、`PUT` で `UpdatedAt` が変わります。
+
+`StartDate`（開始日）・`DueDate`（期限日）は `YYYY-MM-DD`、`Color`（タイムラインのバーの色）は `#RRGGBB`（大文字にそろえて保存）で、空文字は未設定（色は既定の色）です。作成で省略すると未設定、`PUT` で省略（または `null`）すると今の値のまま、空文字を送ると未設定に戻します。形式が違う、または期限日が開始日より前になる場合は 400 を返します。`PUT` でスペースを変えると、子タスクも同じスペースへ移動します。削除すると子タスクはエピック未割り当てになります。
 
 ### スペース
 
@@ -844,6 +846,7 @@ DELETE /spaces/:id
 - 保存済みフィルターは `saved_filters` に、作ったユーザー `owner_id`（`users.id`）・名前 `name`・JQL `jql`・お気に入り `favourite`・作成日時 `created_at`・更新日時 `updated_at` で保存します。課題を表示した記録は `issue_views` に、ユーザー `user_id`・課題 `todo_id`・最後に表示した日時 `viewed_at`（`DATETIME(3)`、UTC）で保存します。課題を削除すると `issue_views` の行も削除します。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - ユーザーは `users` に、表示名 `display_name`・メールアドレス `email`（小文字に正規化。一意）・パスワードのハッシュ `password_hash`（bcrypt）・アバターの色 `avatar_color`・作成日時 `created_at` で保存します。ログインのセッションは `sessions` に、トークンの SHA-256 `token_hash`・ユーザー `user_id`・作成日時 `created_at`・有効期限 `expires_at` で保存します。期限切れのセッションはログインのときに削除します。
+- `epics` の `start_date`・`due_date`（`DATE`、NULL は未設定）と `color`（`VARCHAR(7)`、空文字は既定の色）は、エピックのタイムラインの期間と色です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存のエピックは未設定になります）。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。
 
 ### CSV からの移行

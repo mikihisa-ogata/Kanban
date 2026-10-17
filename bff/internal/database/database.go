@@ -192,6 +192,11 @@ func addedColumns() []column {
 		{"statuses", "wip_limit", "INT NULL"},
 		// 課題のスプリント（sprints.id）。0 はバックログ（どのスプリントにも入っていない）
 		{"todos", "sprint_id", "INT NOT NULL DEFAULT 0"},
+		// エピックの開始日・期限日（タイムラインのバーの期間）。NULL は未設定
+		{"epics", "start_date", "DATE NULL"},
+		{"epics", "due_date", "DATE NULL"},
+		// エピックのタイムラインのバーの色（#RRGGBB）。空文字は既定の色
+		{"epics", "color", "VARCHAR(7) NOT NULL DEFAULT ''"},
 	}
 }
 

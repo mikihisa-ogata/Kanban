@@ -74,7 +74,7 @@ func TestMigrate(t *testing.T) {
 		"sessions":        {"token_hash", "user_id", "created_at", "expires_at"},
 		"watchers":        {"todo_id", "user_id", "created_at"},
 		"notifications":   {"id", "user_id", "todo_id", "actor_id", "kind", "detail", "read_at", "created_at"},
-		"epics":           {"id", "title", "space_id", "created_at", "updated_at"},
+		"epics":           {"id", "title", "space_id", "created_at", "updated_at", "start_date", "due_date", "color"},
 		"sprints":         {"id", "space_id", "name", "goal", "state", "start_date", "end_date", "completed_at", "created_at"},
 		"sprint_issues":   {"sprint_id", "todo_id", "story_points", "completed"},
 		"versions":        {"id", "space_id", "name", "description", "status", "start_date", "release_date", "created_at"},
@@ -154,6 +154,16 @@ func TestMigrate_AddsTimestampColumnsToExistingTables(t *testing.T) {
 	}
 	if issueType != "Task" || priority != "Medium" {
 		t.Errorf("issue_type = %q, priority = %q, want Task, Medium", issueType, priority)
+	}
+
+	// 追加前のエピックは開始日・期限日が未設定、色は既定の色になる
+	var startDate, dueDate sql.NullTime
+	var color string
+	if err := db.QueryRow(`SELECT start_date, due_date, color FROM epics`).Scan(&startDate, &dueDate, &color); err != nil {
+		t.Fatal(err)
+	}
+	if startDate.Valid || dueDate.Valid || color != "" {
+		t.Errorf("start_date = %v, due_date = %v, color = %q, want NULL, NULL, empty", startDate, dueDate, color)
 	}
 
 	for _, table := range []string{"epics", "todos"} {

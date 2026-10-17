@@ -10,11 +10,20 @@ import (
 
 var ErrEpicNotFound = errors.New("指定されたエピックが存在しません")
 
+// EpicInput はエピックの作成・更新の入力。StartDate・DueDate・Color の nil は、作成では未設定、更新では今の値のまま
+type EpicInput struct {
+	Title     string
+	SpaceID   int
+	StartDate *string
+	DueDate   *string
+	Color     *string
+}
+
 type EpicService interface {
 	GetEpics() ([]domain.Epic, error)
-	CreateEpic(title string, spaceID int) error
+	CreateEpic(input EpicInput) error
 	// UpdateEpic・DeleteEpic で子タスクが変わったときは、actorID のユーザーの変更として履歴に記録する
-	UpdateEpic(id int, title string, spaceID int, actorID int) error
+	UpdateEpic(id int, input EpicInput, actorID int) error
 	DeleteEpic(id int, actorID int) error
 }
 
@@ -34,15 +43,20 @@ func (s *epicService) GetEpics() ([]domain.Epic, error) {
 	return s.epicRepo.FindAll()
 }
 
-func (s *epicService) CreateEpic(title string, spaceID int) error {
-	if err := validateSpace(s.spaceRepo, spaceID); err != nil {
+func (s *epicService) CreateEpic(input EpicInput) error {
+	if err := validateSpace(s.spaceRepo, input.SpaceID); err != nil {
 		return err
 	}
-	return s.epicRepo.Create(domain.Epic{Title: title, SpaceID: spaceID})
+	epic, err := applyEpicInput(domain.Epic{}, input)
+	if err != nil {
+		return err
+	}
+	return s.epicRepo.Create(epic)
 }
 
 // UpdateEpic はエピックを更新する。スペースが変わった場合は子タスクも同じスペースへ移す
-func (s *epicService) UpdateEpic(id int, title string, spaceID int, actorID int) error {
+func (s *epicService) UpdateEpic(id int, input EpicInput, actorID int) error {
+	spaceID := input.SpaceID
 	if err := validateSpace(s.spaceRepo, spaceID); err != nil {
 		return err
 	}
@@ -55,7 +69,11 @@ func (s *epicService) UpdateEpic(id int, title string, spaceID int, actorID int)
 		return ErrEpicNotFound
 	}
 
-	if err := s.epicRepo.Update(id, domain.Epic{Title: title, SpaceID: spaceID}); err != nil {
+	updated, err := applyEpicInput(*epic, input)
+	if err != nil {
+		return err
+	}
+	if err := s.epicRepo.Update(id, updated); err != nil {
 		return err
 	}
 	if epic.SpaceID == spaceID {
@@ -112,6 +130,30 @@ func (s *epicService) DeleteEpic(id int, actorID int) error {
 	}
 
 	return nil
+}
+
+// applyEpicInput は epic に入力を反映したエピックを返す。日付・色は nil なら epic の値のまま。
+// 開始日・期限日の形式や前後、色の形式が正しくなければ domain のエラーを返す
+func applyEpicInput(epic domain.Epic, input EpicInput) (domain.Epic, error) {
+	epic.Title = input.Title
+	epic.SpaceID = input.SpaceID
+	if input.StartDate != nil {
+		epic.StartDate = *input.StartDate
+	}
+	if input.DueDate != nil {
+		epic.DueDate = *input.DueDate
+	}
+	if err := domain.ValidateEpicDates(epic.StartDate, epic.DueDate); err != nil {
+		return domain.Epic{}, err
+	}
+	if input.Color != nil {
+		color, err := domain.NormalizeEpicColor(*input.Color)
+		if err != nil {
+			return domain.Epic{}, err
+		}
+		epic.Color = color
+	}
+	return epic, nil
 }
 
 // findEpic は指定IDのエピックを返す（存在しない場合は nil）

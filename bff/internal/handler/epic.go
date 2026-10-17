@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"todo-api/internal/domain"
 	"todo-api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,24 @@ type EpicHandler struct {
 
 func NewEpicHandler(s service.EpicService) *EpicHandler {
 	return &EpicHandler{service: s}
+}
+
+// epicRequest はエピックの作成・更新のリクエスト。startDate・dueDate・color は省略すると、作成では未設定、更新では今の値のまま
+type epicRequest struct {
+	Title     string  `json:"title" binding:"required"`
+	SpaceID   int     `json:"spaceId"`
+	StartDate *string `json:"startDate"`
+	DueDate   *string `json:"dueDate"`
+	Color     *string `json:"color"`
+}
+
+func (r epicRequest) input() service.EpicInput {
+	return service.EpicInput{Title: r.Title, SpaceID: r.SpaceID, StartDate: r.StartDate, DueDate: r.DueDate, Color: r.Color}
+}
+
+// isEpicInputError はエピックの日付・色の誤り（400 にするもの）かを返す
+func isEpicInputError(err error) bool {
+	return errors.Is(err, domain.ErrInvalidEpicDates) || errors.Is(err, domain.ErrInvalidEpicColor)
 }
 
 func (h *EpicHandler) GetEpics(c *gin.Context) {
@@ -31,10 +50,7 @@ func (h *EpicHandler) GetEpics(c *gin.Context) {
 }
 
 func (h *EpicHandler) CreateEpic(c *gin.Context) {
-	var req struct {
-		Title   string `json:"title" binding:"required"`
-		SpaceID int    `json:"spaceId"`
-	}
+	var req epicRequest
 
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -43,8 +59,8 @@ func (h *EpicHandler) CreateEpic(c *gin.Context) {
 		return
 	}
 
-	err := h.service.CreateEpic(req.Title, req.SpaceID)
-	if errors.Is(err, service.ErrSpaceNotFound) {
+	err := h.service.CreateEpic(req.input())
+	if errors.Is(err, service.ErrSpaceNotFound) || isEpicInputError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -72,10 +88,7 @@ func (h *EpicHandler) UpdateEpic(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Title   string `json:"title" binding:"required"`
-		SpaceID int    `json:"spaceId"`
-	}
+	var req epicRequest
 
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -84,14 +97,14 @@ func (h *EpicHandler) UpdateEpic(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateEpic(id, req.Title, req.SpaceID, actorID(c))
+	err = h.service.UpdateEpic(id, req.input(), actorID(c))
 	if errors.Is(err, service.ErrEpicNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-	if errors.Is(err, service.ErrSpaceNotFound) {
+	if errors.Is(err, service.ErrSpaceNotFound) || isEpicInputError(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})

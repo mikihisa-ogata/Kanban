@@ -229,7 +229,7 @@ import NotificationBell from './NotificationBell.vue';
 import { spacesApi } from '../api/spaces';
 import { todosApi } from '../api/todos';
 import { normalizeSpaceKey, spaceKeyError } from '../utils/spaceKey';
-import { boardPath, backlogPath, issuesPath, releasesPath, settingsPath } from '../utils/spaceRoutes';
+import { boardPath, timelinePath, backlogPath, issuesPath, releasesPath, settingsPath } from '../utils/spaceRoutes';
 import { spaceColor, readableTextOn } from '../utils/spaceColors';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { useSavedFilters } from '../composables/useSavedFilters';
@@ -301,11 +301,12 @@ const SETTINGS_ICON = [
   'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'
 ];
 
-// ナビ。バックログ・リリース・設定はスペースごと（Jira のプロジェクトと同じ）。課題一覧はスペースの中から開くと、そのスペースに絞り込む
+// ナビ。タイムライン・バックログ・リリース・設定はスペースごと（Jira のプロジェクトと同じ）。課題一覧はスペースの中から開くと、そのスペースに絞り込む
 const navItems = computed(() => {
   const space = props.currentSpace;
   const list = [{ label: 'ボード', to: boardPath(space), icon: ['M3 4h18v16H3z', 'M9 4v16', 'M15 4v16'] }];
   if (space) {
+    list.push({ label: 'タイムライン', to: timelinePath(space), icon: ['M3 6h10', 'M7 12h12', 'M5 18h8', 'M3 3v18'] });
     list.push({ label: 'バックログ', to: backlogPath(space), icon: ['M8 6h13', 'M8 12h13', 'M8 18h13', 'M3 6h.01', 'M3 12h.01', 'M3 18h.01'] });
   }
   list.push({ label: '課題一覧', to: issuesPath(space), filters: true, icon: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'] });

@@ -5,6 +5,9 @@ export const boardPath = (space) => (space ? `/spaces/${encodeURIComponent(space
 // スペースのバックログ（未完了の課題を順位の順に並べた一覧）
 export const backlogPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/backlog`;
 
+// スペースのタイムライン（エピックを日付軸のバーで並べる、Jira のロードマップ）
+export const timelinePath = (space) => `/spaces/${encodeURIComponent(space.Key)}/timeline`;
+
 // スペースのリリース（バージョンの一覧）と、バージョンの詳細
 export const releasesPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/releases`;
 export const versionPath = (space, versionId) => `${releasesPath(space)}/${versionId}`;
