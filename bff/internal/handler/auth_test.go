@@ -208,6 +208,38 @@ func TestAuth_LoginRejectsWrongPassword(t *testing.T) {
 	}
 }
 
+// 同じメールアドレスで 5 回続けて失敗すると、パスワードが正しくてもしばらくは 429 を返す。ほかのメールアドレスには影響しない
+func TestAuth_LoginLocksAfterRepeatedFailures(t *testing.T) {
+	r, _ := newAuthRouter(t)
+	for _, email := range []string{"taro@example.com", "hanako@example.com"} {
+		if w := doAuthRequest(t, r, http.MethodPost, "/auth/signup",
+			`{"displayName":"user","email":"`+email+`","password":"correct-password"}`, ""); w.Code != http.StatusCreated {
+			t.Fatalf("POST /auth/signup status = %d, body = %s", w.Code, w.Body)
+		}
+	}
+
+	for i := 0; i < 5; i++ {
+		// 大文字小文字の違いも同じメールアドレスとして数える
+		w := doAuthRequest(t, r, http.MethodPost, "/auth/login", `{"email":"Taro@Example.com","password":"wrong-password"}`, "")
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("failure %d status = %d, want 401", i+1, w.Code)
+		}
+	}
+	w := doAuthRequest(t, r, http.MethodPost, "/auth/login", `{"email":"taro@example.com","password":"correct-password"}`, "")
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("login after 5 failures status = %d, want 429, body = %s", w.Code, w.Body)
+	}
+	for _, c := range w.Result().Cookies() {
+		if c.Name == SessionCookieName && c.Value != "" {
+			t.Errorf("locked login sets session cookie")
+		}
+	}
+
+	if w := doAuthRequest(t, r, http.MethodPost, "/auth/login", `{"email":"hanako@example.com","password":"correct-password"}`, ""); w.Code != http.StatusOK {
+		t.Errorf("other user login status = %d, want 200", w.Code)
+	}
+}
+
 func TestAuth_SignupValidation(t *testing.T) {
 	r, _ := newAuthRouter(t)
 	mustAuth := func(body string, want int) {

@@ -153,6 +153,8 @@ func respondAuthError(c *gin.Context, err error) {
 		status = http.StatusUnauthorized
 	case errors.Is(err, service.ErrEmailTaken):
 		status = http.StatusConflict
+	case errors.Is(err, service.ErrTooManyLogins):
+		status = http.StatusTooManyRequests
 	case errors.Is(err, domain.ErrInvalidDisplayName), errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidPassword):
 		status = http.StatusBadRequest
 	}

@@ -21,6 +21,7 @@ var (
 	ErrEmailTaken         = errors.New("このメールアドレスは既に登録されています")
 	ErrInvalidCredentials = errors.New("メールアドレスまたはパスワードが正しくありません")
 	ErrUnauthenticated    = errors.New("ログインしてください")
+	ErrTooManyLogins      = errors.New("ログインの失敗が続いたため、しばらくログインできません。15 分ほど待ってからやり直してください")
 )
 
 type AuthService interface {
@@ -28,7 +29,8 @@ type AuthService interface {
 	// 入力が不正なら domain のエラー、メールアドレスが登録済みなら ErrEmailTaken を返す
 	Signup(displayName, email, password string) (domain.User, string, error)
 	// Login はメールアドレスとパスワードを確かめてログインし、ユーザーとセッションのトークンを返す。
-	// 一致しなければ ErrInvalidCredentials を返す
+	// 一致しなければ ErrInvalidCredentials を返す。同じメールアドレスで失敗が続いたら、しばらくは
+	// パスワードが正しくても ErrTooManyLogins を返す
 	Login(email, password string) (domain.User, string, error)
 	// Logout はトークンのセッションを削除する。セッションがなくてもエラーにしない
 	Logout(token string) error
@@ -39,10 +41,11 @@ type AuthService interface {
 type authService struct {
 	userRepo    repository.UserRepository
 	sessionRepo repository.SessionRepository
+	limiter     *loginLimiter
 }
 
 func NewAuthService(u repository.UserRepository, s repository.SessionRepository) AuthService {
-	return &authService{userRepo: u, sessionRepo: s}
+	return &authService{userRepo: u, sessionRepo: s, limiter: newLoginLimiter(time.Now)}
 }
 
 func (s *authService) Signup(displayName, email, password string) (domain.User, string, error) {
@@ -79,16 +82,23 @@ func (s *authService) Signup(displayName, email, password string) (domain.User, 
 }
 
 func (s *authService) Login(email, password string) (domain.User, string, error) {
-	user, err := s.userRepo.FindByEmail(domain.NormalizeEmail(email))
+	email = domain.NormalizeEmail(email)
+	if s.limiter.locked(email) {
+		return domain.User{}, "", ErrTooManyLogins
+	}
+	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
 		return domain.User{}, "", err
 	}
 	if user == nil {
+		s.limiter.fail(email)
 		return domain.User{}, "", ErrInvalidCredentials
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		s.limiter.fail(email)
 		return domain.User{}, "", ErrInvalidCredentials
 	}
+	s.limiter.succeed(email)
 	// 期限切れのセッションはログインのついでに片付ける
 	if err := s.sessionRepo.DeleteExpired(); err != nil {
 		return domain.User{}, "", err
