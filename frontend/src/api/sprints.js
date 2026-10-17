@@ -60,6 +60,17 @@ export const sprintsApi = {
     return response.json();
   },
 
+  // スペースのベロシティ（完了した直近 7 スプリントのコミットメントと完了したポイント、平均）
+  async velocity(spaceId) {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    const response = await apiFetch(`${API_BASE_URL}/spaces/${spaceId}/velocity?tz=${encodeURIComponent(tz)}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to fetch velocity');
+    }
+    return response.json();
+  },
+
   // 課題（とそのサブタスク）をスプリント（0 はバックログ）に入れる
   async setTodoSprint(todoId, sprintId) {
     return send(`${API_BASE_URL}/todos/${todoId}/sprint`, 'PUT', { sprintId }, 'Failed to set sprint');

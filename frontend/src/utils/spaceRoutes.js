@@ -12,6 +12,9 @@ export const timelinePath = (space) => `/spaces/${encodeURIComponent(space.Key)}
 export const reportsPath = (space, sprintId) =>
   `/spaces/${encodeURIComponent(space.Key)}/reports${sprintId ? `?sprint=${sprintId}` : ''}`;
 
+// スペースのベロシティチャート（レポートのページで切り替える）
+export const velocityPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/reports?report=velocity`;
+
 // スペースのリリース（バージョンの一覧）と、バージョンの詳細
 export const releasesPath = (space) => `/spaces/${encodeURIComponent(space.Key)}/releases`;
 export const versionPath = (space, versionId) => `${releasesPath(space)}/${versionId}`;

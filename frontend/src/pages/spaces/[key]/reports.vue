@@ -1,8 +1,9 @@
 <template>
-  <!-- スペースのレポート。スプリントを選ぶと、変更履歴から再計算したバーンダウンと日ごとの変動を出す -->
+  <!-- スペースのレポート。バーンダウン（スプリントを選ぶと、変更履歴から再計算したバーンダウンと日ごとの変動）と、
+       ベロシティ（完了した直近 7 スプリントのコミットメントと完了）を切り替える -->
   <SpaceShell :spaces="spaces" :todos="todos" :current-space="space" @changed="fetchAll">
-    <PageToolbar :crumbs="[{ label: 'レポート' }, { label: 'バーンダウンチャート' }]">
-      <template v-if="space && sprintOptions.length">
+    <PageToolbar :crumbs="[{ label: 'レポート' }, { label: REPORT_LABELS[report] }]">
+      <template v-if="report === 'burndown' && space && sprintOptions.length">
         <label for="report-sprint" class="text-xs text-muted">スプリント</label>
         <select
           id="report-sprint"
@@ -22,6 +23,70 @@
         スペース「{{ spaceKey }}」が見つかりません。
         <NuxtLink to="/board" class="ml-2 text-accent font-semibold">すべてのスペースのボードを開く</NuxtLink>
       </div>
+      <nav v-if="!loading && space" class="flex gap-1 mb-4 border-b border-line" aria-label="レポートの種類">
+        <NuxtLink
+          v-for="tab in reportTabs"
+          :key="tab.key"
+          :to="tab.to"
+          :aria-current="report === tab.key ? 'page' : undefined"
+          :class="[
+            'px-3 py-2 -mb-px border-b-2 text-sm font-medium no-underline',
+            report === tab.key ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-fg'
+          ]"
+        >
+          {{ REPORT_LABELS[tab.key] }}
+        </NuxtLink>
+      </nav>
+
+      <template v-if="loading || !space" />
+      <template v-else-if="report === 'velocity'">
+        <p v-if="velocityLoading && !velocity" class="m-0 text-sm text-muted">集計中...</p>
+        <div v-else-if="velocity && !velocity.Sprints.length" class="max-w-3xl bg-surface border border-line rounded-xl px-6 py-5 text-sm text-fg">
+          完了したスプリントがありません。ベロシティチャートは、スプリントを完了すると表示できます。
+          <NuxtLink :to="backlogPath(space)" class="ml-1 text-accent font-semibold">バックログを開く</NuxtLink>
+        </div>
+        <section v-else-if="velocity" class="max-w-5xl flex flex-col gap-4">
+          <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 m-0">
+            <div v-for="stat in velocityStats" :key="stat.label" class="bg-surface border border-line rounded-lg px-4 py-3">
+              <dt class="text-xs text-muted">{{ stat.label }}</dt>
+              <dd class="m-0 mt-1 text-xl font-semibold text-fg">{{ stat.value }}</dd>
+            </div>
+          </dl>
+
+          <div class="bg-surface border border-line rounded-xl p-4">
+            <VelocityChart :velocity="velocity" />
+          </div>
+
+          <div class="bg-surface border border-line rounded-xl overflow-x-auto">
+            <table class="w-full min-w-[560px] border-collapse text-sm text-fg">
+              <caption class="px-4 pt-3 pb-2 text-left text-sm font-semibold text-fg">スプリントごとのポイント</caption>
+              <thead>
+                <tr class="border-b border-line text-xs text-muted whitespace-nowrap">
+                  <th scope="col" class="px-4 py-2 text-left font-medium">スプリント</th>
+                  <th scope="col" class="px-3 py-2 text-left font-medium">期間</th>
+                  <th scope="col" class="px-3 py-2 text-right font-medium">コミットメント</th>
+                  <th scope="col" class="px-3 py-2 text-right font-medium">完了</th>
+                  <th scope="col" class="px-4 py-2 text-right font-medium">達成率</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="sprint in velocityRows" :key="sprint.SprintID" class="border-b border-line last:border-b-0">
+                  <th scope="row" class="px-4 py-2 text-left font-medium">
+                    <NuxtLink :to="reportsPath(space, sprint.SprintID)" class="text-fg no-underline hover:text-accent" title="バーンダウンを開く">{{ sprint.Name }}</NuxtLink>
+                  </th>
+                  <td class="px-3 py-2 text-muted whitespace-nowrap">{{ sprintPeriodLabel(sprint) }}</td>
+                  <td class="px-3 py-2 text-right tabular-nums">{{ formatStoryPoints(sprint.Commitment) }}</td>
+                  <td class="px-3 py-2 text-right tabular-nums font-semibold">{{ formatStoryPoints(sprint.Completed) }}</td>
+                  <td class="px-4 py-2 text-right tabular-nums">{{ completionRate(sprint) === null ? '—' : `${completionRate(sprint)}%` }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="m-0 text-xs text-muted">
+            コミットメントはスプリントを開始したときに入っていた課題（サブタスクを除く）のストーリーポイントの合計で、課題の変更履歴から再計算しています。完了はスプリントを完了したときに完了していた課題のポイントの合計です。平均ベロシティは表示している完了したスプリント（直近 7 つまで）の完了の平均です。
+          </p>
+        </section>
+      </template>
       <div v-else-if="!sprintOptions.length" class="max-w-3xl bg-surface border border-line rounded-xl px-6 py-5 text-sm text-fg">
         開始したスプリントがありません。バーンダウンチャートは、スプリントを開始すると表示できます。
         <NuxtLink :to="backlogPath(space)" class="ml-1 text-accent font-semibold">バックログを開く</NuxtLink>
@@ -123,13 +188,15 @@ import { ref, computed, watch, onMounted } from 'vue';
 import SpaceShell from '~/components/SpaceShell.vue';
 import PageToolbar from '~/components/PageToolbar.vue';
 import BurndownChart from '~/components/BurndownChart.vue';
+import VelocityChart from '~/components/VelocityChart.vue';
 import { todosApi } from '~/api/todos';
 import { spacesApi } from '~/api/spaces';
 import { sprintsApi } from '~/api/sprints';
 import { SPRINT_ACTIVE, sprintPeriodLabel, remainingDaysLabel } from '~/utils/sprints';
 import { reportableSprints, burndownRows, formatChange, BURNDOWN_EVENT_LABELS } from '~/utils/burndown';
+import { completionRate } from '~/utils/velocity';
 import { formatStoryPoints } from '~/utils/storyPoints';
-import { backlogPath, issuePath, reportsPath } from '~/utils/spaceRoutes';
+import { backlogPath, issuePath, reportsPath, velocityPath } from '~/utils/spaceRoutes';
 
 const route = useRoute();
 const router = useRouter();
@@ -142,6 +209,16 @@ const loading = ref(true);
 const error = ref('');
 const burndown = ref(null);
 const burndownLoading = ref(false);
+const velocity = ref(null);
+const velocityLoading = ref(false);
+
+const REPORT_LABELS = { burndown: 'バーンダウンチャート', velocity: 'ベロシティチャート' };
+// URL の ?report=velocity でベロシティ。それ以外はバーンダウン
+const report = computed(() => (route.query.report === 'velocity' ? 'velocity' : 'burndown'));
+const reportTabs = computed(() => [
+  { key: 'burndown', to: reportsPath(space.value) },
+  { key: 'velocity', to: velocityPath(space.value) }
+]);
 
 const space = computed(() => spaces.value.find(s => s.Key === spaceKey.value) || null);
 useHead(() => ({ title: space.value ? `レポート - ${space.value.Title} - Kanban` : 'Kanban' }));
@@ -171,6 +248,23 @@ const stats = computed(() => {
     { label: '完了したポイント', value: formatStoryPoints(-(sum('completed') + sum('reopened'))) },
     { label: '範囲の変更', value: formatChange(added + sum('removed')) || '0' },
     { label: '残りのポイント', value: formatStoryPoints(remaining) }
+  ];
+});
+
+// 表は新しいスプリントを上に
+const velocityRows = computed(() => (velocity.value ? [...velocity.value.Sprints].reverse() : []));
+
+const velocityStats = computed(() => {
+  const sprints = velocity.value.Sprints;
+  const last = sprints[sprints.length - 1];
+  const commitment = sprints.reduce((total, sprint) => total + sprint.Commitment, 0);
+  const completed = sprints.reduce((total, sprint) => total + sprint.Completed, 0);
+  const rate = completionRate({ Commitment: commitment, Completed: completed });
+  return [
+    { label: '平均ベロシティ', value: formatStoryPoints(velocity.value.Average) },
+    { label: '対象のスプリント', value: `${sprints.length}` },
+    { label: '直近のスプリントの完了', value: formatStoryPoints(last.Completed) },
+    { label: '平均の達成率', value: rate === null ? '—' : `${rate}%` }
   ];
 });
 
@@ -210,9 +304,40 @@ const loadBurndown = async () => {
     if (current === request) burndownLoading.value = false;
   }
 };
-watch(selectedId, () => {
-  burndown.value = null;
-  loadBurndown();
+
+// ベロシティを読む（スペースかレポートの種類が変わったとき）。切り替えが速いときは最後のものだけを出す
+let velocityRequest = 0;
+const loadVelocity = async () => {
+  const current = ++velocityRequest;
+  if (!space.value) {
+    velocity.value = null;
+    return;
+  }
+  velocityLoading.value = true;
+  try {
+    error.value = '';
+    const result = await sprintsApi.velocity(space.value.ID);
+    if (current === velocityRequest) velocity.value = result;
+  } catch (err) {
+    if (current === velocityRequest) {
+      velocity.value = null;
+      error.value = 'ベロシティの取得に失敗しました: ' + err.message;
+    }
+    console.error('Failed to fetch velocity:', err);
+  } finally {
+    if (current === velocityRequest) velocityLoading.value = false;
+  }
+};
+
+// 開いているレポートを読む（レポートの種類・スプリント・スペースが変わったとき）
+watch([report, selectedId, () => space.value?.ID], () => {
+  if (report.value === 'velocity') {
+    velocity.value = null;
+    loadVelocity();
+  } else {
+    burndown.value = null;
+    loadBurndown();
+  }
 });
 
 const fetchAll = async () => {
@@ -226,7 +351,7 @@ const fetchAll = async () => {
 };
 
 onMounted(async () => {
-  // スプリントが決まると watch で読む
+  // スペースとスプリントが決まると watch で読む
   await fetchAll();
   loading.value = false;
 });

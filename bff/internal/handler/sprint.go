@@ -157,16 +157,9 @@ func (h *SprintHandler) GetBurndown(c *gin.Context) {
 	if !ok {
 		return
 	}
-	loc := time.Local
-	if tz := c.Query("tz"); tz != "" {
-		l, err := time.LoadLocation(tz)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "タイムゾーン（tz）が正しくありません",
-			})
-			return
-		}
-		loc = l
+	loc, ok := queryLocation(c)
+	if !ok {
+		return
 	}
 	burndown, err := h.service.GetBurndown(id, loc)
 	if err != nil {
@@ -174,6 +167,41 @@ func (h *SprintHandler) GetBurndown(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, burndown)
+}
+
+// GetVelocity はスペース（:id）のベロシティ（完了した直近 7 スプリントのコミットメントと完了したポイント）を返す。
+// 日付はクエリ tz（省略時はサーバーのタイムゾーン）で読む
+func (h *SprintHandler) GetVelocity(c *gin.Context) {
+	spaceID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	loc, ok := queryLocation(c)
+	if !ok {
+		return
+	}
+	velocity, err := h.service.GetVelocity(spaceID, loc)
+	if err != nil {
+		respondSprintError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, velocity)
+}
+
+// queryLocation はクエリ tz（IANA のタイムゾーン名）を読む。省略時はサーバーのタイムゾーン、正しくなければ 400 を返して false
+func queryLocation(c *gin.Context) (*time.Location, bool) {
+	tz := c.Query("tz")
+	if tz == "" {
+		return time.Local, true
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "タイムゾーン（tz）が正しくありません",
+		})
+		return nil, false
+	}
+	return loc, true
 }
 
 // SetTodoSprint は課題（:id）とそのサブタスクを sprintId のスプリント（0 はバックログ）に入れる

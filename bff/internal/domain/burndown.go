@@ -125,20 +125,9 @@ func ComputeBurndown(in BurndownInput) (Burndown, error) {
 	if loc == nil {
 		loc = time.UTC
 	}
-	if sprint.State == SprintStateFuture || sprint.StartDate == "" || sprint.EndDate == "" {
-		return Burndown{}, ErrSprintNotStarted
-	}
-	startDate, err := time.ParseInLocation(sprintDateLayout, sprint.StartDate, loc)
+	start, startDate, endDate, err := sprintPeriod(sprint, loc)
 	if err != nil {
 		return Burndown{}, err
-	}
-	endDate, err := time.ParseInLocation(sprintDateLayout, sprint.EndDate, loc)
-	if err != nil {
-		return Burndown{}, err
-	}
-	start := startDate
-	if sprint.StartedAt != nil {
-		start = *sprint.StartedAt
 	}
 	until := in.Now
 	if sprint.CompletedAt != nil {
@@ -234,6 +223,27 @@ func ComputeBurndown(in BurndownInput) (Burndown, error) {
 
 	result.Days = burndownDays(result, startDate, endDate, loc)
 	return result, nil
+}
+
+// sprintPeriod はスプリントの起点（開始した日時。記録がなければ開始日の 0 時）と、loc での開始日・終了日の 0 時を返す。
+// 未開始のスプリントは ErrSprintNotStarted
+func sprintPeriod(sprint Sprint, loc *time.Location) (start, startDate, endDate time.Time, err error) {
+	if sprint.State == SprintStateFuture || sprint.StartDate == "" || sprint.EndDate == "" {
+		return time.Time{}, time.Time{}, time.Time{}, ErrSprintNotStarted
+	}
+	startDate, err = time.ParseInLocation(sprintDateLayout, sprint.StartDate, loc)
+	if err != nil {
+		return time.Time{}, time.Time{}, time.Time{}, err
+	}
+	endDate, err = time.ParseInLocation(sprintDateLayout, sprint.EndDate, loc)
+	if err != nil {
+		return time.Time{}, time.Time{}, time.Time{}, err
+	}
+	start = startDate
+	if sprint.StartedAt != nil {
+		start = *sprint.StartedAt
+	}
+	return start, startDate, endDate, nil
 }
 
 // burndownIssues は集計に入れる課題（サブタスクを除き、今スプリントに入っているか、記録したか、履歴でスプリントに入ったことがある課題）と、

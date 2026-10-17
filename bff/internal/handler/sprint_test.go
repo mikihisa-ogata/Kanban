@@ -30,6 +30,7 @@ func setupSprintRouter(t *testing.T) *gin.Engine {
 	r.DELETE("/sprints/:id", h.DeleteSprint)
 	r.GET("/sprints/:id/issues", h.GetSprintIssues)
 	r.GET("/sprints/:id/burndown", h.GetBurndown)
+	r.GET("/spaces/:id/velocity", h.GetVelocity)
 	r.PUT("/todos/:id/sprint", h.SetTodoSprint)
 	return r
 }
@@ -332,5 +333,45 @@ func TestSprint_HistoryAndBurndown(t *testing.T) {
 	mustStatus(t, r, http.MethodDelete, fmt.Sprintf("/sprints/%d", s2.ID), "", http.StatusOK)
 	if e := lastSprintEntry(3); e.OldValue == nil || *e.OldValue != s2.Name || e.NewValue != nil || *e.NewRefID != 0 {
 		t.Errorf("sprint history after delete = %+v", e)
+	}
+}
+
+func TestSprint_Velocity(t *testing.T) {
+	r := setupSprintRouter(t)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"Title":"開発","Key":"DEV"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/spaces", `{"Title":"運用","Key":"OPS"}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodGet, "/spaces/99/velocity", "", http.StatusNotFound)
+	mustStatus(t, r, http.MethodGet, "/spaces/1/velocity?tz=Mars/Base", "", http.StatusBadRequest)
+	if v := getJSON[domain.Velocity](t, r, "/spaces/1/velocity"); len(v.Sprints) != 0 || v.Average != 0 {
+		t.Errorf("velocity before sprints = %+v", v)
+	}
+
+	s1 := createSprint(t, r, 1, `{}`)
+	s2 := createSprint(t, r, 1, `{}`)
+	createSprint(t, r, 2, `{}`)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"A","spaceId":1,"storyPoints":3}`, http.StatusCreated)
+	mustStatus(t, r, http.MethodPost, "/todos", `{"title":"B","spaceId":1,"storyPoints":5}`, http.StatusCreated)
+	setSprint(t, r, 1, s1.ID, http.StatusOK)
+	setSprint(t, r, 2, s1.ID, http.StatusOK)
+	today := time.Now().Format("2006-01-02")
+	mustStatus(t, r, http.MethodPost, fmt.Sprintf("/sprints/%d/start", s1.ID), fmt.Sprintf(`{"name":"DEV 1","startDate":%q,"endDate":%q}`, today, today), http.StatusOK)
+	time.Sleep(1100 * time.Millisecond)
+
+	// 開始中のスプリントは並べない
+	if v := getJSON[domain.Velocity](t, r, "/spaces/1/velocity"); len(v.Sprints) != 0 {
+		t.Errorf("velocity with active sprint = %+v", v)
+	}
+
+	// B を完了して、A を次のスプリントへ
+	mustStatus(t, r, http.MethodPut, "/todos/2", `{"title":"B","status":"Closed","spaceId":1,"storyPoints":5}`, http.StatusOK)
+	mustStatus(t, r, http.MethodPost, fmt.Sprintf("/sprints/%d/complete", s1.ID), fmt.Sprintf(`{"moveTo":%d}`, s2.ID), http.StatusOK)
+
+	v := getJSON[domain.Velocity](t, r, "/spaces/1/velocity?tz=Asia/Tokyo")
+	if len(v.Sprints) != 1 || v.Sprints[0].SprintID != s1.ID || v.Sprints[0].Name != "DEV 1" || v.Sprints[0].Commitment != 8 || v.Sprints[0].Completed != 5 || v.Average != 5 {
+		t.Errorf("velocity = %+v", v)
+	}
+	// 別のスペースには出ない
+	if v := getJSON[domain.Velocity](t, r, "/spaces/2/velocity"); len(v.Sprints) != 0 {
+		t.Errorf("velocity of other space = %+v", v)
 	}
 }

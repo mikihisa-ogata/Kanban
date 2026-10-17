@@ -43,6 +43,8 @@ type SprintService interface {
 	GetSprintIssues(id int) ([]domain.SprintIssue, error)
 	// GetBurndown はスプリントのバーンダウンを、変更履歴から再計算して返す。日付は loc のタイムゾーンで区切る
 	GetBurndown(id int, loc *time.Location) (domain.Burndown, error)
+	// GetVelocity はスペースの完了した直近のスプリントの、コミットメントと完了したポイントを返す。日付は loc のタイムゾーンで読む
+	GetVelocity(spaceID int, loc *time.Location) (domain.Velocity, error)
 }
 
 type sprintService struct {
@@ -311,6 +313,46 @@ func (s *sprintService) GetBurndown(id int, loc *time.Location) (domain.Burndown
 	return domain.ComputeBurndown(domain.BurndownInput{
 		Sprint: sprint, Todos: todos, Recorded: recorded, History: history, Now: time.Now().UTC(), Location: loc,
 	})
+}
+
+func (s *sprintService) GetVelocity(spaceID int, loc *time.Location) (domain.Velocity, error) {
+	spaces, err := s.spaceRepo.FindAll()
+	if err != nil {
+		return domain.Velocity{}, err
+	}
+	found := false
+	for _, space := range spaces {
+		found = found || space.ID == spaceID
+	}
+	if !found {
+		return domain.Velocity{}, ErrSpaceNotFound
+	}
+	all, err := s.repo.FindAll()
+	if err != nil {
+		return domain.Velocity{}, err
+	}
+	sprints := []domain.Sprint{}
+	recorded := map[int][]domain.SprintIssue{}
+	for _, sprint := range all {
+		if sprint.SpaceID != spaceID || sprint.State != domain.SprintStateClosed {
+			continue
+		}
+		sprints = append(sprints, sprint)
+		issues, err := s.repo.FindIssues(sprint.ID)
+		if err != nil {
+			return domain.Velocity{}, err
+		}
+		recorded[sprint.ID] = issues
+	}
+	todos, err := s.todoRepo.FindAll()
+	if err != nil {
+		return domain.Velocity{}, err
+	}
+	history, err := s.history.FindByFields(burndownFields)
+	if err != nil {
+		return domain.Velocity{}, err
+	}
+	return domain.ComputeVelocity(domain.VelocityInput{Sprints: sprints, Todos: todos, Recorded: recorded, History: history, Location: loc})
 }
 
 func (s *sprintService) GetSprintIssues(id int) ([]domain.SprintIssue, error) {

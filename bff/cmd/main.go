@@ -147,6 +147,7 @@ func main() {
 	api.DELETE("/sprints/:id", sprintHandler.DeleteSprint)
 	api.GET("/sprints/:id/issues", sprintHandler.GetSprintIssues)
 	api.GET("/sprints/:id/burndown", sprintHandler.GetBurndown)
+	api.GET("/spaces/:id/velocity", sprintHandler.GetVelocity)
 	api.PUT("/todos/:id/sprint", sprintHandler.SetTodoSprint)
 
 	api.GET("/versions", versionHandler.GetVersions)
