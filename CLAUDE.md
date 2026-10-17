@@ -7,7 +7,7 @@
 ## 構成
 
 ```
-bff/        Go 1.23 + gin。データは MySQL 8.4 に保存（接続先は環境変数 DB_DSN。既定は localhost:3306 の kanban）
+bff/        Go 1.26 以上（ツールチェーンは go.mod で 1.27.2 を指定）+ gin。データは MySQL 8.4 に保存（接続先は環境変数 DB_DSN。既定は localhost:3306 の kanban）
   cmd/main.go            ルーティングと依存の組み立て（ポート 8080 固定）
   cmd/import-csv/        旧 CSV データを MySQL に取り込むコマンド
   internal/database/     MySQL 接続とテーブル定義（Migrate）。dbtest/ はテスト用の DB 準備
