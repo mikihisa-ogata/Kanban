@@ -9,4 +9,6 @@ type HistoryRepository interface {
 	Add(entries []domain.HistoryEntry) error
 	// FindByFields は fields の項目の変更履歴を、すべての課題について記録順に返す（変更者の概要は読まない）
 	FindByFields(fields []string) ([]domain.HistoryEntry, error)
+	// FindRecent はすべての課題の変更履歴を新しい順（記録日時、同じ日時は記録順の逆）に limit 件まで返す（変更者の概要も読む）
+	FindRecent(limit int) ([]domain.HistoryEntry, error)
 }

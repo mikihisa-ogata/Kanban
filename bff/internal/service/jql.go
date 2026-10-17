@@ -14,6 +14,8 @@ type JQLService interface {
 	// SearchJQL は JQL で課題を検索し、1 ページ分を返す。jql の誤り（構文・存在しない値など）は位置付きの *JQLError、
 	// ページの指定の誤りは domain.ErrInvalidIssuePage。currentUser() は actorID のユーザー
 	SearchJQL(jql string, page, perPage int, actorID int) (domain.IssueSearchResult, error)
+	// MatchingIDs は JQL に合うすべての課題の ID を ID 順に返す（ORDER BY は使わない）。誤りは SearchJQL と同じ
+	MatchingIDs(jql string, actorID int) ([]int, error)
 }
 
 type jqlService struct {
@@ -33,29 +35,46 @@ func NewJQLService(t repository.TodoRepository, s repository.SpaceRepository, st
 }
 
 func (s *jqlService) SearchJQL(jql string, page, perPage int, actorID int) (domain.IssueSearchResult, error) {
-	q, err := parseJQL(jql)
+	search, err := s.buildSearch(jql, page, perPage, actorID)
 	if err != nil {
 		return domain.IssueSearchResult{}, err
 	}
+	return s.todoRepo.Search(search)
+}
+
+func (s *jqlService) MatchingIDs(jql string, actorID int) ([]int, error) {
+	search, err := s.buildSearch(jql, 0, 0, actorID)
+	if err != nil {
+		return nil, err
+	}
+	return s.todoRepo.SearchIDs(search)
+}
+
+// buildSearch は JQL を課題の検索条件（Normalize 済み）にする
+func (s *jqlService) buildSearch(jql string, page, perPage int, actorID int) (domain.IssueSearch, error) {
+	q, err := parseJQL(jql)
+	if err != nil {
+		return domain.IssueSearch{}, err
+	}
 	ctx, err := s.loadContext(actorID)
 	if err != nil {
-		return domain.IssueSearchResult{}, err
+		return domain.IssueSearch{}, err
 	}
 	search := domain.IssueSearch{Page: page, PerPage: perPage, ViewerID: actorID}
 	if q.where != nil {
 		filter, err := ctx.resolve(q.where)
 		if err != nil {
-			return domain.IssueSearchResult{}, err
+			return domain.IssueSearch{}, err
 		}
 		search.Filter = &filter
 	}
 	if search.Order, err = resolveOrder(q.order); err != nil {
-		return domain.IssueSearchResult{}, err
+		return domain.IssueSearch{}, err
 	}
 	if err := search.Normalize(); err != nil {
-		return domain.IssueSearchResult{}, err
+		return domain.IssueSearch{}, err
 	}
-	return s.todoRepo.Search(search)
+	return search, nil
 }
 
 // jqlContext は名前を ID に置き換えるための一覧と、currentUser()・now() の値

@@ -811,6 +811,29 @@ POST   /todos/:id/view
 - `POST /todos/:id/view` はログイン中のユーザーが課題を表示したことを記録します（課題ごとに最後の日時だけ）。JQL の `issueHistory()`・`ORDER BY lastViewed` に使います。課題がなければ 404 です。
 - 既定のフィルター（自分の未完了課題・報告した課題・最近表示した課題・すべての課題）はフロントエンドが JQL として持ちます（`frontend/src/utils/filters.js`）。
 
+### ダッシュボード
+
+```
+GET /dashboard
+PUT /dashboard                            {"gadgets": [{"id": "assigned", "type": "assignedToMe"}, {"id": "g2", "type": "filterResults", "filterId": 1}]}
+GET /dashboard/activity?limit=30
+GET /dashboard/status-counts?jql=project = DEV
+GET /dashboard/created-vs-resolved?jql=project = DEV&days=30
+```
+
+```json
+{ "gadgets": [{ "ID": "assigned", "Type": "assignedToMe", "FilterID": 0 }, { "ID": "g2", "Type": "filterResults", "FilterID": 1 }] }
+```
+
+- `GET /dashboard` はログイン中のユーザーのダッシュボードのガジェットの並び（表示順）を返します。保存していなければ既定の並び（自分の担当課題・最近のアクティビティ・ステータス別の円グラフ・作成 vs 解決）です。`PUT /dashboard` は並び全体を置き換えて保存し（ユーザーごと）、200 で保存した `gadgets` を返します。
+- ガジェットの `type` は `assignedToMe`（自分の担当課題）・`activityStream`（最近のアクティビティ）・`filterResults`（保存済みフィルターの結果）・`statusPie`（ステータス別の円グラフ）・`createdVsResolved`（作成 vs 解決）です。`id` は英数字・`-`・`_` の 1〜40 文字で重複できません。20 個までです。誤りは 400 です。
+- `filterId` は `filterResults`・`statusPie`・`createdVsResolved` で使う保存済みフィルターで、0 は未選択です（円グラフ・作成 vs 解決ではすべての課題）。ほかの種類では 0 にします。自分のものではないフィルターや、消えたフィルターは、保存・取得のときに 0 にします。
+- 各ガジェットの中身は、自分の担当課題と保存済みフィルターの結果が `GET /issues/jql`、ほかは次の API で読みます。
+  - `GET /dashboard/activity` はすべての課題の変更履歴（`GET /todos/:id/history` と同じ項目）に、課題の `Key`・`Title` を付けて、記録日時の新しい順に返します。`limit` は 1〜100（既定 30）です。
+  - `GET /dashboard/status-counts` は JQL（`jql`。空はすべての課題）に合う課題を、ステータスの名前とカテゴリごとに `[{ "Name": "進行中", "Category": "InProgress", "Count": 3 }]` で返します。並びはカテゴリ（To Do・進行中・完了）の順、同じカテゴリは多い順です。
+  - `GET /dashboard/created-vs-resolved` は JQL に合う課題の、今日までの `days` 日間（1〜365、既定 30）の日ごとの作成数と解決数を `{ "Days": [{ "Date": "2026-10-17", "Created": 2, "Resolved": 1 }], "Created": 2, "Resolved": 1 }` で返します（`Created`・`Resolved` は期間の合計）。解決は、今完了（Done カテゴリ）の課題が最後に完了になった日時（変更履歴から求める。再開すると消える）で、完了の記録がない課題は数えません。日付はサーバーのタイムゾーンで区切ります。
+  - JQL の誤りは `GET /issues/jql` と同じく 400 で `position` も返します。
+
 ### エピック
 
 ```
@@ -857,7 +880,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions`・`watchers`・`notifications`・`sprints`・`sprint_issues`・`versions`・`todo_versions`・`components`・`todo_components`・`saved_filters`・`issue_views` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions`・`watchers`・`notifications`・`sprints`・`sprint_issues`・`versions`・`todo_versions`・`components`・`todo_components`・`saved_filters`・`issue_views`・`dashboards` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -878,6 +901,7 @@ DELETE /spaces/:id
 - バージョンは `versions` に、スペース `space_id`・名前 `name`・説明 `description`・状態 `status`（`unreleased`・`released`・`archived`）・開始日 `start_date`・リリース日 `release_date`（`DATE`、`NULL` は未設定）・作成日時 `created_at` で保存します。課題の修正バージョンは多対多を `todo_versions`（`todo_id`・`version_id`）で表します。課題やバージョンを削除すると `todo_versions` の行も削除します。
 - コンポーネントは `components` に、スペース `space_id`・名前 `name`・説明 `description`・既定の担当者 `default_assignee_id`（`users.id`。0 はなし）・作成日時 `created_at` で保存します。課題のコンポーネントは多対多を `todo_components`（`todo_id`・`component_id`）で表します。課題やコンポーネントを削除すると `todo_components` の行も削除します。
 - 保存済みフィルターは `saved_filters` に、作ったユーザー `owner_id`（`users.id`）・名前 `name`・JQL `jql`・お気に入り `favourite`・作成日時 `created_at`・更新日時 `updated_at` で保存します。課題を表示した記録は `issue_views` に、ユーザー `user_id`・課題 `todo_id`・最後に表示した日時 `viewed_at`（`DATETIME(3)`、UTC）で保存します。課題を削除すると `issue_views` の行も削除します。
+- ダッシュボードは `dashboards` に、ユーザー `user_id`（主キー）・ガジェットの並び `gadgets`（JSON の配列 `[{"id", "type", "filterId"}]` を `TEXT` で）・更新日時 `updated_at` で保存します。行がないユーザーは既定の並びです。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - ユーザーは `users` に、表示名 `display_name`・メールアドレス `email`（小文字に正規化。一意）・パスワードのハッシュ `password_hash`（bcrypt）・アバターの色 `avatar_color`・作成日時 `created_at` で保存します。ログインのセッションは `sessions` に、トークンの SHA-256 `token_hash`・ユーザー `user_id`・作成日時 `created_at`・有効期限 `expires_at` で保存します。期限切れのセッションはログインのときに削除します。
 - `epics` の `start_date`・`due_date`（`DATE`、NULL は未設定）と `color`（`VARCHAR(7)`、空文字は既定の色）は、エピックのタイムラインの期間と色です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存のエピックは未設定になります）。

@@ -35,6 +35,7 @@ type testRepos struct {
 	component  repository.ComponentRepository
 	filter     repository.FilterRepository
 	issueView  repository.IssueViewRepository
+	dashboard  repository.DashboardRepository
 	// notification は通知。history は main と同じく、記録するとウォッチャーへ通知を作る
 	notification repository.NotificationRepository
 	// attachmentsDir は添付ファイルの保存先（テストごとの一時ディレクトリ）
@@ -65,6 +66,7 @@ func newTestRepos(t *testing.T) testRepos {
 		component:      repository.NewComponentMySQLRepository(db),
 		filter:         repository.NewFilterMySQLRepository(db),
 		issueView:      repository.NewIssueViewMySQLRepository(db),
+		dashboard:      repository.NewDashboardMySQLRepository(db),
 		notification:   notifications,
 		history:        service.WithNotifications(repository.NewHistoryMySQLRepository(db), watchers, notifications),
 		attachmentsDir: dir,

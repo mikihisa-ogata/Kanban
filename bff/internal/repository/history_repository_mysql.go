@@ -16,10 +16,20 @@ func NewHistoryMySQLRepository(db *sql.DB) HistoryRepository {
 	return &historyMySQLRepository{db: db}
 }
 
+const selectHistoryWithUser = `SELECT h.id, h.todo_id, h.field, h.old_value, h.new_value, h.old_ref_id, h.new_ref_id, h.created_at, h.user_id, u.display_name, u.avatar_color
+		 FROM issue_history h LEFT JOIN users u ON u.id = h.user_id`
+
 func (r *historyMySQLRepository) FindByTodo(todoID int) ([]domain.HistoryEntry, error) {
-	rows, err := r.db.Query(
-		`SELECT h.id, h.todo_id, h.field, h.old_value, h.new_value, h.old_ref_id, h.new_ref_id, h.created_at, h.user_id, u.display_name, u.avatar_color
-		 FROM issue_history h LEFT JOIN users u ON u.id = h.user_id WHERE h.todo_id = ? ORDER BY h.id`, todoID)
+	return r.findWithUser(selectHistoryWithUser+` WHERE h.todo_id = ? ORDER BY h.id`, todoID)
+}
+
+func (r *historyMySQLRepository) FindRecent(limit int) ([]domain.HistoryEntry, error) {
+	return r.findWithUser(selectHistoryWithUser+` ORDER BY h.created_at DESC, h.id DESC LIMIT ?`, limit)
+}
+
+// findWithUser は変更者の概要付きで変更履歴を読む（query は selectHistoryWithUser に条件を付けたもの）
+func (r *historyMySQLRepository) findWithUser(query string, args ...any) ([]domain.HistoryEntry, error) {
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

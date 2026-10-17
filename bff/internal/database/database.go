@@ -537,6 +537,12 @@ func schemaStatements() []string {
 			PRIMARY KEY (user_id, todo_id),
 			INDEX idx_issue_views_todo (todo_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// ダッシュボード（ユーザーごとに 1 つ）。gadgets はガジェットの並び（JSON の配列。[{"id","type","filterId"}]）
+		`CREATE TABLE IF NOT EXISTS dashboards (
+			user_id    INT PRIMARY KEY,
+			gadgets    TEXT NOT NULL,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

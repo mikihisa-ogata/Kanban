@@ -70,9 +70,12 @@ func main() {
 	versionRepo := repository.NewVersionMySQLRepository(db)
 	sprintHandler := handler.NewSprintHandler(service.NewSprintService(sprintRepo, repo, spaceRepo, historyRepo))
 	versionHandler := handler.NewVersionHandler(service.NewVersionService(versionRepo, repo, spaceRepo))
-	jqlHandler := handler.NewJQLHandler(service.NewJQLService(repo, spaceRepo, statusRepo, userRepo, epicRepo, sprintRepo, versionRepo))
-	filterHandler := handler.NewFilterHandler(service.NewFilterService(repository.NewFilterMySQLRepository(db)), service.NewIssueViewService(repository.NewIssueViewMySQLRepository(db), repo))
 	bulkHandler := handler.NewBulkHandler(service.NewBulkService(repo, epicRepo, spaceRepo, sprintRepo, versionRepo, userRepo, attachmentRepo, statusRepo, watcherRepo, notificationRepo))
+	jqlSvc := service.NewJQLService(repo, spaceRepo, statusRepo, userRepo, epicRepo, sprintRepo, versionRepo)
+	jqlHandler := handler.NewJQLHandler(jqlSvc)
+	filterRepo := repository.NewFilterMySQLRepository(db)
+	filterHandler := handler.NewFilterHandler(service.NewFilterService(filterRepo), service.NewIssueViewService(repository.NewIssueViewMySQLRepository(db), repo))
+	dashboardHandler := handler.NewDashboardHandler(service.NewDashboardService(repository.NewDashboardMySQLRepository(db), filterRepo, historyRepo, repo, jqlSvc))
 	componentHandler := handler.NewComponentHandler(service.NewComponentService(repository.NewComponentMySQLRepository(db), repo, epicRepo, spaceRepo, userRepo, watcherRepo, historyRepo, statusRepo))
 
 	r.POST("/auth/signup", authHandler.Signup)
@@ -168,6 +171,12 @@ func main() {
 	api.PUT("/filters/:id", filterHandler.UpdateFilter)
 	api.PUT("/filters/:id/favourite", filterHandler.SetFavourite)
 	api.DELETE("/filters/:id", filterHandler.DeleteFilter)
+
+	api.GET("/dashboard", dashboardHandler.GetDashboard)
+	api.PUT("/dashboard", dashboardHandler.SaveDashboard)
+	api.GET("/dashboard/activity", dashboardHandler.GetActivity)
+	api.GET("/dashboard/status-counts", dashboardHandler.GetStatusCounts)
+	api.GET("/dashboard/created-vs-resolved", dashboardHandler.GetCreatedVsResolved)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)

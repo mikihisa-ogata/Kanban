@@ -105,6 +105,27 @@ func (r *todoMySQLRepository) Search(q domain.IssueSearch) (domain.IssueSearchRe
 	return result, nil
 }
 
+func (r *todoMySQLRepository) SearchIDs(q domain.IssueSearch) ([]int, error) {
+	where, args, err := issueSearchWhere(q)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.db.Query(`SELECT t.id FROM todos t LEFT JOIN spaces s ON s.id = t.space_id LEFT JOIN statuses st ON st.id = t.status_id`+where+` ORDER BY t.id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []int{}
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 // issueOrderColumns は並べ替えの 1 つの列の ORDER BY の式。値のない行は向きによらず末尾にする。
 // lastViewed は viewerID のユーザーが表示した日時（ID は数値なので式に埋め込む）
 func issueOrderColumns(sort domain.IssueOrder, viewerID int) []string {

@@ -81,6 +81,7 @@ func TestMigrate(t *testing.T) {
 		"todo_versions":   {"todo_id", "version_id"},
 		"components":      {"id", "space_id", "name", "description", "default_assignee_id", "created_at"},
 		"todo_components": {"todo_id", "component_id"},
+		"dashboards":      {"user_id", "gadgets", "updated_at"},
 		"todos":           {"id", "title", "done", "deadline", "status", "epic_id", "description", "space_id", "position", "created_at", "updated_at", "number", "issue_type", "priority", "story_points", "parent_id", "original_estimate", "remaining_estimate", "status_id", "assignee_id", "reporter_id", "sprint_id"},
 	}
 	for table, columns := range want {

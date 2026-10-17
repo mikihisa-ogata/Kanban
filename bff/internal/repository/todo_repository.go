@@ -25,4 +25,6 @@ type TodoRepository interface {
 	Move(id int, beforeID int) error
 	// Search は条件に合う課題の 1 ページ分と総数を返す（q は Normalize 済み）。絞り込み・並べ替え・ページングは DB で行う
 	Search(q domain.IssueSearch) (domain.IssueSearchResult, error)
+	// SearchIDs は条件に合うすべての課題の ID を ID 順に返す（q の並べ替えとページングは使わない）
+	SearchIDs(q domain.IssueSearch) ([]int, error)
 }
