@@ -2,7 +2,7 @@ module todo-api
 
 go 1.23.0
 
-toolchain go1.23.2
+toolchain go1.27.2
 
 require (
 	github.com/gin-contrib/cors v1.7.6

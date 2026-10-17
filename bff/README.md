@@ -65,7 +65,7 @@ docker compose down
 ### ローカルでの起動（Dockerを使用しない場合）
 
 #### 前提条件
-- Go 1.23 以上
+- Go 1.27.2 以上（既知の脆弱性の修正を含む版）
 - MySQL（Docker で MySQL だけを起動する場合は `docker compose up -d mysql`）
 
 #### サーバーの起動
