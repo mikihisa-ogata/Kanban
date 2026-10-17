@@ -49,12 +49,12 @@
       </div>
     </div>
 
-    <!-- 検索と作成。⌘K でも課題一覧（検索）を開く（コマンドパレットは別の issue） -->
+    <!-- 検索と作成。検索は `/`・⌘K でも開く（KeyboardShortcuts） -->
     <div class="flex flex-col md:flex-row items-center gap-1.5 px-2 md:px-3 pb-3">
       <button
         type="button"
         class="w-10 md:w-auto md:flex-1 min-w-0 flex items-center justify-center md:justify-start gap-2 px-2 py-1.5 border border-line rounded-md bg-surface text-sm text-muted cursor-pointer hover:text-fg"
-        title="課題を検索（⌘K）"
+        title="課題・スペースを検索（/ または ⌘K）"
         @click="openSearch"
       >
         <svg class="shrink-0 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -274,16 +274,13 @@ const selectSpace = (spaceId) => {
   emit('select', spaceId);
 };
 
-// 検索（いまは課題一覧を開く。スペースの中なら、そのスペースに絞り込む）
+// 検索（GlobalSearch）を開く
+const searchOpen = useState('globalSearchOpen', () => false);
 const openSearch = () => {
-  navigateTo(issuesPath(props.currentSpace));
+  searchOpen.value = true;
 };
 const handleKeydown = (event) => {
   if (event.key === 'Escape') switcherOpen.value = false;
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-    event.preventDefault();
-    openSearch();
-  }
 };
 const closeOnOutsideClick = (event) => {
   if (switcherOpen.value && switcherRoot.value && !switcherRoot.value.contains(event.target)) {

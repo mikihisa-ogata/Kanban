@@ -391,6 +391,13 @@ const cancelNew = () => {
   composing.value = false;
 };
 
+// 課題のショートカット（m: コメントを追加）から開く。コメントの入力欄がないタブなら「すべて」に切り替える
+const startComment = async () => {
+  if (tab.value !== 'all' && tab.value !== 'comments') tab.value = 'all';
+  await startNew();
+};
+defineExpose({ startComment });
+
 const createComment = async () => {
   if (!newBody.value.trim() || busy.value) return;
   busy.value = true;

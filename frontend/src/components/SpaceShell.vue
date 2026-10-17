@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import AppSidebar from './AppSidebar.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import { spacesApi } from '../api/spaces';
@@ -58,6 +58,12 @@ const props = defineProps({
 // changed: スペースを作成・削除した（ページ側で一覧などを取り直す）
 // move: タスクやエピックをサイドバーのスペースへドロップした
 const emit = defineEmits(['changed', 'move']);
+
+// 表示中のスペースを画面全体で共有する（キーボードショートカットの g b・g k で開くボードとバックログに使う）
+const sharedCurrentSpace = useState('currentSpace', () => null);
+watch(() => props.currentSpace, (space) => {
+  sharedCurrentSpace.value = space;
+}, { immediate: true });
 
 const error = ref('');
 // 削除の確認モーダルの内容と、選んだ結果を返す関数（null の場合は閉じている）

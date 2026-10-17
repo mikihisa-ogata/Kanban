@@ -2,6 +2,9 @@
   <!-- サイドバーの作成ボタン・ツールバーの「+ 新規課題」から開く課題の作成モーダル。どのページからでも使える -->
   <div
     v-if="open && loaded"
+    role="dialog"
+    aria-modal="true"
+    aria-label="課題を作成"
     class="fixed inset-0 bg-overlay flex items-center justify-center z-50"
     @click.self="close"
   >

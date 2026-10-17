@@ -3,9 +3,13 @@
   <div class="min-h-screen bg-canvas text-fg">
     <slot />
     <GlobalCreate />
+    <GlobalSearch />
+    <KeyboardShortcuts />
   </div>
 </template>
 
 <script setup>
 import GlobalCreate from '~/components/GlobalCreate.vue';
+import GlobalSearch from '~/components/GlobalSearch.vue';
+import KeyboardShortcuts from '~/components/KeyboardShortcuts.vue';
 </script>

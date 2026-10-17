@@ -140,6 +140,9 @@ const close = () => {
   open.value = false;
 };
 
+// 課題のショートカット（a: 担当者を変更）から開く
+defineExpose({ start });
+
 watch(query, () => {
   activeIndex.value = 0;
 });

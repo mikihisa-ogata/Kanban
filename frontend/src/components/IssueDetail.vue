@@ -128,6 +128,7 @@
         />
 
         <ActivitySection
+          ref="activitySection"
           class="mt-8"
           :task="task"
           @changed="$emit('comments-changed')"
@@ -145,6 +146,7 @@
             <dd class="m-0 min-w-0">
               <UserPicker
                 :id="fieldId('assignee')"
+                ref="assigneePicker"
                 :user="task.Assignee"
                 empty-label="未割り当て"
                 @select="save({ assigneeId: $event || null })"
@@ -376,6 +378,7 @@ import { PRIORITY_OPTIONS } from '../utils/priorities';
 import { formatDateTime } from '../utils/datetime';
 import { statusesOfSpace, statusOptionsOf } from '../utils/statuses';
 import { issuePath } from '../utils/spaceRoutes';
+import { shouldIgnoreShortcut } from '../utils/shortcuts';
 
 const props = defineProps({
   task: {
@@ -614,7 +617,38 @@ const copyKey = async () => {
   }
 };
 
+// 課題を開いているときのショートカット（Jira と同じ）。e: 要約を編集、a: 担当者を変更、i: 自分に割り当て、m: コメントを追加
+const assigneePicker = ref(null);
+const activitySection = ref(null);
+const handleShortcut = (event) => {
+  if (shouldIgnoreShortcut(event) || editing.value) return;
+  switch (event.key) {
+    case 'e':
+      event.preventDefault();
+      startEdit('title', props.task.Title);
+      break;
+    case 'a':
+      event.preventDefault();
+      assigneePicker.value?.start();
+      break;
+    case 'i':
+      if (currentUser.value && props.task.AssigneeID !== currentUser.value.ID) {
+        event.preventDefault();
+        save({ assigneeId: currentUser.value.ID });
+      }
+      break;
+    case 'm':
+      event.preventDefault();
+      activitySection.value?.startComment();
+      break;
+  }
+};
+onMounted(() => {
+  document.addEventListener('keydown', handleShortcut);
+});
+
 onUnmounted(() => {
   clearTimeout(copiedTimer);
+  document.removeEventListener('keydown', handleShortcut);
 });
 </script>
