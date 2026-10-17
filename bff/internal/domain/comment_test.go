@@ -28,3 +28,19 @@ func TestValidateCommentBody(t *testing.T) {
 		}
 	}
 }
+
+func TestComment_CanBeChangedBy(t *testing.T) {
+	tests := []struct {
+		authorID, userID int
+		want             bool
+	}{
+		{1, 1, true},
+		{1, 2, false},
+		{0, 2, true},
+	}
+	for _, tt := range tests {
+		if got := (Comment{AuthorID: tt.authorID}).CanBeChangedBy(tt.userID); got != tt.want {
+			t.Errorf("Comment{AuthorID: %d}.CanBeChangedBy(%d) = %v, want %v", tt.authorID, tt.userID, got, tt.want)
+		}
+	}
+}

@@ -32,3 +32,9 @@ func ValidateCommentBody(body string) error {
 	}
 	return nil
 }
+
+// CanBeChangedBy は userID のユーザーがコメントを編集・削除できるかを返す。
+// 投稿者本人だけができる。投稿者のないコメント（ユーザー機能の追加前のもの）は誰でもできる
+func (c Comment) CanBeChangedBy(userID int) bool {
+	return c.AuthorID == 0 || c.AuthorID == userID
+}

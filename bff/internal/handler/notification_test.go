@@ -21,7 +21,6 @@ func newNotificationRouter(t *testing.T) *gin.Engine {
 	watchers := NewWatcherHandler(service.NewWatcherService(repos.watcher, repos.todo))
 	api := r.Group("/", auth.RequireLogin)
 	api.DELETE("/todos/:id", todo.DeleteTodo)
-	api.PUT("/comments/:id", NewCommentHandler(service.NewCommentService(repos.comment, repos.todo, repos.watcher, repos.notification, repos.user)).UpdateComment)
 	api.GET("/notifications", notifications.GetNotifications)
 	api.POST("/notifications/read-all", notifications.MarkAllRead)
 	api.POST("/notifications/:id/read", notifications.MarkRead)

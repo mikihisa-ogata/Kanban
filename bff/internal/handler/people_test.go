@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,6 +33,8 @@ func newPeopleRouter(t *testing.T) (*gin.Engine, testRepos) {
 	api.GET("/todos/:id/history", todo.GetHistory)
 	api.GET("/todos/:id/comments", comment.GetComments)
 	api.POST("/todos/:id/comments", comment.CreateComment)
+	api.PUT("/comments/:id", comment.UpdateComment)
+	api.DELETE("/comments/:id", comment.DeleteComment)
 	return r, repos
 }
 
@@ -200,4 +203,38 @@ func TestPeople_CommentAuthor(t *testing.T) {
 func itoa(n int) string {
 	b, _ := json.Marshal(n)
 	return string(b)
+}
+
+// コメントを編集・削除できるのは投稿者だけ。投稿者のないコメント（ユーザー機能の追加前のもの）は誰でもできる
+func TestPeople_OnlyAuthorCanChangeComment(t *testing.T) {
+	r, repos := newPeopleRouter(t)
+	_, taroToken := signup(t, r, "山田 太郎", "taro@example.com")
+	_, hanakoToken := signup(t, r, "佐藤 花子", "hanako@example.com")
+	sendAs(t, r, taroToken, http.MethodPost, "/todos", `{"title":"a"}`, http.StatusCreated)
+	legacyID, err := repos.comment.Create(domain.Comment{TodoID: 1, Body: "前からあるコメント"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created := decode[struct{ Comment domain.Comment }](t, sendAs(t, r, taroToken, http.MethodPost, "/todos/1/comments", `{"body":"太郎のコメント"}`, http.StatusCreated)).Comment
+	path := "/comments/" + strconv.Itoa(created.ID)
+
+	// ほかのユーザーは編集も削除もできず、コメントは変わらない
+	sendAs(t, r, hanakoToken, http.MethodPut, path, `{"body":"書き換え"}`, http.StatusForbidden)
+	sendAs(t, r, hanakoToken, http.MethodDelete, path, "", http.StatusForbidden)
+	comments := decode[[]domain.Comment](t, sendAs(t, r, taroToken, http.MethodGet, "/todos/1/comments", "", http.StatusOK))
+	if len(comments) != 2 || comments[1].Body != "太郎のコメント" || comments[1].UpdatedAt != nil {
+		t.Fatalf("comments after forbidden changes = %+v", comments)
+	}
+
+	// 投稿者は編集も削除もできる
+	sendAs(t, r, taroToken, http.MethodPut, path, `{"body":"編集後"}`, http.StatusOK)
+	sendAs(t, r, taroToken, http.MethodDelete, path, "", http.StatusOK)
+
+	// 投稿者のないコメントは誰でも編集・削除できる
+	legacyPath := "/comments/" + strconv.Itoa(legacyID)
+	sendAs(t, r, hanakoToken, http.MethodPut, legacyPath, `{"body":"編集後"}`, http.StatusOK)
+	sendAs(t, r, hanakoToken, http.MethodDelete, legacyPath, "", http.StatusOK)
+
+	// 存在しないコメントは 404 のまま
+	sendAs(t, r, hanakoToken, http.MethodDelete, path, "", http.StatusNotFound)
 }

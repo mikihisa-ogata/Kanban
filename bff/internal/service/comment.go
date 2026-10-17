@@ -9,17 +9,21 @@ import (
 
 var ErrCommentNotFound = errors.New("コメントが見つかりません")
 
+var ErrCommentForbidden = errors.New("ほかのユーザーのコメントは編集・削除できません")
+
 type CommentService interface {
 	// GetComments は課題のコメントを投稿順（古い順）に返す。課題がなければ ErrIssueNotFound を返す
 	GetComments(todoID int) ([]domain.Comment, error)
 	// CreateComment は課題に authorID のユーザーとしてコメントを投稿し、作成したコメントを返す。課題がなければ ErrIssueNotFound を返す。
 	// 投稿者は自動でウォッチャーになる。メンションされたユーザーには「メンションされました」、ほかのウォッチャーには「コメントしました」と通知する
 	CreateComment(todoID int, body string, authorID int) (domain.Comment, error)
-	// UpdateComment はコメントの本文を変え、変更後のコメントを返す。なければ ErrCommentNotFound を返す。
+	// UpdateComment はコメントの本文を変え、変更後のコメントを返す。なければ ErrCommentNotFound、
+	// actorID のユーザーが投稿者でなければ ErrCommentForbidden を返す（投稿者のないコメントは誰でも編集できる）。
 	// 編集で新しくメンションしたユーザーには、actorID のユーザーからの通知を作る
 	UpdateComment(id int, body string, actorID int) (domain.Comment, error)
-	// DeleteComment はコメントを削除する。なければ ErrCommentNotFound を返す
-	DeleteComment(id int) error
+	// DeleteComment はコメントを削除する。なければ ErrCommentNotFound、
+	// actorID のユーザーが投稿者でなければ ErrCommentForbidden を返す（投稿者のないコメントは誰でも削除できる）
+	DeleteComment(id int, actorID int) error
 }
 
 type commentService struct {
@@ -74,6 +78,9 @@ func (s *commentService) UpdateComment(id int, body string, actorID int) (domain
 	if err != nil {
 		return domain.Comment{}, err
 	}
+	if !current.CanBeChangedBy(actorID) {
+		return domain.Comment{}, ErrCommentForbidden
+	}
 	if err := s.commentRepo.Update(id, body); err != nil {
 		return domain.Comment{}, err
 	}
@@ -84,9 +91,13 @@ func (s *commentService) UpdateComment(id int, body string, actorID int) (domain
 	return s.findComment(id)
 }
 
-func (s *commentService) DeleteComment(id int) error {
-	if _, err := s.findComment(id); err != nil {
+func (s *commentService) DeleteComment(id int, actorID int) error {
+	current, err := s.findComment(id)
+	if err != nil {
 		return err
+	}
+	if !current.CanBeChangedBy(actorID) {
+		return ErrCommentForbidden
 	}
 	return s.commentRepo.Delete(id)
 }

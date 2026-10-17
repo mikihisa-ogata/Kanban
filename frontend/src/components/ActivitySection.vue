@@ -120,7 +120,8 @@
             <div class="mt-1">
               <MarkdownView :source="item.comment.Body" />
             </div>
-            <div class="mt-1 flex gap-3">
+            <!-- 編集・削除できるのは投稿者本人だけ（投稿者のないコメントは誰でもできる。bff と同じ条件） -->
+            <div v-if="canChangeComment(item.comment)" class="mt-1 flex gap-3">
               <button
                 type="button"
                 class="bg-transparent border-0 p-0 text-xs font-semibold text-muted cursor-pointer hover:text-accent hover:underline"
@@ -236,6 +237,7 @@ import { formatDuration } from '../utils/duration';
 import { todosApi } from '../api/todos';
 import { formatDateTime, formatRelativeTime } from '../utils/datetime';
 import { historyFieldLabel, formatHistoryValue } from '../utils/history';
+import { useCurrentUser } from '../composables/useCurrentUser';
 
 const props = defineProps({
   // アクティビティを表示する課題。内容が変わる（別のオブジェクトになる）たびに変更履歴を読み直す
@@ -427,6 +429,9 @@ const handleNewKeydown = (event) => {
     createComment();
   }
 };
+
+const { user: currentUser } = useCurrentUser();
+const canChangeComment = (comment) => !comment.AuthorID || comment.AuthorID === currentUser.value?.ID;
 
 // コメントの編集
 const editingId = ref(null);

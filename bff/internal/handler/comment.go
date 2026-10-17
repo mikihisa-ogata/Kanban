@@ -96,7 +96,7 @@ func (h *CommentHandler) DeleteComment(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.DeleteComment(id); err != nil {
+	if err := h.service.DeleteComment(id, actorID(c)); err != nil {
 		respondCommentError(c, err)
 		return
 	}
@@ -126,6 +126,8 @@ func respondCommentError(c *gin.Context, err error) {
 		status = http.StatusNotFound
 	case errors.Is(err, domain.ErrInvalidComment):
 		status = http.StatusBadRequest
+	case errors.Is(err, service.ErrCommentForbidden):
+		status = http.StatusForbidden
 	}
 	c.JSON(status, gin.H{
 		"error": err.Error(),
