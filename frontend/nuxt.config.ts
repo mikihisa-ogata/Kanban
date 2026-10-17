@@ -43,6 +43,22 @@ export default defineNuxtConfig({
     plugins: [
       tailwindcss(),
     ],
+    // サーバー描画側の Vite が開く HMR の WebSocket（既定 24678 番）を、同じネットワークの他の端末から
+    // 接続できないよう localhost だけで待ち受ける。ポートは Nuxt があとから決めるので、その後（enforce: 'post'）に指定する。
+    // （ブラウザ側の HMR は 3000 番の dev サーバーに相乗りするので設定は要らない）
+    $server: {
+      plugins: [
+        {
+          name: 'kanban:server-hmr-localhost',
+          enforce: 'post',
+          config(config) {
+            if (config.server && typeof config.server.hmr === 'object') {
+              config.server.hmr.host = 'localhost'
+            }
+          }
+        }
+      ]
+    }
   },
 
   nitro: {
