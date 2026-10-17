@@ -41,7 +41,7 @@ func (s *jqlService) SearchJQL(jql string, page, perPage int, actorID int) (doma
 	if err != nil {
 		return domain.IssueSearchResult{}, err
 	}
-	search := domain.IssueSearch{Page: page, PerPage: perPage}
+	search := domain.IssueSearch{Page: page, PerPage: perPage, ViewerID: actorID}
 	if q.where != nil {
 		filter, err := ctx.resolve(q.where)
 		if err != nil {
@@ -118,6 +118,9 @@ var jqlFieldNames = map[string]string{
 	"due":            domain.FieldDue,
 	"duedate":        domain.FieldDue,
 	"text":           domain.FieldText,
+	"key":            domain.FieldKey,
+	"issuekey":       domain.FieldKey,
+	"issue":          domain.FieldKey,
 }
 
 // 項目ごとに使える演算子
@@ -150,7 +153,7 @@ func condition(field, op string, values ...any) domain.IssueFilter {
 func (ctx *jqlContext) resolveClause(c *jqlClause) (domain.IssueFilter, error) {
 	field, ok := jqlFieldNames[strings.ToLower(c.field)]
 	if !ok {
-		return domain.IssueFilter{}, jqlErrorf(c.fieldPos, "項目「%s」はありません（使える項目: project, type, status, statusCategory, priority, assignee, reporter, labels, epic, sprint, fixVersion, created, updated, due, text）", c.field)
+		return domain.IssueFilter{}, jqlErrorf(c.fieldPos, "項目「%s」はありません（使える項目: project, type, status, statusCategory, priority, assignee, reporter, labels, epic, sprint, fixVersion, created, updated, due, text, issuekey）", c.field)
 	}
 
 	switch c.op {
@@ -181,6 +184,8 @@ func (ctx *jqlContext) resolveClause(c *jqlClause) (domain.IssueFilter, error) {
 	}
 
 	switch field {
+	case domain.FieldKey:
+		return ctx.resolveKey(c)
 	case domain.FieldCreated, domain.FieldUpdated:
 		return ctx.resolveDateTime(field, c)
 	case domain.FieldDue:
@@ -367,6 +372,45 @@ func (ctx *jqlContext) resolveFunc(field string, v jqlValue) ([]any, error) {
 	return nil, jqlErrorf(v.pos, "%s には関数 %s() を使えません", field, v.text)
 }
 
+// resolveKey は issuekey の条件にする。値は課題キー（例: DEV-12）か issueHistory()（自分が表示した課題）
+func (ctx *jqlContext) resolveKey(c *jqlClause) (domain.IssueFilter, error) {
+	keys := []any{}
+	history := false
+	for _, v := range c.values {
+		switch {
+		case v.kind == jqlValueEmpty:
+			return domain.IssueFilter{}, jqlErrorf(v.pos, "%s には EMPTY を使えません（値のない課題はありません）", c.field)
+		case v.kind == jqlValueFunc && strings.EqualFold(v.text, "issueHistory"):
+			if ctx.actorID == 0 {
+				return domain.IssueFilter{}, jqlErrorf(v.pos, "issueHistory() はログインしているときだけ使えます")
+			}
+			history = true
+		case v.kind == jqlValueFunc:
+			return domain.IssueFilter{}, jqlErrorf(v.pos, "%s には関数 %s() を使えません（使える関数: issueHistory()）", c.field, v.text)
+		default:
+			key := strings.ToUpper(strings.TrimSpace(v.text))
+			if key == "" {
+				return domain.IssueFilter{}, jqlErrorf(v.pos, "課題キーを指定してください（例: DEV-12）")
+			}
+			keys = append(keys, key)
+		}
+	}
+	matched := domain.IssueFilter{Op: domain.FilterOr}
+	if len(keys) > 0 {
+		matched.Children = append(matched.Children, condition(domain.FieldKey, domain.CondIn, keys...))
+	}
+	if history {
+		matched.Children = append(matched.Children, condition(domain.FieldViewedBy, domain.CondIn, ctx.actorID))
+	}
+	if len(matched.Children) == 1 {
+		matched = matched.Children[0]
+	}
+	if c.op == jqlOpEq || c.op == jqlOpIn {
+		return matched, nil
+	}
+	return domain.IssueFilter{Op: domain.FilterNot, Children: []domain.IssueFilter{matched}}, nil
+}
+
 // relativeDatePattern は相対日付（例: -7d・2w・-1h・+30m）。w は週、d は日、h は時間、m は分
 var relativeDatePattern = regexp.MustCompile(`^([-+]?)(\d+)([wdhm])$`)
 
@@ -518,6 +562,7 @@ var jqlOrderFields = map[string]string{
 	"updateddate": domain.IssueSortUpdated,
 	"due":         domain.IssueSortDue,
 	"duedate":     domain.IssueSortDue,
+	"lastviewed":  domain.IssueSortLastViewed,
 }
 
 // resolveOrder は ORDER BY を並べ替えの列にする。priority は Jira と同じく DESC が高い順
@@ -527,7 +572,7 @@ func resolveOrder(items []jqlOrderItem) ([]domain.IssueOrder, error) {
 	for _, item := range items {
 		field, ok := jqlOrderFields[strings.ToLower(item.field)]
 		if !ok {
-			return nil, jqlErrorf(item.pos, "「%s」では並べ替えられません（使える項目: key, type, summary, status, assignee, reporter, priority, created, updated, due）", item.field)
+			return nil, jqlErrorf(item.pos, "「%s」では並べ替えられません（使える項目: key, type, summary, status, assignee, reporter, priority, created, updated, due, lastViewed）", item.field)
 		}
 		desc := item.desc
 		if field == domain.IssueSortPriority {

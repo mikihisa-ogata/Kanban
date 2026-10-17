@@ -506,6 +506,26 @@ func schemaStatements() []string {
 			PRIMARY KEY (todo_id, version_id),
 			INDEX idx_todo_versions_version (version_id)
 		) DEFAULT CHARSET = utf8mb4`,
+		// 保存済みフィルター（名前を付けて保存した JQL）。owner_id は作ったユーザー（users.id）で、そのユーザーだけが使う。
+		// favourite はお気に入り（左ナビに並べる）
+		`CREATE TABLE IF NOT EXISTS saved_filters (
+			id         INT AUTO_INCREMENT PRIMARY KEY,
+			owner_id   INT NOT NULL,
+			name       VARCHAR(100) NOT NULL,
+			jql        TEXT NOT NULL,
+			favourite  BOOLEAN NOT NULL DEFAULT FALSE,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_saved_filters_owner (owner_id, id)
+		) DEFAULT CHARSET = utf8mb4`,
+		// 課題を表示した記録（ユーザーごとに課題 1 件につき最後に表示した日時）。JQL の issueHistory()・ORDER BY lastViewed で使う
+		`CREATE TABLE IF NOT EXISTS issue_views (
+			user_id   INT NOT NULL,
+			todo_id   INT NOT NULL,
+			viewed_at DATETIME(3) NOT NULL,
+			PRIMARY KEY (user_id, todo_id),
+			INDEX idx_issue_views_todo (todo_id)
+		) DEFAULT CHARSET = utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id          INT AUTO_INCREMENT PRIMARY KEY,
 			title       VARCHAR(255) NOT NULL,

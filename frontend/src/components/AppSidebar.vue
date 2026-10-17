@@ -80,22 +80,41 @@
     <div class="flex-1 min-h-0 overflow-y-auto px-2 md:px-3 pb-3 flex flex-col gap-4">
       <!-- ナビ -->
       <nav class="flex flex-col gap-0.5" aria-label="ページ">
-        <NuxtLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          :title="item.label"
-          :aria-current="isActive(item.to) ? 'page' : undefined"
-          :class="[
-            'flex items-center justify-center md:justify-start gap-2.5 px-2 py-1.5 rounded-md text-sm font-medium no-underline transition-colors duration-150',
-            isActive(item.to) ? 'bg-raised text-fg' : 'text-muted hover:bg-raised hover:text-fg'
-          ]"
-        >
-          <svg class="shrink-0 w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path v-for="(d, i) in item.icon" :key="i" :d="d" />
-          </svg>
-          <span class="hidden md:inline">{{ item.label }}</span>
-        </NuxtLink>
+        <template v-for="item in navItems" :key="item.to">
+          <NuxtLink
+            :to="item.to"
+            :title="item.label"
+            :aria-current="isActive(item.to) ? 'page' : undefined"
+            :class="[
+              'flex items-center justify-center md:justify-start gap-2.5 px-2 py-1.5 rounded-md text-sm font-medium no-underline transition-colors duration-150',
+              isActive(item.to) ? 'bg-raised text-fg' : 'text-muted hover:bg-raised hover:text-fg'
+            ]"
+          >
+            <svg class="shrink-0 w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path v-for="(d, i) in item.icon" :key="i" :d="d" />
+            </svg>
+            <span class="hidden md:inline">{{ item.label }}</span>
+          </NuxtLink>
+          <!-- 課題一覧の下に、お気に入り（スター）のフィルター -->
+          <ul v-if="item.filters && favouriteFilters.length" class="hidden md:flex flex-col gap-0.5 m-0 p-0 pl-6 list-none" aria-label="お気に入りのフィルター">
+            <li v-for="filter in favouriteFilters" :key="filter.ID">
+              <NuxtLink
+                :to="filterLink(filter)"
+                :title="filter.JQL ? `${filter.Name}: ${filter.JQL}` : filter.Name"
+                :aria-current="isFilterActive(filter) ? 'page' : undefined"
+                :class="[
+                  'flex items-center gap-2 px-2 py-1 rounded-md text-xs no-underline transition-colors duration-150',
+                  isFilterActive(filter) ? 'bg-raised text-fg font-semibold' : 'text-muted hover:bg-raised hover:text-fg'
+                ]"
+              >
+                <svg class="shrink-0 w-3 h-3 text-warning" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path :d="STAR_ICON" />
+                </svg>
+                <span class="min-w-0 truncate">{{ filter.Name }}</span>
+              </NuxtLink>
+            </li>
+          </ul>
+        </template>
       </nav>
 
       <!-- スペース一覧。課題やエピックをドラッグすると、そのスペースへ移せる -->
@@ -213,6 +232,8 @@ import { normalizeSpaceKey, spaceKeyError } from '../utils/spaceKey';
 import { boardPath, backlogPath, issuesPath, releasesPath, settingsPath } from '../utils/spaceRoutes';
 import { spaceColor, readableTextOn } from '../utils/spaceColors';
 import { useCurrentUser } from '../composables/useCurrentUser';
+import { useSavedFilters } from '../composables/useSavedFilters';
+import { filterLink, STAR_ICON } from '../utils/filters';
 
 const props = defineProps({
   spaces: {
@@ -290,13 +311,19 @@ const navItems = computed(() => {
   if (space) {
     list.push({ label: 'バックログ', to: backlogPath(space), icon: ['M8 6h13', 'M8 12h13', 'M8 18h13', 'M3 6h.01', 'M3 12h.01', 'M3 18h.01'] });
   }
-  list.push({ label: '課題一覧', to: issuesPath(space), icon: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'] });
+  list.push({ label: '課題一覧', to: issuesPath(space), filters: true, icon: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'] });
   if (space) {
     list.push({ label: 'リリース', to: releasesPath(space), icon: ['M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z', 'M7 7h.01'] });
     list.push({ label: '設定', to: settingsPath(space), icon: SETTINGS_ICON });
   }
   return list;
 });
+
+// お気に入りのフィルター。ログインしてから読む
+const { filters: savedFilters, reload: reloadFilters } = useSavedFilters();
+const favouriteFilters = computed(() => savedFilters.value.filter(filter => filter.Favourite));
+onMounted(reloadFilters);
+const isFilterActive = (filter) => route.path === '/issues' && route.query.filter === String(filter.ID);
 
 // リリースはバージョンの詳細（/releases/:id）でも選択中にする。課題一覧は絞り込みのクエリを除いたパスで比べる
 const isActive = (to) => {

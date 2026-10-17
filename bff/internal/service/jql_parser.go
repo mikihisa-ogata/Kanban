@@ -426,6 +426,14 @@ func (p *jqlParser) parseValue(inList bool) (jqlValue, error) {
 }
 
 func (p *jqlParser) parseList() ([]jqlValue, error) {
+	// IN の後の関数は、値の一覧を返すものとして括弧なしでも書ける（Jira と同じ。例: issuekey IN issueHistory()）
+	if t := p.peek(); t.kind == tokWord && p.tokens[p.i+1].kind == tokLParen {
+		v, err := p.parseValue(false)
+		if err != nil {
+			return nil, err
+		}
+		return []jqlValue{v}, nil
+	}
 	open := p.next()
 	if open.kind != tokLParen {
 		return nil, jqlErrorf(open.pos, "IN の後には値の一覧が必要です（例: IN (Done, Open)）")

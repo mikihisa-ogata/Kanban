@@ -71,6 +71,7 @@ func main() {
 	sprintHandler := handler.NewSprintHandler(service.NewSprintService(sprintRepo, repo, spaceRepo))
 	versionHandler := handler.NewVersionHandler(service.NewVersionService(versionRepo, repo, spaceRepo))
 	jqlHandler := handler.NewJQLHandler(service.NewJQLService(repo, spaceRepo, statusRepo, userRepo, epicRepo, sprintRepo, versionRepo))
+	filterHandler := handler.NewFilterHandler(service.NewFilterService(repository.NewFilterMySQLRepository(db)), service.NewIssueViewService(repository.NewIssueViewMySQLRepository(db), repo))
 	componentHandler := handler.NewComponentHandler(service.NewComponentService(repository.NewComponentMySQLRepository(db), repo, epicRepo, spaceRepo, userRepo, watcherRepo, historyRepo, statusRepo))
 
 	r.POST("/auth/signup", authHandler.Signup)
@@ -97,6 +98,7 @@ func main() {
 	api.GET("/issues/search", h.SearchIssues)
 	api.GET("/issues/jql", jqlHandler.SearchJQL)
 	api.GET("/issues/:key", h.GetIssue)
+	api.POST("/todos/:id/view", filterHandler.RecordView)
 	api.GET("/labels", h.GetLabels)
 	api.POST("/todos/:id/links", h.AddLink)
 	api.DELETE("/links/:id", h.DeleteLink)
@@ -155,6 +157,12 @@ func main() {
 	api.PUT("/components/:id", componentHandler.UpdateComponent)
 	api.DELETE("/components/:id", componentHandler.DeleteComponent)
 	api.PUT("/todos/:id/components", componentHandler.SetTodoComponents)
+
+	api.GET("/filters", filterHandler.GetFilters)
+	api.POST("/filters", filterHandler.CreateFilter)
+	api.PUT("/filters/:id", filterHandler.UpdateFilter)
+	api.PUT("/filters/:id/favourite", filterHandler.SetFavourite)
+	api.DELETE("/filters/:id", filterHandler.DeleteFilter)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)

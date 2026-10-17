@@ -18,7 +18,8 @@
       role="dialog"
       :aria-label="label"
     >
-      <slot />
+      <!-- close でパネルを閉じる（パネルの中で操作を終えたとき） -->
+      <slot :close="() => (open = false)" />
     </div>
   </div>
 </template>

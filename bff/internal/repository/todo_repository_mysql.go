@@ -342,7 +342,7 @@ func (r *todoMySQLRepository) Delete(id int) error {
 		id, id, id, id); err != nil {
 		return err
 	}
-	for _, table := range []string{"comments", "issue_history", "worklogs", "watchers", "notifications", "todo_versions", "todo_components"} {
+	for _, table := range []string{"comments", "issue_history", "worklogs", "watchers", "notifications", "todo_versions", "todo_components", "issue_views"} {
 		if _, err := tx.Exec(
 			"DELETE FROM "+table+" WHERE todo_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)",
 			id, id); err != nil {

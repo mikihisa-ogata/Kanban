@@ -394,10 +394,11 @@ GET /issues/jql?jql=project = DEV AND status != Done AND assignee = currentUser(
 
 Jira の JQL の簡易版で課題を検索します。レスポンスは `GET /issues/search` と同じ形です。`jql` が空なら全課題を作成日の新しい順に返します。
 
-- 項目: `project`（スペースのキーか名前。`TASK` はスペース未割り当て）・`type`（`issuetype`）・`status`・`statusCategory`（`ToDo`・`"In Progress"`・`Done`）・`priority`・`assignee`・`reporter`（ユーザー ID・メール・表示名）・`labels`・`epic`（`"epic link"`。ID か名前）・`sprint`（ID か名前）・`fixVersion`（ID か名前）・`created`・`updated`・`due`（`duedate`）・`text`。項目名・キーワード・名前は大文字・小文字を区別しません。
+- 項目: `project`（スペースのキーか名前。`TASK` はスペース未割り当て）・`type`（`issuetype`）・`status`・`statusCategory`（`ToDo`・`"In Progress"`・`Done`）・`priority`・`assignee`・`reporter`（ユーザー ID・メール・表示名）・`labels`・`epic`（`"epic link"`。ID か名前）・`sprint`（ID か名前）・`fixVersion`（ID か名前）・`created`・`updated`・`due`（`duedate`）・`text`・`issuekey`（`key`・`issue`。課題キー）。項目名・キーワード・名前は大文字・小文字を区別しません。
 - 演算子: `=`・`!=`・`IN (…)`・`NOT IN (…)`・`~`（`text` だけ。要約・説明・課題キー）・`>`・`>=`・`<`・`<=`（`priority`・`created`・`updated`・`due`。優先度は高いほど大きい）・`IS EMPTY`・`IS NOT EMPTY`（`assignee`・`reporter`・`labels`・`epic`・`sprint`・`fixVersion`・`due`）。条件は `AND`・`OR`・`NOT` と括弧で組み合わせます（`AND` が `OR` より先）。`NOT IN` と `!=` は値のない課題には合いません（Jira と同じ）。
-- 値に空白や記号を含むときは `"…"` か `'…'` で囲みます。関数: `currentUser()`・`openSprints()`・`closedSprints()`・`futureSprints()`・`releasedVersions()`・`unreleasedVersions()`・`now()`・`startOfDay()`。日付は `2026-10-01`・`"2026-10-01 09:00"`、相対日付は `-7d`・`2w`・`-1h`・`-30m`（現在からの差）。日付だけの値はその日全体を表します（`created = 2026-10-01` はその日に作成）。
-- `ORDER BY 項目 [ASC|DESC], …` で並べ替えます（項目は `GET /issues/search` の `sort` と同じ。`priority DESC` が高い順）。
+- 値に空白や記号を含むときは `"…"` か `'…'` で囲みます。関数: `currentUser()`・`issueHistory()`（`issuekey` に使う。自分が詳細を表示した課題）・`openSprints()`・`closedSprints()`・`futureSprints()`・`releasedVersions()`・`unreleasedVersions()`・`now()`・`startOfDay()`。日付は `2026-10-01`・`"2026-10-01 09:00"`、相対日付は `-7d`・`2w`・`-1h`・`-30m`（現在からの差）。日付だけの値はその日全体を表します（`created = 2026-10-01` はその日に作成）。
+- `IN` の後の関数は括弧なしでも書けます（例: `issuekey IN issueHistory()`、`sprint IN openSprints()`）。
+- `ORDER BY 項目 [ASC|DESC], …` で並べ替えます（項目は `GET /issues/search` の `sort` と同じ。`priority DESC` が高い順）。`lastViewed` は自分が最後に表示した日時の順です（表示していない課題は末尾）。
 - 値はすべてプレースホルダで SQL に渡します。
 - JQL の誤り（構文・存在しない項目や値）は 400 で、位置（先頭からの文字数。0 から）を返します。
 
@@ -737,6 +738,27 @@ Jira のコンポーネント（スペース内の機能区分）です。コン
 - `PUT /todos/:id/components` は課題のコンポーネントを `componentIds` に置き換え（`[]` ですべて外す）、変更後の課題を `todo` に入れて返します。課題の担当者が未割り当てなら、新しく付けたコンポーネントのうち ID 順で最初に既定の担当者を持つものの、その人を担当者にします（変更履歴に残り、担当者はウォッチャーになります）。担当者がいる課題では担当者を変えません。コンポーネントは課題と同じスペースのものに限り（違えば 400）、課題・コンポーネントが存在しなければ 404 です。
 - 課題のスペースが変わると、コンポーネントはスペースに属するので外れます。スペースを削除すると、そのコンポーネントも削除します。
 
+### 保存済みフィルター
+
+```
+GET    /filters
+POST   /filters                {"name": "自分のバグ", "jql": "assignee = currentUser() AND type = Bug", "favourite": true}
+PUT    /filters/:id            {"name": "自分のバグ", "jql": "assignee = currentUser() AND type = Bug ORDER BY priority DESC"}
+PUT    /filters/:id/favourite  {"favourite": false}
+DELETE /filters/:id
+POST   /todos/:id/view
+```
+
+```json
+{ "ID": 1, "OwnerID": 1, "Name": "自分のバグ", "JQL": "assignee = currentUser() AND type = Bug", "Favourite": true, "CreatedAt": "2026-10-17T04:55:58Z", "UpdatedAt": "2026-10-17T04:55:58Z" }
+```
+
+- JQL（課題一覧の検索条件）に名前を付けて保存します（Jira のフィルター）。フィルターは作ったユーザーだけのもので、ほかのユーザーのフィルターは一覧に出ず、変更・削除は 404 です。
+- `GET /filters` はログイン中のユーザーのフィルターを名前順に返します。`POST /filters` は 201 で `filter` に入れて返し、`PUT /filters/:id`（名前と JQL の上書き）・`PUT /filters/:id/favourite`（お気に入りのスターを付ける・外す）は 200 で `filter` に入れて返します。
+- 名前は前後の空白を除いて 1〜100 文字で、同じユーザーに同じ名前（大文字・小文字は区別しない）があれば 409 です。JQL は 4000 文字以内で、空ならすべての課題です。JQL は構文だけを確かめ、誤りは `GET /issues/jql` と同じく 400 で `position` も返します（存在しない名前などは検索するときに誤りになります）。
+- `POST /todos/:id/view` はログイン中のユーザーが課題を表示したことを記録します（課題ごとに最後の日時だけ）。JQL の `issueHistory()`・`ORDER BY lastViewed` に使います。課題がなければ 404 です。
+- 既定のフィルター（自分の未完了課題・報告した課題・最近表示した課題・すべての課題）はフロントエンドが JQL として持ちます（`frontend/src/utils/filters.js`）。
+
 ### エピック
 
 ```
@@ -781,7 +803,7 @@ DELETE /spaces/:id
 
 ## データ永続化
 
-データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions`・`watchers`・`notifications`・`sprints`・`sprint_issues`・`versions`・`todo_versions`・`components`・`todo_components` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
+データは MySQL の `spaces`・`epics`・`todos`・`labels`・`todo_labels`・`issue_links`・`comments`・`issue_history`・`attachments`・`worklogs`・`statuses`・`users`・`sessions`・`watchers`・`notifications`・`sprints`・`sprint_issues`・`versions`・`todo_versions`・`components`・`todo_components`・`saved_filters`・`issue_views` テーブルに保存します（添付ファイルの本体は `ATTACHMENTS_DIR` のディレクトリ）。テーブルは起動時に `internal/database` の `Migrate` が作成します（`CREATE TABLE IF NOT EXISTS`）。
 
 - `todos.position` がタスクの表示順です。
 - `EpicID`・`SpaceID` の 0 は「未割り当て」を表すため、外部キー制約は付けていません。
@@ -801,6 +823,7 @@ DELETE /spaces/:id
 - スプリントは `sprints` に、スペース `space_id`・名前 `name`・ゴール `goal`・状態 `state`（`future`・`active`・`closed`）・期間 `start_date`・`end_date`（`DATE`、`NULL` は未設定）・完了した日時 `completed_at`（`NULL` は未完了）・作成日時 `created_at` で保存し、課題は `todos.sprint_id`（0 はバックログ）で指します。完了したときの記録は `sprint_issues` に、スプリント `sprint_id`・課題 `todo_id`・その時点のストーリーポイント `story_points`・完了していたか `completed` で保存します。`todos.sprint_id` がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します（既存の課題は 0 = バックログ）。
 - バージョンは `versions` に、スペース `space_id`・名前 `name`・説明 `description`・状態 `status`（`unreleased`・`released`・`archived`）・開始日 `start_date`・リリース日 `release_date`（`DATE`、`NULL` は未設定）・作成日時 `created_at` で保存します。課題の修正バージョンは多対多を `todo_versions`（`todo_id`・`version_id`）で表します。課題やバージョンを削除すると `todo_versions` の行も削除します。
 - コンポーネントは `components` に、スペース `space_id`・名前 `name`・説明 `description`・既定の担当者 `default_assignee_id`（`users.id`。0 はなし）・作成日時 `created_at` で保存します。課題のコンポーネントは多対多を `todo_components`（`todo_id`・`component_id`）で表します。課題やコンポーネントを削除すると `todo_components` の行も削除します。
+- 保存済みフィルターは `saved_filters` に、作ったユーザー `owner_id`（`users.id`）・名前 `name`・JQL `jql`・お気に入り `favourite`・作成日時 `created_at`・更新日時 `updated_at` で保存します。課題を表示した記録は `issue_views` に、ユーザー `user_id`・課題 `todo_id`・最後に表示した日時 `viewed_at`（`DATETIME(3)`、UTC）で保存します。課題を削除すると `issue_views` の行も削除します。
 - ラベルは `labels` に持ちます。`name` の照合順序は `utf8mb4_bin` です（既定の照合順序では、ひらがなとカタカナや全角と半角が同じとみなされるため）。大文字・小文字の違いだけのラベルは、保存時に既存のラベルにまとめます。タスクとの多対多を `todo_labels`（`todo_id`・`label_id`）で表します。タスクを削除すると `todo_labels` の行も削除します（ラベル自体は残ります）。
 - ユーザーは `users` に、表示名 `display_name`・メールアドレス `email`（小文字に正規化。一意）・パスワードのハッシュ `password_hash`（bcrypt）・アバターの色 `avatar_color`・作成日時 `created_at` で保存します。ログインのセッションは `sessions` に、トークンの SHA-256 `token_hash`・ユーザー `user_id`・作成日時 `created_at`・有効期限 `expires_at` で保存します。期限切れのセッションはログインのときに削除します。
 - `epics`・`todos` の `created_at`・`updated_at` は作成日時・最終更新日時（`DATETIME`、UTC、秒単位）です。これらの列がない既存のデータベースでは、起動時に `Migrate` が `ALTER TABLE` で追加します。その時点で既にあった行の作成日時・更新日時は、列を追加した日時になります。

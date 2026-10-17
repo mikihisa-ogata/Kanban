@@ -22,6 +22,14 @@ export const todosApi = {
     return response.json();
   },
 
+  // 課題を表示したことを記録する（JQL の issueHistory()、既定のフィルター「最近表示した課題」に出る）
+  async recordView(id) {
+    const response = await apiFetch(`${API_BASE_URL}/todos/${id}/view`, { method: 'POST' });
+    if (!response.ok) {
+      throw new Error('Failed to record view');
+    }
+  },
+
   // 課題一覧（課題ナビゲーター）の 1 ページ分 { Issues, Total, Page, PerPage }。
   // params は URLSearchParams（space・type・status・assignee・label は繰り返して複数指定。text・sort・order・page・perPage）
   async search(params) {

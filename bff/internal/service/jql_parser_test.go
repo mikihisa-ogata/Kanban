@@ -89,6 +89,8 @@ func TestParseJQL(t *testing.T) {
 		{"status IN (Done, \"In Progress\", 'To Do')", `[status in (Done, "In Progress", "To Do")]`},
 		{"status not in (Done)", "[status not in (Done)]"},
 		{"assignee IN (EMPTY, currentUser())", "[assignee in (EMPTY, currentUser())]"},
+		{"issuekey IN issueHistory()", "[issuekey in (issueHistory())]"},
+		{"sprint not in openSprints() AND a = 1", "([sprint not in (openSprints())] AND [a = 1])"},
 		{"assignee IS EMPTY", "[assignee is empty]"},
 		{"assignee is not null", "[assignee is not empty]"},
 		// = EMPTY・!= EMPTY は IS EMPTY・IS NOT EMPTY と同じ
@@ -137,6 +139,7 @@ func TestParseJQL_Errors(t *testing.T) {
 		{"status = 'Done", 9, "閉じられていません"},
 		{"status ! Done", 7, "「=」が必要"},
 		{"status IN Done", 10, "値の一覧"},
+		{"issuekey IN issueHistory(1)", 25, "引数"},
 		{"status IN ()", 11, "値が必要"},
 		{"status IN (Done", 15, "「,」か「)」"},
 		{"status IN (Done Open)", 16, "「,」か「)」"},

@@ -352,7 +352,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import OptionSelect from './OptionSelect.vue';
 import IssueTypeIcon from './IssueTypeIcon.vue';
 import PriorityIcon from './PriorityIcon.vue';
@@ -368,6 +368,7 @@ import AttachmentSection from './AttachmentSection.vue';
 import TimeTrackingSection from './TimeTrackingSection.vue';
 import UserPicker from './UserPicker.vue';
 import WatchButton from './WatchButton.vue';
+import { todosApi } from '../api/todos';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { formatStoryPoints, parseStoryPoints } from '../utils/storyPoints';
 import { ISSUE_TYPE_OPTIONS, SUBTASK_ISSUE_TYPE } from '../utils/issueTypes';
@@ -589,6 +590,13 @@ const saveDescription = () => {
 watch(() => props.task.ID, () => {
   editing.value = null;
 });
+
+// 表示した課題を記録する（既定のフィルター「最近表示した課題」に出る）。ブラウザで表示したときだけ
+const recordView = () => {
+  todosApi.recordView(props.task.ID).catch(err => console.error('Failed to record issue view:', err));
+};
+onMounted(recordView);
+watch(() => props.task.ID, recordView);
 
 const copied = ref(false);
 let copiedTimer = null;

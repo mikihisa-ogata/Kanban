@@ -20,6 +20,8 @@ type IssueSearch struct {
 	Filter *IssueFilter
 	// Order は並べ替え（JQL の ORDER BY）。空なら Sort・Desc で並べ替える
 	Order []IssueOrder
+	// ViewerID は lastViewed（最後に表示した日時）で並べ替えるときの、表示したユーザー
+	ViewerID int
 	// Sort は並べ替える列（IssueSortFields のいずれか）。Desc が true なら降順
 	Sort string
 	Desc bool
@@ -50,6 +52,9 @@ const (
 	IssueSortDue      = "due"
 )
 
+// IssueSortLastViewed は最後に表示した日時（ViewerID のユーザーが表示した日時。表示していない課題は末尾）。JQL の ORDER BY だけで使える
+const IssueSortLastViewed = "lastViewed"
+
 // IssueSortFields は並べ替えに使える列の一覧
 var IssueSortFields = []string{IssueSortKey, IssueSortType, IssueSortSummary, IssueSortStatus, IssueSortAssignee, IssueSortReporter, IssueSortPriority, IssueSortCreated, IssueSortUpdated, IssueSortDue}
 
@@ -74,7 +79,7 @@ func (q *IssueSearch) Normalize() error {
 		return ErrInvalidIssueSort
 	}
 	for _, o := range q.Order {
-		if !validSortField(o.Field) {
+		if !validSortField(o.Field) && !(o.Field == IssueSortLastViewed && q.ViewerID != 0) {
 			return ErrInvalidIssueSort
 		}
 	}

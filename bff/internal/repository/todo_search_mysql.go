@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"strconv"
 	"strings"
 
 	"todo-api/internal/domain"
@@ -47,7 +48,7 @@ func (r *todoMySQLRepository) Search(q domain.IssueSearch) (domain.IssueSearchRe
 	}
 	order := []string{}
 	for _, sort := range sorts {
-		order = append(order, issueOrderColumns(sort)...)
+		order = append(order, issueOrderColumns(sort, q.ViewerID)...)
 	}
 	order = append(order, "t.id"+sortDirection(sorts[0].Desc))
 
@@ -104,8 +105,13 @@ func (r *todoMySQLRepository) Search(q domain.IssueSearch) (domain.IssueSearchRe
 	return result, nil
 }
 
-// issueOrderColumns は並べ替えの 1 つの列の ORDER BY の式。値のない行は向きによらず末尾にする
-func issueOrderColumns(sort domain.IssueOrder) []string {
+// issueOrderColumns は並べ替えの 1 つの列の ORDER BY の式。値のない行は向きによらず末尾にする。
+// lastViewed は viewerID のユーザーが表示した日時（ID は数値なので式に埋め込む）
+func issueOrderColumns(sort domain.IssueOrder, viewerID int) []string {
+	if sort.Field == domain.IssueSortLastViewed {
+		viewed := "(SELECT iv.viewed_at FROM issue_views iv WHERE iv.todo_id = t.id AND iv.user_id = " + strconv.Itoa(viewerID) + ")"
+		return []string{viewed + " IS NULL", viewed + sortDirection(sort.Desc)}
+	}
 	order := []string{}
 	if nullableSortColumns[sort.Field] {
 		order = append(order, issueSortColumns[sort.Field][0]+" IS NULL")

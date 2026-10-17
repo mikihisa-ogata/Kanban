@@ -1,7 +1,129 @@
 <template>
   <!-- 課題一覧（Jira の課題ナビゲーター）。全スペースを横断して絞り込み・並べ替えし、選んだ課題を右に出す -->
   <SpaceShell :spaces="spaces" :current-space="currentSpace" @changed="handleSpacesChanged">
-    <PageToolbar :crumbs="[{ label: '課題一覧' }]">
+    <PageToolbar :crumbs="crumbs">
+      <template #chips>
+        <span v-if="filterModified" :class="toolbarChipClass()" title="開いたフィルターから条件を変えています">変更あり</span>
+      </template>
+
+      <!-- フィルター（既定のフィルターと、自分が保存したフィルター）を開く -->
+      <ToolbarMenu label="フィルター">
+        <template #default="{ close }">
+          <div class="w-72 flex flex-col gap-3 text-sm">
+            <section>
+              <h3 class="m-0 mb-1 text-xs font-semibold text-muted">既定のフィルター</h3>
+              <ul class="m-0 p-0 list-none flex flex-col gap-0.5">
+                <li v-for="filter in DEFAULT_FILTERS" :key="filter.id">
+                  <NuxtLink :to="filterLink(filter)" :class="filterItemClass(filter.id)" :title="filter.jql" @click="close">
+                    {{ filter.name }}
+                  </NuxtLink>
+                </li>
+              </ul>
+            </section>
+            <section>
+              <h3 class="m-0 mb-1 text-xs font-semibold text-muted">自分のフィルター</h3>
+              <ul v-if="savedFilters.length" class="m-0 p-0 list-none flex flex-col gap-0.5 max-h-64 overflow-y-auto">
+                <li v-for="filter in savedFilters" :key="filter.ID" class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    :class="starButtonClass(filter.Favourite)"
+                    :title="filter.Favourite ? 'お気に入りから外す' : 'お気に入りにする（左ナビに出す）'"
+                    :aria-pressed="filter.Favourite"
+                    @click="toggleFavourite(filter)"
+                  >
+                    <svg class="w-4 h-4 block" viewBox="0 0 24 24" :fill="filter.Favourite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+                      <path :d="STAR_ICON" />
+                    </svg>
+                  </button>
+                  <NuxtLink :to="filterLink(filter)" :class="['flex-1 min-w-0 truncate', filterItemClass(String(filter.ID))]" :title="filter.JQL || 'すべての課題'" @click="close">
+                    {{ filter.Name }}
+                  </NuxtLink>
+                </li>
+              </ul>
+              <p v-else class="m-0 px-2 text-xs text-muted">保存したフィルターはまだありません。条件を決めて「名前を付けて保存」から保存できます。</p>
+            </section>
+          </div>
+        </template>
+      </ToolbarMenu>
+
+      <!-- 開いている保存済みフィルターの操作 -->
+      <template v-if="currentFilter && currentFilter.saved">
+        <button
+          type="button"
+          :class="[toolbarButtonClass(), currentFilter.favourite ? 'text-warning' : '']"
+          :title="currentFilter.favourite ? 'お気に入りから外す' : 'お気に入りにする（左ナビに出す）'"
+          :aria-pressed="currentFilter.favourite"
+          @click="toggleFavourite(currentSavedFilter)"
+        >
+          <svg class="w-3.5 h-3.5 block" viewBox="0 0 24 24" :fill="currentFilter.favourite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+            <path :d="STAR_ICON" />
+          </svg>
+          お気に入り
+        </button>
+        <button v-if="filterModified" type="button" :class="toolbarButtonClass(true)" title="開いているフィルターを今の条件で上書きする" @click="overwriteFilter">
+          保存
+        </button>
+      </template>
+      <ToolbarMenu label="名前を付けて保存">
+        <template #default="{ close }">
+          <form class="w-72 flex flex-col gap-2 text-sm" @submit.prevent="saveAsFilter(close)">
+            <label for="filter-name" class="text-xs font-semibold text-muted">フィルターの名前</label>
+            <input
+              id="filter-name"
+              v-model="newFilterName"
+              type="text"
+              maxlength="100"
+              placeholder="例: 今週の自分のバグ"
+              class="w-full px-2 py-1 border border-line rounded-md text-sm text-fg bg-surface focus:outline-none focus:border-accent"
+            />
+            <label class="flex items-center gap-2 text-xs text-fg">
+              <input v-model="newFilterFavourite" type="checkbox" />
+              お気に入りにする（左ナビに出す）
+            </label>
+            <p class="m-0 text-xs text-muted break-all">条件: <code class="font-mono">{{ currentJql || '（すべての課題）' }}</code></p>
+            <p v-if="filterFormError" class="m-0 text-xs text-danger">{{ filterFormError }}</p>
+            <button
+              type="submit"
+              :disabled="!newFilterName.trim() || filterSaving"
+              class="self-end px-2.5 py-1 border-0 rounded-md bg-accent text-on-accent text-xs font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              保存
+            </button>
+          </form>
+        </template>
+      </ToolbarMenu>
+      <ToolbarMenu v-if="currentFilter && currentFilter.saved" label="編集">
+        <template #default="{ close }">
+          <form class="w-72 flex flex-col gap-2 text-sm" @submit.prevent="renameFilter(close)">
+            <label for="filter-rename" class="text-xs font-semibold text-muted">フィルターの名前</label>
+            <input
+              id="filter-rename"
+              v-model="renameDraft"
+              type="text"
+              maxlength="100"
+              class="w-full px-2 py-1 border border-line rounded-md text-sm text-fg bg-surface focus:outline-none focus:border-accent"
+            />
+            <p v-if="filterFormError" class="m-0 text-xs text-danger">{{ filterFormError }}</p>
+            <div class="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                class="px-2.5 py-1 border-0 rounded-md bg-transparent text-xs font-semibold text-danger cursor-pointer hover:bg-danger/10"
+                @click="close(); deletingFilter = true"
+              >
+                フィルターを削除
+              </button>
+              <button
+                type="submit"
+                :disabled="!renameDraft.trim() || filterSaving"
+                class="px-2.5 py-1 border-0 rounded-md bg-accent text-on-accent text-xs font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                名前を変更
+              </button>
+            </div>
+          </form>
+        </template>
+      </ToolbarMenu>
+
       <!-- 基本（フィルターで選ぶ）と JQL（クエリを書く）の切り替え -->
       <div class="flex p-0.5 rounded-md bg-raised" role="group" aria-label="検索の方法">
         <button type="button" :class="modeButton(!jqlMode)" :aria-pressed="!jqlMode" @click="switchToBasic">基本</button>
@@ -190,6 +312,14 @@
       </div>
     </div>
 
+    <ConfirmDialog
+      v-if="deletingFilter && currentFilter"
+      title="フィルターを削除しますか？"
+      :message="`「${currentFilter.name}」を削除します。課題は消えません。`"
+      @confirm="deleteFilter"
+      @cancel="deletingFilter = false"
+    />
+
     <div v-if="error" class="fixed bottom-8 right-8 bg-danger/10 text-danger px-6 py-4 rounded-xl shadow-xl max-w-96 text-sm font-semibold border-l-4 border-danger animate-slideIn">
       {{ error }}
     </div>
@@ -206,6 +336,12 @@ import IssueTypeIcon from '~/components/IssueTypeIcon.vue';
 import PriorityIcon from '~/components/PriorityIcon.vue';
 import UserAvatar from '~/components/UserAvatar.vue';
 import JqlInput from '~/components/JqlInput.vue';
+import ToolbarMenu from '~/components/ToolbarMenu.vue';
+import ConfirmDialog from '~/components/ConfirmDialog.vue';
+import { filtersApi } from '~/api/filters';
+import { useSavedFilters } from '~/composables/useSavedFilters';
+import { DEFAULT_FILTERS, STAR_ICON, filterLink, findFilter } from '~/utils/filters';
+import { toolbarButtonClass, toolbarChipClass } from '~/utils/toolbar';
 import { todosApi } from '~/api/todos';
 import { spacesApi } from '~/api/spaces';
 import { epicsApi } from '~/api/epics';
@@ -284,6 +420,130 @@ const modeButton = (active) => [
   'px-2.5 py-0.5 border-0 rounded text-xs font-semibold cursor-pointer',
   active ? 'bg-surface text-fg shadow-sm' : 'bg-transparent text-muted hover:text-fg'
 ];
+
+// 保存済みフィルター（Jira のフィルター）。URL の ?filter= が開いているフィルター（既定のフィルターの id か、保存したフィルターの ID）
+const { filters: savedFilters, reload: reloadFilters } = useSavedFilters();
+const currentFilter = computed(() => findFilter(route.query.filter, savedFilters.value));
+const currentSavedFilter = computed(() => savedFilters.value.find(filter => String(filter.ID) === route.query.filter) || null);
+// 今の条件の JQL。基本モードでは条件を JQL に書き換えたもの
+const currentJql = computed(() => (jqlMode.value ? jql.value.trim() : basicSearchToJql(search.value, users.value)));
+// 開いたフィルターから条件を変えたか（空白の違いは無視する）
+const normalizeJql = (value) => value.trim().replace(/\s+/g, ' ');
+const filterModified = computed(() => !!currentFilter.value && normalizeJql(currentJql.value) !== normalizeJql(currentFilter.value.jql));
+const crumbs = computed(() => (currentFilter.value
+  ? [{ label: '課題一覧', to: '/issues' }, { label: currentFilter.value.name }]
+  : [{ label: '課題一覧' }]));
+
+const filterItemClass = (id) => [
+  'block px-2 py-1 rounded no-underline',
+  route.query.filter === id ? 'bg-raised text-fg font-semibold' : 'text-fg hover:bg-raised'
+];
+const starButtonClass = (active) => [
+  'shrink-0 p-1 border-0 rounded bg-transparent cursor-pointer hover:bg-raised',
+  active ? 'text-warning' : 'text-muted hover:text-fg'
+];
+
+const newFilterName = ref('');
+const newFilterFavourite = ref(false);
+const renameDraft = ref('');
+const filterFormError = ref('');
+const filterSaving = ref(false);
+const deletingFilter = ref(false);
+// 別のフィルターを開いたら、名前の欄と前の誤りを戻す
+watch(() => route.query.filter, () => {
+  renameDraft.value = currentFilter.value ? currentFilter.value.name : '';
+  filterFormError.value = '';
+}, { immediate: true });
+watch(() => currentFilter.value?.name, (name) => {
+  renameDraft.value = name || '';
+});
+
+// フィルターを開き直す（保存した JQL で検索する）。selectedIssue（開いている詳細）は残す
+const openFilter = (filter, replace = false) => {
+  const link = filterLink(filter);
+  const query = route.query.selectedIssue ? { ...link.query, selectedIssue: route.query.selectedIssue } : link.query;
+  return navigateTo({ path: link.path, query }, { replace });
+};
+
+const runFilterAction = async (action) => {
+  filterSaving.value = true;
+  filterFormError.value = '';
+  try {
+    await action();
+    return true;
+  } catch (err) {
+    filterFormError.value = err.message;
+    console.error('Failed to save filter:', err);
+    return false;
+  } finally {
+    filterSaving.value = false;
+  }
+};
+
+// 今の条件に名前を付けて保存し、そのフィルターを開く
+const saveAsFilter = async (close) => {
+  const ok = await runFilterAction(async () => {
+    const { filter } = await filtersApi.create({ name: newFilterName.value, jql: currentJql.value, favourite: newFilterFavourite.value });
+    await reloadFilters();
+    await openFilter(filter);
+  });
+  if (!ok) return;
+  newFilterName.value = '';
+  newFilterFavourite.value = false;
+  close();
+};
+
+// 開いているフィルターを今の条件で上書きする
+const overwriteFilter = async () => {
+  const filter = currentSavedFilter.value;
+  if (!filter) return;
+  try {
+    const res = await filtersApi.update(filter.ID, { name: filter.Name, jql: currentJql.value });
+    await reloadFilters();
+    await openFilter(res.filter, true);
+  } catch (err) {
+    error.value = 'フィルターの保存に失敗しました: ' + err.message;
+    console.error('Failed to overwrite filter:', err);
+  }
+};
+
+// 名前だけを変える（条件は保存してあるもののまま）
+const renameFilter = async (close) => {
+  const filter = currentSavedFilter.value;
+  if (!filter) return;
+  const ok = await runFilterAction(async () => {
+    await filtersApi.update(filter.ID, { name: renameDraft.value, jql: filter.JQL });
+    await reloadFilters();
+  });
+  if (ok) close();
+};
+
+const toggleFavourite = async (filter) => {
+  if (!filter) return;
+  try {
+    await filtersApi.setFavourite(filter.ID, !filter.Favourite);
+    await reloadFilters();
+  } catch (err) {
+    error.value = 'お気に入りの変更に失敗しました: ' + err.message;
+    console.error('Failed to set favourite:', err);
+  }
+};
+
+// 削除しても今の条件の一覧はそのまま出す（フィルターだけを外す）
+const deleteFilter = async () => {
+  const filter = currentSavedFilter.value;
+  deletingFilter.value = false;
+  if (!filter) return;
+  try {
+    await filtersApi.delete(filter.ID);
+    await reloadFilters();
+    const { filter: _, ...query } = route.query;
+    await navigateTo({ query }, { replace: true });
+  } catch (err) {
+    error.value = 'フィルターの削除に失敗しました: ' + err.message;
+    console.error('Failed to delete filter:', err);
+  }
+};
 
 // 表の見出しに出す並べ替え。JQL では ORDER BY の最初の列
 const currentSort = computed(() => (jqlMode.value ? jqlSortOf(jql.value) : { sort: search.value.sort, order: search.value.order }));
@@ -509,6 +769,6 @@ const handleSpacesChanged = async () => {
 };
 
 onMounted(async () => {
-  await Promise.all([fetchMasters(), fetchIssues(), fetchDetail()]);
+  await Promise.all([fetchMasters(), fetchIssues(), fetchDetail(), reloadFilters()]);
 });
 </script>

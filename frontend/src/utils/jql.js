@@ -147,12 +147,14 @@ const JQL_FIELDS = [
   { name: 'created', detail: '作成日時', ops: ['=', '!=', '>', '>=', '<', '<=', 'IN', 'NOT IN'] },
   { name: 'updated', detail: '更新日時', ops: ['=', '!=', '>', '>=', '<', '<=', 'IN', 'NOT IN'] },
   { name: 'due', detail: '期限', ops: ['=', '!=', '>', '>=', '<', '<=', 'IN', 'NOT IN', 'IS'] },
-  { name: 'text', detail: '要約・説明・キー', ops: ['~'] }
+  { name: 'text', detail: '要約・説明・キー', ops: ['~'] },
+  { name: 'issuekey', detail: '課題キー', ops: ['=', '!=', 'IN', 'NOT IN'] }
 ];
 
 // 項目の別名（bff の jqlFieldNames と同じ）
 const FIELD_ALIASES = {
-  issuetype: 'type', label: 'labels', 'epic link': 'epic', createddate: 'created', updateddate: 'updated', duedate: 'due'
+  issuetype: 'type', label: 'labels', 'epic link': 'epic', createddate: 'created', updateddate: 'updated', duedate: 'due',
+  key: 'issuekey', issue: 'issuekey'
 };
 const findField = (name) => {
   const lower = name.toLowerCase();
@@ -160,7 +162,7 @@ const findField = (name) => {
   return JQL_FIELDS.find(f => f.name.toLowerCase() === canonical);
 };
 
-const ORDER_COLUMNS = ['key', 'type', 'summary', 'status', 'assignee', 'reporter', 'priority', 'created', 'updated', 'due'];
+const ORDER_COLUMNS = ['key', 'type', 'summary', 'status', 'assignee', 'reporter', 'priority', 'created', 'updated', 'due', 'lastViewed'];
 
 const unique = (list) => [...new Set(list)];
 
@@ -222,6 +224,8 @@ const valueSuggestions = (field, masters, op) => {
         { label: '-30d', insert: '-30d', detail: '30 日前' },
         ...(field.name === 'due' ? [{ label: '7d', insert: '7d', detail: '7 日後' }] : [])
       ];
+    case 'issuekey':
+      return [fn('issueHistory', '最近表示した課題')];
   }
   return [];
 };
@@ -294,7 +298,8 @@ export const jqlSuggestions = (query, caret, masters) => {
         state = t.kind === 'word' || t.kind === 'string' ? 'logic' : 'unknown';
         break;
       case 'listOpen':
-        state = t.kind === 'lparen' ? 'listValue' : 'unknown';
+        // IN の後は値の一覧か、一覧を返す関数（例: issuekey IN issueHistory()）
+        state = t.kind === 'lparen' ? 'listValue' : t.kind === 'word' && t.text.endsWith('()') ? 'logic' : 'unknown';
         break;
       case 'listValue':
         if (t.kind === 'word' || t.kind === 'string') { state = 'listNext'; break; }
@@ -349,7 +354,7 @@ export const jqlSuggestions = (query, caret, masters) => {
       items = field ? valueSuggestions(field, masters, op) : [];
       break;
     case 'listOpen':
-      items = [{ label: '(', insert: '(' }];
+      items = [{ label: '(', insert: '(' }, ...(field && field.name === 'issuekey' ? valueSuggestions(field, masters, op) : [])];
       break;
     case 'listNext':
       items = [{ label: ',', insert: ',' }, { label: ')', insert: ')' }];

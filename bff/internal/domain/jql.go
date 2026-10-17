@@ -40,7 +40,8 @@ const (
 // 絞り込みに使える項目。Values の型:
 // project はスペースのキー（string。TASK はスペース未割り当て）、type は IssueType、status はステータス名（string）、
 // statusCategory は StatusCategory、priority は Priority、assignee・reporter はユーザー ID（int）、labels はラベル名（string）、
-// epic・sprint・fixVersion は ID（int）、created・updated は日時（time.Time）、due は日付（"2006-01-02" の string）、text は文字列
+// epic・sprint・fixVersion は ID（int）、created・updated は日時（time.Time）、due は日付（"2006-01-02" の string）、text は文字列、
+// key は課題キー（大文字の string。例: DEV-12）、viewedBy は課題を表示したユーザーの ID（int。JQL の issueHistory()）
 const (
 	FieldProject        = "project"
 	FieldType           = "type"
@@ -57,6 +58,8 @@ const (
 	FieldUpdated        = "updated"
 	FieldDue            = "due"
 	FieldText           = "text"
+	FieldKey            = "key"
+	FieldViewedBy       = "viewedBy"
 )
 
 // IssueOrder は並べ替えの 1 つの列（Field は IssueSortFields のいずれか）

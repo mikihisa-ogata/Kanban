@@ -33,6 +33,8 @@ type testRepos struct {
 	sprint     repository.SprintRepository
 	version    repository.VersionRepository
 	component  repository.ComponentRepository
+	filter     repository.FilterRepository
+	issueView  repository.IssueViewRepository
 	// notification は通知。history は main と同じく、記録するとウォッチャーへ通知を作る
 	notification repository.NotificationRepository
 	// attachmentsDir は添付ファイルの保存先（テストごとの一時ディレクトリ）
@@ -61,6 +63,8 @@ func newTestRepos(t *testing.T) testRepos {
 		sprint:         repository.NewSprintMySQLRepository(db),
 		version:        repository.NewVersionMySQLRepository(db),
 		component:      repository.NewComponentMySQLRepository(db),
+		filter:         repository.NewFilterMySQLRepository(db),
+		issueView:      repository.NewIssueViewMySQLRepository(db),
 		notification:   notifications,
 		history:        service.WithNotifications(repository.NewHistoryMySQLRepository(db), watchers, notifications),
 		attachmentsDir: dir,

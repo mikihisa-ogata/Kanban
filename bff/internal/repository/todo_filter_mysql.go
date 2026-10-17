@@ -25,6 +25,7 @@ var issueFilterColumns = map[string]string{
 	domain.FieldCreated:        "t.created_at",
 	domain.FieldUpdated:        "t.updated_at",
 	domain.FieldDue:            "t.deadline",
+	domain.FieldKey:            "CONCAT(COALESCE(s.space_key, '" + domain.UnassignedKeyPrefix + "'), '-', t.number)",
 }
 
 // issueFilterIDFields は 0 が「値がない」を表す項目
@@ -39,6 +40,7 @@ var issueFilterIDFields = map[string]bool{
 var issueFilterSets = map[string]struct{ query, value string }{
 	domain.FieldLabels:     {`SELECT tl.todo_id FROM todo_labels tl JOIN labels l ON l.id = tl.label_id`, "LOWER(l.name)"},
 	domain.FieldFixVersion: {`SELECT tv.todo_id FROM todo_versions tv`, "tv.version_id"},
+	domain.FieldViewedBy:   {`SELECT iv.todo_id FROM issue_views iv`, "iv.user_id"},
 }
 
 // priorityRanks は優先度の高い順（FIELD の位置）。大小の比較は高いほど大きいとする（Jira と同じ）

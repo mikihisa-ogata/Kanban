@@ -187,7 +187,7 @@ func TestResolveJQL_Errors(t *testing.T) {
 		{"sprint = 99", 9, "スプリント"},
 		{"fixVersion = v9", 13, "バージョン"},
 		{"labels = \"  \"", 9, "ラベルの名前"},
-		{"sprint IN openSprints()", 10, "値の一覧"},
+		{"assignee IN issueHistory()", 12, "関数 issueHistory() を使えません"},
 		// 項目と演算子・関数の組み合わせ
 		{"status IS EMPTY", 7, "EMPTY を使えません"},
 		{"project = EMPTY", 8, "EMPTY を使えません"},
