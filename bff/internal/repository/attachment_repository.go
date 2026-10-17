@@ -18,4 +18,6 @@ type AttachmentRepository interface {
 	Open(attachment domain.Attachment) (io.ReadCloser, error)
 	// Delete は添付ファイルの情報とファイル本体を削除する。存在しなければ not found のエラーを返す
 	Delete(id int) error
+	// RemoveFiles は添付ファイルの本体だけを削除する（情報は課題の削除で消したあと）。もうないファイルは無視する
+	RemoveFiles(attachments []domain.Attachment) error
 }

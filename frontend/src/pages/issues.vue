@@ -182,6 +182,8 @@
         </div>
       </div>
 
+      <BulkActions class="mb-3" :issues="selectedIssues" @changed="handleBulkChanged" @clear="clearSelection" />
+
       <div :class="['flex gap-4 items-start', detailKey ? 'flex-col xl:flex-row' : '']">
         <!-- 一覧 -->
         <section :class="['min-w-0 bg-surface rounded-2xl shadow-xl overflow-hidden', detailKey ? 'w-full xl:w-1/2' : 'w-full']">
@@ -189,6 +191,17 @@
             <table class="w-full border-collapse text-sm">
               <thead>
                 <tr class="bg-raised text-left text-xs text-muted">
+                  <th scope="col" class="w-8 pl-3 pr-0 py-2">
+                    <input
+                      type="checkbox"
+                      :checked="allSelected"
+                      :indeterminate.prop="someSelected && !allSelected"
+                      :disabled="!result.Issues.length"
+                      aria-label="このページの課題をすべて選択"
+                      class="block cursor-pointer"
+                      @change="toggleAll"
+                    />
+                  </th>
                   <th v-for="column in visibleColumns" :key="column.id" scope="col" class="px-3 py-2 font-semibold whitespace-nowrap" :aria-sort="ariaSort(column)">
                     <button
                       type="button"
@@ -210,6 +223,15 @@
                   :aria-selected="issue.Key === detailKey"
                   @click="openDetail(issue.Key)"
                 >
+                  <td class="w-8 pl-3 pr-0 py-2 align-middle" @click.stop>
+                    <input
+                      type="checkbox"
+                      :checked="selectedIds.has(issue.ID)"
+                      :aria-label="`${issue.Key} を選択`"
+                      class="block cursor-pointer"
+                      @change="toggleSelected(issue.ID)"
+                    />
+                  </td>
                   <td v-for="column in visibleColumns" :key="column.id" class="px-3 py-2 align-middle">
                     <IssueTypeIcon v-if="column.id === 'type'" :type="issue.IssueType" />
                     <a
@@ -244,10 +266,10 @@
                   </td>
                 </tr>
                 <tr v-if="!loading && !result.Issues.length">
-                  <td :colspan="visibleColumns.length" class="px-3 py-8 text-center text-sm text-muted">条件に合う課題はありません。</td>
+                  <td :colspan="visibleColumns.length + 1" class="px-3 py-8 text-center text-sm text-muted">条件に合う課題はありません。</td>
                 </tr>
                 <tr v-if="loading && !result.Issues.length">
-                  <td :colspan="visibleColumns.length" class="px-3 py-8 text-center text-sm text-muted">読み込み中...</td>
+                  <td :colspan="visibleColumns.length + 1" class="px-3 py-8 text-center text-sm text-muted">読み込み中...</td>
                 </tr>
               </tbody>
             </table>
@@ -338,6 +360,7 @@ import UserAvatar from '~/components/UserAvatar.vue';
 import JqlInput from '~/components/JqlInput.vue';
 import ToolbarMenu from '~/components/ToolbarMenu.vue';
 import ConfirmDialog from '~/components/ConfirmDialog.vue';
+import BulkActions from '~/components/BulkActions.vue';
 import { filtersApi } from '~/api/filters';
 import { useSavedFilters } from '~/composables/useSavedFilters';
 import { DEFAULT_FILTERS, STAR_ICON, filterLink, findFilter } from '~/utils/filters';
@@ -699,7 +722,43 @@ const fetchMasters = async () => {
   }
 };
 
-watch(() => JSON.stringify([search.value, jql.value, jqlMode.value]), fetchIssues);
+// 条件・ページが変わったら選択を解除して取り直す
+watch(() => JSON.stringify([search.value, jql.value, jqlMode.value]), () => {
+  clearSelection();
+  fetchIssues();
+});
+
+// 一括変更・一括削除のための選択（このページの課題の ID）
+const selectedIds = ref(new Set());
+const selectedIssues = computed(() => result.value.Issues.filter(issue => selectedIds.value.has(issue.ID)));
+const allSelected = computed(() => result.value.Issues.length > 0 && result.value.Issues.every(issue => selectedIds.value.has(issue.ID)));
+const someSelected = computed(() => result.value.Issues.some(issue => selectedIds.value.has(issue.ID)));
+const toggleSelected = (id) => {
+  const next = new Set(selectedIds.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  selectedIds.value = next;
+};
+const toggleAll = () => {
+  selectedIds.value = allSelected.value ? new Set() : new Set(result.value.Issues.map(issue => issue.ID));
+};
+const clearSelection = () => {
+  selectedIds.value = new Set();
+};
+// 取り直した一覧から消えた課題（削除した・条件に合わなくなった）は選択から外す
+watch(() => result.value.Issues, (issues) => {
+  const ids = new Set(issues.map(issue => issue.ID));
+  if ([...selectedIds.value].some(id => !ids.has(id))) {
+    selectedIds.value = new Set([...selectedIds.value].filter(id => ids.has(id)));
+  }
+});
+
+// 一括変更・一括削除のあと。一覧と開いている詳細、ラベルの候補を取り直す（詳細の課題を消したら閉じる）
+const handleBulkChanged = async () => {
+  await Promise.all([fetchIssues(), fetchMasters()]);
+  if (detailKey.value) await fetchDetail();
+  if (detailKey.value && !detailTask.value) closeDetail();
+};
 
 // 詳細（URL の ?selectedIssue=KAN-12 で表す。ボードと同じ）
 const detailKey = computed(() => (typeof route.query.selectedIssue === 'string' ? route.query.selectedIssue : ''));

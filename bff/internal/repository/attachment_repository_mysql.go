@@ -128,6 +128,15 @@ func (r *attachmentMySQLRepository) Delete(id int) error {
 	return nil
 }
 
+func (r *attachmentMySQLRepository) RemoveFiles(attachments []domain.Attachment) error {
+	for _, attachment := range attachments {
+		if err := os.Remove(filepath.Join(r.dir, attachment.StorageName)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
 // randomStorageName は推測できない保存名（32 文字の 16 進数）を返す
 func randomStorageName() (string, error) {
 	b := make([]byte, 16)

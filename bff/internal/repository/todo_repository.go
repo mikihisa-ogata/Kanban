@@ -13,6 +13,12 @@ type TodoRepository interface {
 	Update(id int, todo domain.Todo) error
 	// Delete はタスクと、そのサブタスクを削除する
 	Delete(id int) error
+	// UpdateMany は一括変更（各課題の変更後の内容・変更履歴・新しいウォッチャー）を 1 つのトランザクションで書き込む。
+	// どれか 1 件でも失敗したら（存在しない課題があるなど）全件を元のままにしてエラーを返す
+	UpdateMany(changes []domain.BulkIssueChange) error
+	// DeleteMany は課題とそのサブタスクを 1 つのトランザクションでまとめて削除する（添付ファイルの情報も消す。ファイル本体は消さない）。
+	// どれか 1 件でも失敗したら全件を元のままにしてエラーを返す
+	DeleteMany(ids []int) error
 	// FindLabels はいずれかのタスクに付いているラベルの名前を名前順に返す
 	FindLabels() ([]string, error)
 	// Move はタスクを beforeID のタスクの直前へ移動する。beforeID が 0 の場合は末尾へ移動する

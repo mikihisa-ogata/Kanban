@@ -11,17 +11,9 @@
 
       <template v-else>
         <div class="flex flex-wrap items-center gap-3 max-w-6xl">
-          <template v-if="selectedIds.size > 1">
-            <span class="ml-auto text-sm font-semibold text-fg">{{ selectedIds.size }} 件を選択中</span>
-            <button
-              type="button"
-              class="px-2 py-1 border-0 rounded bg-surface text-sm text-fg cursor-pointer hover:bg-raised"
-              @click="clearSelection"
-            >
-              選択を解除
-            </button>
-          </template>
-          <span v-else class="ml-auto text-xs text-muted">ドラッグで順位・スプリントを変更（Shift / ⌘ クリックで複数選択）</span>
+          <!-- 複数選択したら一括変更・一括削除できる -->
+          <BulkActions class="ml-auto" :issues="selectedIds.size > 1 ? selectedIssues : []" @changed="fetchAll" @clear="clearSelection" />
+          <span v-if="selectedIds.size <= 1" class="ml-auto text-xs text-muted">ドラッグで順位・スプリントを変更（Shift / ⌘ クリックで複数選択して一括変更）</span>
         </div>
 
         <!-- スプリント（開始中・未開始）とバックログの枠。課題はドラッグで枠の間を出し入れできる -->
@@ -262,6 +254,7 @@ import IssueDetail from '~/components/IssueDetail.vue';
 import IssueTypeIcon from '~/components/IssueTypeIcon.vue';
 import UserAvatar from '~/components/UserAvatar.vue';
 import ConfirmDialog from '~/components/ConfirmDialog.vue';
+import BulkActions from '~/components/BulkActions.vue';
 import SprintDialog from '~/components/SprintDialog.vue';
 import CompleteSprintDialog from '~/components/CompleteSprintDialog.vue';
 import { todosApi } from '~/api/todos';
@@ -374,6 +367,9 @@ const clearSelection = () => {
   selectedIds.value = new Set();
   anchorId.value = null;
 };
+
+// 選択中の課題（上から順）。一括変更・一括削除に渡す
+const selectedIssues = computed(() => rows.value.filter(todo => selectedIds.value.has(todo.ID)));
 
 const handleRowClick = (event, row) => {
   if (event.shiftKey && anchorId.value !== null) {

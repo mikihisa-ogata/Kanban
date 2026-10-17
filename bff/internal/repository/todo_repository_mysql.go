@@ -335,6 +335,35 @@ func (r *todoMySQLRepository) Delete(id int) error {
 	}
 	defer tx.Rollback()
 
+	if err := deleteTodo(tx, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// DeleteMany は課題ごとに Delete と同じものを消し、添付ファイルの情報も消す。すべて 1 つのトランザクションで行う
+func (r *todoMySQLRepository) DeleteMany(ids []int) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, id := range ids {
+		if _, err := tx.Exec(
+			`DELETE FROM attachments WHERE todo_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)`,
+			id, id); err != nil {
+			return err
+		}
+		if err := deleteTodo(tx, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// deleteTodo は tx の中で、タスクとそのサブタスク、それらに付いたもの（添付ファイルを除く）を削除する。タスクがなければエラーを返す
+func deleteTodo(tx *sql.Tx, id int) error {
 	if _, err := tx.Exec(
 		`DELETE FROM issue_links
 		 WHERE source_id IN (SELECT id FROM (SELECT id FROM todos WHERE id = ? OR parent_id = ?) AS deleted)
@@ -363,8 +392,59 @@ func (r *todoMySQLRepository) Delete(id int) error {
 	if err := requireAffected(result, "todo", id); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`DELETE FROM todo_labels WHERE todo_id = ?`, id); err != nil {
+	_, err = tx.Exec(`DELETE FROM todo_labels WHERE todo_id = ?`, id)
+	return err
+}
+
+// UpdateMany は各課題のステータス・完了・優先度・担当者・エピック・スプリント・ラベル・修正バージョンを書き換え、
+// 新しい担当者をウォッチャーに加え、変更履歴を記録する。更新日時と履歴の日時は同じ現在日時にする。
+// すべて 1 つのトランザクションで行い、存在しない課題があれば全件を元に戻す
+func (r *todoMySQLRepository) UpdateMany(changes []domain.BulkIssueChange) error {
+	tx, err := r.db.Begin()
+	if err != nil {
 		return err
+	}
+	defer tx.Rollback()
+
+	now := currentTime()
+	for _, change := range changes {
+		todo := change.Todo
+		var id int
+		err := tx.QueryRow(`SELECT id FROM todos WHERE id = ? FOR UPDATE`, todo.ID).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("todo with ID %d not found", todo.ID)
+		}
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(
+			`UPDATE todos SET status = ?, status_id = ?, done = ?, priority = ?, assignee_id = ?, epic_id = ?, sprint_id = ?, updated_at = ? WHERE id = ?`,
+			string(todo.Status), todo.StatusID, todo.Done, priorityOrDefault(todo.Priority), todo.AssigneeID, todo.EpicID, todo.SprintID, now, todo.ID); err != nil {
+			return err
+		}
+		if err := setLabels(tx, todo.ID, todo.Labels); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DELETE FROM todo_versions WHERE todo_id = ?`, todo.ID); err != nil {
+			return err
+		}
+		for _, versionID := range todo.FixVersionIDs {
+			if _, err := tx.Exec(`INSERT INTO todo_versions (todo_id, version_id) VALUES (?, ?)`, todo.ID, versionID); err != nil {
+				return err
+			}
+		}
+		if change.Watcher != 0 {
+			if _, err := tx.Exec(`INSERT IGNORE INTO watchers (todo_id, user_id, created_at) VALUES (?, ?, ?)`, todo.ID, change.Watcher, now); err != nil {
+				return err
+			}
+		}
+		for _, entry := range change.History {
+			if _, err := tx.Exec(
+				`INSERT INTO issue_history (todo_id, field, old_value, new_value, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+				entry.TodoID, entry.Field, entry.OldValue, entry.NewValue, entry.UserID, now); err != nil {
+				return err
+			}
+		}
 	}
 	return tx.Commit()
 }

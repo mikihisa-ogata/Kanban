@@ -72,6 +72,7 @@ func main() {
 	versionHandler := handler.NewVersionHandler(service.NewVersionService(versionRepo, repo, spaceRepo))
 	jqlHandler := handler.NewJQLHandler(service.NewJQLService(repo, spaceRepo, statusRepo, userRepo, epicRepo, sprintRepo, versionRepo))
 	filterHandler := handler.NewFilterHandler(service.NewFilterService(repository.NewFilterMySQLRepository(db)), service.NewIssueViewService(repository.NewIssueViewMySQLRepository(db), repo))
+	bulkHandler := handler.NewBulkHandler(service.NewBulkService(repo, epicRepo, spaceRepo, sprintRepo, versionRepo, userRepo, attachmentRepo, statusRepo, watcherRepo, notificationRepo))
 	componentHandler := handler.NewComponentHandler(service.NewComponentService(repository.NewComponentMySQLRepository(db), repo, epicRepo, spaceRepo, userRepo, watcherRepo, historyRepo, statusRepo))
 
 	r.POST("/auth/signup", authHandler.Signup)
@@ -98,6 +99,8 @@ func main() {
 	api.GET("/issues/search", h.SearchIssues)
 	api.GET("/issues/jql", jqlHandler.SearchJQL)
 	api.GET("/issues/:key", h.GetIssue)
+	api.POST("/issues/bulk-update", bulkHandler.UpdateIssues)
+	api.POST("/issues/bulk-delete", bulkHandler.DeleteIssues)
 	api.POST("/todos/:id/view", filterHandler.RecordView)
 	api.GET("/labels", h.GetLabels)
 	api.POST("/todos/:id/links", h.AddLink)

@@ -129,6 +129,36 @@ export const todosApi = {
     return response.json();
   },
 
+  // 課題の一括変更。changes は ids と変える項目（statusId・assigneeId・priority・addLabels・removeLabels・sprintId・epicId・
+  // addFixVersionIds・removeFixVersionIds。省略した項目は今のまま）。{ count }（変わった課題の数）を返す。
+  // 1 件でも変えられなければどの課題も変わらず、bff のメッセージのエラーを投げる
+  async bulkUpdate(changes) {
+    const response = await apiFetch(`${API_BASE_URL}/issues/bulk-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(changes)
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || 'Failed to bulk update issues');
+    }
+    return response.json();
+  },
+
+  // 課題（とそのサブタスク）の一括削除。{ count }（サブタスクを含めた削除した課題の数）を返す
+  async bulkDelete(ids) {
+    const response = await apiFetch(`${API_BASE_URL}/issues/bulk-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || 'Failed to bulk delete issues');
+    }
+    return response.json();
+  },
+
   // タスク削除
   async delete(id) {
     const response = await apiFetch(`${API_BASE_URL}/todos/${id}`, {

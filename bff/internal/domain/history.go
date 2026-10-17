@@ -25,8 +25,10 @@ const (
 	HistoryFieldEpic              = "epic"
 	HistoryFieldSpace             = "space"
 	HistoryFieldKey               = "key"
-	HistoryFieldAssignee          = "assignee" // 値は担当者の表示名
-	HistoryFieldReporter          = "reporter" // 値は報告者の表示名
+	HistoryFieldAssignee          = "assignee"    // 値は担当者の表示名
+	HistoryFieldReporter          = "reporter"    // 値は報告者の表示名
+	HistoryFieldSprint            = "sprint"      // 値はスプリントの名前。一括変更で記録する
+	HistoryFieldFixVersions       = "fixVersions" // 値は修正バージョンの名前を「, 」でつないだもの。一括変更で記録する
 )
 
 // HistoryEntry は課題の変更履歴の 1 件。値は変更時点の表示用の文字列で、nil は「なし」。

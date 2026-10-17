@@ -21,7 +21,9 @@ const FIELD_LABELS = {
   space: 'スペース',
   key: '課題キー',
   assignee: '担当者',
-  reporter: '報告者'
+  reporter: '報告者',
+  sprint: 'スプリント',
+  fixVersions: '修正バージョン'
 };
 
 // ステータスのカテゴリ（bff の domain.StatusCategory）
@@ -43,7 +45,7 @@ export const historyFieldLabel = (field) => FIELD_LABELS[field] ?? field;
 
 // 変更前・変更後の値を表示用の文字列にする。null は「なし」
 export const formatHistoryValue = (field, value) => {
-  if (value == null) return field === 'assignee' ? '未割り当て' : 'なし';
+  if (value == null) return field === 'assignee' ? '未割り当て' : field === 'sprint' ? 'バックログ' : 'なし';
   switch (field) {
     case 'status':
       return STATUS_LABELS[value] ?? value;
