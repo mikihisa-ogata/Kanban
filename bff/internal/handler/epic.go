@@ -40,9 +40,7 @@ func isEpicInputError(err error) bool {
 func (h *EpicHandler) GetEpics(c *gin.Context) {
 	epics, err := h.service.GetEpics()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -67,9 +65,7 @@ func (h *EpicHandler) CreateEpic(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -111,9 +107,7 @@ func (h *EpicHandler) UpdateEpic(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -134,9 +128,7 @@ func (h *EpicHandler) DeleteEpic(c *gin.Context) {
 
 	err = h.service.DeleteEpic(id, actorID(c))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 

@@ -122,7 +122,5 @@ func respondAttachmentError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrAttachmentEmpty):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

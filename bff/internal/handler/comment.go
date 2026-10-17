@@ -129,7 +129,5 @@ func respondCommentError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrCommentForbidden):
 		status = http.StatusForbidden
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

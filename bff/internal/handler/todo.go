@@ -23,9 +23,7 @@ func NewTodoHandler(s service.TodoService) *TodoHandler {
 func (h *TodoHandler) GetTodos(c *gin.Context) {
 	todos, err := h.service.GetTodos()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -42,9 +40,7 @@ func (h *TodoHandler) GetIssue(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -106,9 +102,7 @@ func (h *TodoHandler) SearchIssues(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -118,9 +112,7 @@ func (h *TodoHandler) SearchIssues(c *gin.Context) {
 func (h *TodoHandler) GetLabels(c *gin.Context) {
 	labels, err := h.service.GetLabels()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -160,9 +152,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -260,9 +250,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -284,9 +272,7 @@ func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 
 	err = h.service.DeleteTodo(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -319,9 +305,7 @@ func (h *TodoHandler) MoveTodo(c *gin.Context) {
 
 	err = h.service.MoveTodo(id, req.BeforeID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -372,9 +356,7 @@ func (h *TodoHandler) AddLink(c *gin.Context) {
 		})
 		return
 	case err != nil:
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -402,9 +384,7 @@ func (h *TodoHandler) DeleteLink(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -427,9 +407,7 @@ func (h *TodoHandler) GetHistory(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 

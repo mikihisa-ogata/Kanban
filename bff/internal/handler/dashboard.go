@@ -132,7 +132,5 @@ func respondDashboardError(c *gin.Context, err error) {
 		errors.Is(err, domain.ErrInvalidTrendDays), errors.Is(err, service.ErrInvalidActivityLimit):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

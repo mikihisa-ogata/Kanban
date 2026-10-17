@@ -22,9 +22,7 @@ func NewSpaceHandler(s service.SpaceService) *SpaceHandler {
 func (h *SpaceHandler) GetSpaces(c *gin.Context) {
 	spaces, err := h.service.GetSpaces()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -35,9 +33,7 @@ func (h *SpaceHandler) GetSpaces(c *gin.Context) {
 func (h *SpaceHandler) GetStatuses(c *gin.Context) {
 	statuses, err := h.service.GetStatuses()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -71,9 +67,7 @@ func (h *SpaceHandler) CreateSpace(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -125,9 +119,7 @@ func (h *SpaceHandler) UpdateSpace(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -140,9 +132,7 @@ func (h *SpaceHandler) UpdateSpace(c *gin.Context) {
 func (h *SpaceHandler) SuggestSpaceKey(c *gin.Context) {
 	key, err := h.service.SuggestSpaceKey(c.Query("title"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -163,9 +153,7 @@ func (h *SpaceHandler) DeleteSpace(c *gin.Context) {
 
 	err = h.service.DeleteSpace(id, actorID(c))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -323,7 +311,5 @@ func respondWorkflowError(c *gin.Context, err error) {
 		errors.Is(err, service.ErrInvalidStatusOrder):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

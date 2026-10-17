@@ -250,7 +250,5 @@ func respondSprintError(c *gin.Context, err error) {
 		errors.Is(err, domain.ErrSprintNotStarted):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

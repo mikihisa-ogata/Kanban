@@ -158,7 +158,5 @@ func respondAuthError(c *gin.Context, err error) {
 	case errors.Is(err, domain.ErrInvalidDisplayName), errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidPassword):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

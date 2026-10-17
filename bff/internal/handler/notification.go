@@ -22,9 +22,7 @@ func NewNotificationHandler(s service.NotificationService) *NotificationHandler 
 func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 	notifications, err := h.service.GetNotifications(actorID(c))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -45,9 +43,7 @@ func (h *NotificationHandler) MarkRead(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -59,9 +55,7 @@ func (h *NotificationHandler) MarkRead(c *gin.Context) {
 // MarkAllRead はログイン中のユーザーへの通知をすべて既読にする
 func (h *NotificationHandler) MarkAllRead(c *gin.Context) {
 	if err := h.service.MarkAllRead(actorID(c)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -117,9 +111,7 @@ func respondWatchers(c *gin.Context, watchers []domain.UserSummary, err error) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 

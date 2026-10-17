@@ -140,7 +140,5 @@ func respondWorklogError(c *gin.Context, err error) {
 		errors.Is(err, domain.ErrInvalidDuration):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

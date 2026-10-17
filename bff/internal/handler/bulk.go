@@ -144,7 +144,5 @@ func respondBulkError(c *gin.Context, err error) {
 		errors.Is(err, service.ErrVersionArchived):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

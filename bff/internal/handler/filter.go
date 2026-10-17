@@ -155,7 +155,5 @@ func respondFilterError(c *gin.Context, err error) {
 	case errors.Is(err, domain.ErrInvalidFilterName), errors.Is(err, domain.ErrInvalidFilterJQL):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }

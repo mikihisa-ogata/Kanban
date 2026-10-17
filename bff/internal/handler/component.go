@@ -140,7 +140,5 @@ func respondComponentError(c *gin.Context, err error) {
 		errors.Is(err, service.ErrUserNotFound):
 		status = http.StatusBadRequest
 	}
-	c.JSON(status, gin.H{
-		"error": err.Error(),
-	})
+	respondError(c, status, err)
 }
